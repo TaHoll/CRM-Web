@@ -98,22 +98,23 @@ const childrenMenus = computed(() => {
       childrenMenus.push(router.children[item])
     }
   })
-  return constantRoutes.concat(childrenMenus)
+  return childrenMenus.concat(constantRoutes)
 })
 
 // 默认激活的菜单
 const activeMenu = computed(() => {
   const path = route.path
   let activePath = path
+
   if (path !== undefined && path.lastIndexOf('/') > 0 && hideList.indexOf(path) === -1) {
     const tmpPath = path.substring(1, path.length)
-    if (!route.meta.link) {
-      activePath = '/' + tmpPath.substring(0, tmpPath.indexOf('/'))
-      appStore.toggleSideBarHide(false)
-    }
+
+    // if (!route.meta.link) {
+    activePath = '/' + tmpPath.substring(0, tmpPath.indexOf('/'))
+    appStore.toggleSideBarHide(false)
+    // }
   } else if (!route.children) {
     activePath = path
-    //appStore.toggleSideBarHide(true)
   }
   activeRoutes(activePath)
   return activePath
@@ -123,6 +124,11 @@ function setVisibleNumber() {
   const width = document.body.getBoundingClientRect().width / 3
   visibleNumber.value = parseInt(width / 85)
 }
+/**
+ * 选中菜单
+ * @param key
+ * @param keyPath
+ */
 function handleSelect(key, keyPath) {
   currentIndex.value = key
   const route = routers.value.find((item) => item.path === key)
@@ -152,14 +158,10 @@ function handleSelect(key, keyPath) {
 }
 // 当前激活的路由
 function activeRoutes(key) {
-  var routes = []
-  if (childrenMenus.value && childrenMenus.value.length > 0) {
-    childrenMenus.value.map((item) => {
-      if (key == item.parentPath || (item.parentPath == '/' && key == item.path) || (key == '/index' && '' == item.path)) {
-        routes.push(item)
-      }
-    })
-  }
+  const children = childrenMenus.value || []
+  const routes = children.filter(
+    (item) => key === item.parentPath || (item.parentPath === '/' && key === item.path) || (key === '/index' && item.path === '')
+  )
   permissionStore.setSidebarRouters(routes)
   return routes
 }
