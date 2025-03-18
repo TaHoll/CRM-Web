@@ -81,7 +81,7 @@ const props = defineProps({
   // 是否显示提示
   isShowTip: {
     type: Boolean,
-    default: true
+    default: false
   },
   // 上传携带的参数
   data: {
@@ -90,7 +90,7 @@ const props = defineProps({
   style: {
     type: Object,
     default: {
-      width: '120px'
+      width: '100px'
     }
   },
   listType: {
@@ -211,14 +211,10 @@ function handlePictureCardPreview(file) {
 
 // 对象转成指定字符串分隔
 function listToString(list, separator) {
-  let strs = ''
-  separator = separator || ','
-  for (let i in list) {
-    if (undefined !== list[i].url && list[i].url.indexOf('blob:') !== 0) {
-      strs += list[i].url + separator
-    }
-  }
-  return strs != '' ? strs.substr(0, strs.length - 1) : ''
+  return list
+    .filter((item) => item.url !== undefined && !item.url.startsWith('blob:'))
+    .map((item) => item.url)
+    .join(separator)
 }
 function copySuccess() {
   proxy.$modal.msgSuccess('复制成功')
@@ -232,6 +228,7 @@ function copySuccess() {
   --el-upload-list-picture-card-size: unset;
 }
 .el-upload__tip {
-  font-size: 10px;
+  font-size: 8px;
+  margin-top: 8px !important;
 }
 </style>
