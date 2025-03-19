@@ -1,5 +1,5 @@
 <template>
-  <div class="component-upload-image">
+  <div class="component-upload-image" :title="tipMsg">
     <el-upload
       multiple
       v-bind="$attrs"
@@ -117,6 +117,13 @@ const cssVars = computed(() => {
     '--el-upload-list-picture-card-size': props.style.width
   }
 })
+
+const tipMsg = computed(() => {
+  const sizeTip = props.fileSize ? `大小不超过 ${props.fileSize}MB` : ''
+  const typeTip = props.fileType ? `格式为 ${props.fileType.join('/')}` : ''
+  return `${sizeTip}${typeTip}`
+})
+
 watch(
   () => props.modelValue,
   (val) => {

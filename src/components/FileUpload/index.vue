@@ -33,7 +33,7 @@
             <template v-if="fileSize">
               大小不超过 <b class="text-danger">{{ fileSize }}MB</b>
             </template>
-            <template v-if="fileType">
+            <template v-if="fileType && fileType.length > 0">
               格式为 <b class="text-danger">{{ fileType.join('/') }}</b>
             </template>
           </slot>
