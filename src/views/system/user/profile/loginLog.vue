@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" :inline="true">
-      <el-form-item label="登录时间">
+      <el-form-item>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
