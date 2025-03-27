@@ -63,6 +63,9 @@
             <el-tab-pane :label="$t('menu.loginLog')" name="loginlog">
               <loginLog></loginLog>
             </el-tab-pane>
+            <el-tab-pane label="账号绑定" name="accountBind">
+              <accountBind></accountBind>
+            </el-tab-pane>
           </el-tabs>
         </el-card>
       </el-col>
@@ -76,6 +79,7 @@ import userInfo from './userInfo'
 import resetPwd from './resetPwd'
 import operLog from './operLog.vue'
 import loginLog from './loginLog.vue'
+import accountBind from './accountBind.vue'
 import { getUserProfile } from '@/api/system/user'
 
 const activeTab = ref('userinfo')
