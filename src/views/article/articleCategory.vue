@@ -60,6 +60,7 @@
       row-key="categoryId"
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }">
       <el-table-column type="selection" width="50" />
+
       <el-table-column prop="name" label="目录名" :show-overflow-tooltip="true" />
       <el-table-column prop="icon" label="图标" :show-overflow-tooltip="true">
         <template #default="{ row }">
@@ -67,9 +68,9 @@
           {{ row.icon }}
         </template>
       </el-table-column>
-      <el-table-column prop="bgImg" label="背景" :show-overflow-tooltip="true">
+      <el-table-column prop="bgImg" label="背景" width="70px">
         <template #default="{ row }">
-          <image-preview :src="row.bgImg" split=","></image-preview>
+          <image-preview :src="row.bgImg" width="50px" v-if="row.bgImg" split=","></image-preview>
         </template>
       </el-table-column>
       <el-table-column prop="categoryType" label="分类" align="center">
@@ -77,6 +78,7 @@
           <dict-tag :options="categoryTypeOptions" :value="row.categoryType"></dict-tag>
         </template>
       </el-table-column>
+
       <el-table-column prop="categoryId" label="目录id" sortable align="center" />
       <el-table-column prop="orderNum" label="排序" sortable align="center">
         <template #default="scope">
@@ -90,12 +92,28 @@
       </el-table-column>
       <el-table-column prop="introduce" label="介绍" :show-overflow-tooltip="true" />
       <el-table-column prop="createTime" label="添加时间" align="center" :show-overflow-tooltip="true" />
+
       <el-table-column prop="parentId" label="父级id" align="center" />
+
+      <el-table-column prop="articleNum" label="文章数" align="center" />
+      <el-table-column prop="joinNum" label="加入人数" align="center" />
 
       <el-table-column label="操作" align="center" width="140">
         <template #default="scope">
-          <el-button v-hasPermi="['articlecategory:edit']" type="success" icon="edit" title="编辑" @click="handleUpdate(scope.row)"></el-button>
-          <el-button v-hasPermi="['articlecategory:delete']" type="danger" icon="delete" title="删除" @click="handleDelete(scope.row)"></el-button>
+          <el-button
+            v-hasPermi="['articlecategory:edit']"
+            size="small"
+            type="success"
+            icon="edit"
+            title="编辑"
+            @click="handleUpdate(scope.row)"></el-button>
+          <el-button
+            size="small"
+            v-hasPermi="['articlecategory:delete']"
+            type="danger"
+            icon="delete"
+            title="删除"
+            @click="handleDelete(scope.row)"></el-button>
         </template>
       </el-table-column>
     </el-table>
