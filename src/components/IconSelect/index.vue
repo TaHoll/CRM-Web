@@ -40,6 +40,11 @@
           </template>
         </el-input>
       </el-tab-pane>
+
+      <el-tab-pane label="手动上传" name="4">
+        <uploadImage :limit="1" v-model="iconName"></uploadImage>
+        <el-button type="primary" @click="selectedImgIcon()">确定</el-button>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
