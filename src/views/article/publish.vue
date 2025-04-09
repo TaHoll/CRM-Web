@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <el-form :model="form" ref="formRef" :rules="rules" @submit.prevent>
-      <el-row class="mb10">
+      <el-row class="mb10" :gutter="10">
         <el-col :lg="24">
           <el-form-item label="" prop="title">
             <el-input v-model="form.title" placeholder="请输入文章标题（必须）" />
@@ -18,8 +18,8 @@
           </el-form-item>
         </el-col>
 
-        <el-col :lg="5">
-          <el-form-item prop="categoryId" label="分类" label-position="100px">
+        <el-col :lg="8">
+          <el-form-item prop="categoryId" label="分类" label-position="top">
             <el-cascader
               class="w100"
               :options="categoryOptions"
@@ -29,23 +29,9 @@
               v-model="form.categoryId" />
           </el-form-item>
         </el-col>
-        <el-col :lg="24">
-          <el-form-item label="标签">
-            <el-tag v-for="tag in form.dynamicTags" :key="tag" class="mr10" closable :disable-transitions="false" @close="handleCloseTag(tag)">
-              {{ tag }}
-            </el-tag>
-            <el-input
-              size="small"
-              v-if="inputVisible"
-              style="width: 150px"
-              ref="inputRef"
-              v-model="inputValue"
-              maxLength="8"
-              placeholder="最多8个字符"
-              @keyup.enter="handleInputConfirm"
-              @blur="handleInputConfirm" />
-
-            <el-button v-else class="button-new-tag" size="small" icon="plus" text @click="showInput">文章标签</el-button>
+        <el-col :lg="16">
+          <el-form-item label="标签" label-position="top">
+            <el-input-tag v-model="form.dynamicTags" :max="5" :maxlength="10" clearable trigger="Enter" placeholder="请输入标签" />
           </el-form-item>
         </el-col>
         <el-col :lg="8">
@@ -249,14 +235,8 @@ getCategoryTreeselect()
   color: #ccc;
 }
 .btn-wrap {
-  z-index: 10;
-  width: 100%;
-  /* top: 0; */
-  background: #fff;
-  padding: 3px 20px;
   display: flex;
   align-items: center;
-  position: fixed;
   bottom: var(--base-footer-height);
 }
 </style>
