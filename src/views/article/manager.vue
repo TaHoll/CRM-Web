@@ -100,7 +100,7 @@
       </el-table-column>
       <el-table-column label="分类">
         <template #default="{ row }">
-          <div v-if="row.articleCategoryNav">{{ row.articleCategoryNav.name }}</div>
+          <div v-if="row.categoryNav">{{ row.categoryNav.name }}</div>
         </template>
       </el-table-column>
       <el-table-column prop="title" label="标题" width="120" :show-overflow-tooltip="true">
