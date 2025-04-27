@@ -105,6 +105,10 @@ export default {
    */
   navType: 1,
   /**
+   * 显示多租户
+   */
+  showTenant: false,
+  /**
    * 前往通知地址
    */
   noticeUrl: 'https://gitee.com/izory/ZrAdminNetCore'

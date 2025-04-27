@@ -14,7 +14,7 @@ export default {
     var socketUrl = window.location.origin + url + '?clientId=' + cache.local.get('clientId')
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(socketUrl, { accessTokenFactory: () => getToken() })
-      .withAutomaticReconnect() //自动重新连接
+      // .withAutomaticReconnect() //自动重新连接
       .configureLogging(signalR.LogLevel.Warning)
       .build()
     this.SR = connection

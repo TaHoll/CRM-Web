@@ -2,12 +2,11 @@ import { login, logout, getInfo, oauthCallback, phoneLogin } from '@/api/system/
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import useTagsViewStore from './tagsView'
 import defAva from '@/assets/images/profile.jpg'
-import cache from '@/plugins/cache'
 import md5 from 'crypto-js/md5'
 
 const useUserStore = defineStore('user', {
   persist: {
-    paths: ['loginType', 'clientId'] //存储指定key
+    paths: ['loginType', 'clientId', 'tenantId'] //存储指定key
   },
   state: () => ({
     loginType: 1,
@@ -20,11 +19,15 @@ const useUserStore = defineStore('user', {
     userId: 0,
     authSource: '',
     userName: '',
-    clientId: ''
+    clientId: '',
+    tenantId: 'tenant0'
   }),
   actions: {
     setAuthSource(source) {
       this.authSource = source
+    },
+    setTenantId(id) {
+      this.tenantId = id
     },
     // 登录
     login(userInfo) {
@@ -35,7 +38,7 @@ const useUserStore = defineStore('user', {
       const clientId = this.clientId
 
       return new Promise((resolve, reject) => {
-        login(username, password, code, uuid, clientId)
+        login(username, password, code, uuid, clientId, userInfo.tenantId)
           .then((res) => {
             if (res.code == 200) {
               setToken(res.data)
@@ -138,12 +141,12 @@ const useUserStore = defineStore('user', {
     },
     // 退出系统
     logOut() {
+      this.token = ''
+      this.roles = []
+      this.permissions = []
       return new Promise((resolve, reject) => {
         logout(this.token)
           .then((res) => {
-            this.token = ''
-            this.roles = []
-            this.permissions = []
             removeToken()
             useTagsViewStore().visitedViews = []
             resolve(res)

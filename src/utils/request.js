@@ -28,6 +28,7 @@ service.interceptors.request.use(
       config.headers['userid'] = useUserStore().userId
       config.headers['userName'] = encodeURIComponent(useUserStore().userName)
     }
+    config.headers['tenantId'] = useUserStore().tenantId
     const method = config?.method || 'get'
     const header = config?.headers['Content-Type'] ?? ''
 

@@ -15,6 +15,11 @@
       </div>
 
       <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form" v-if="loginType == 1">
+        <el-form-item prop="tenantId" v-show="defaultSettings.showTenant">
+          <el-select v-model="loginForm.tenantId" size="default" placeholder="请选择租户" style="width: 100%" @change="handleTenantId">
+            <el-option value="tenant0" label="默认租户"></el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item prop="username">
           <el-input v-model="loginForm.username" type="text" auto-complete="off" :placeholder="$t('login.account')">
             <template #prefix>
@@ -35,6 +40,7 @@
             </template>
           </el-input>
         </el-form-item>
+
         <el-form-item prop="code" v-if="captchaOnOff != 'off'">
           <el-input v-model="loginForm.code" auto-complete="off" :placeholder="$t('login.captcha')" style="width: 63%" @keyup.enter="handleLogin">
             <template #prefix>
@@ -45,14 +51,6 @@
             <el-image :src="codeUrl" @click="getCode" class="login-code-img" />
           </div>
         </el-form-item>
-
-        <el-form-item style="width: 100%" :style="{ 'margin-top': captchaOnOff == 'off' ? '40px' : '' }">
-          <el-button :loading="loading" size="default" round type="primary" style="width: 100%" @click.prevent="handleLogin">
-            <span v-if="!loading">{{ $t('login.btnLogin') }}</span>
-            <span v-else>登 录 中...</span>
-          </el-button>
-        </el-form-item>
-
         <div style="display: flex; justify-content: space-between; align-items: center">
           <el-checkbox v-model="loginForm.rememberMe">{{ $t('login.rememberMe') }}</el-checkbox>
           <span style="font-size: 12px">
@@ -60,6 +58,13 @@
             <span @click="handleForgetPwd()" class="forget-pwd">{{ $t('login.forgotPwd') }}</span>
           </span>
         </div>
+
+        <el-form-item style="width: 100%" :style="{ 'margin-top': captchaOnOff == 'off' ? '20px' : '' }">
+          <el-button :loading="loading" size="default" round type="primary" style="width: 100%" @click.prevent="handleLogin">
+            <span v-if="!loading">{{ $t('login.btnLogin') }}</span>
+            <span v-else>登 录 中...</span>
+          </el-button>
+        </el-form-item>
       </el-form>
 
       <qrLogin ref="qrLoginRef" v-if="loginType == 3"></qrLogin>
@@ -98,7 +103,8 @@ const loginForm = ref({
   password: '',
   rememberMe: false,
   code: '',
-  uuid: ''
+  uuid: '',
+  tenantId: userStore.tenantId
 })
 const loginRules = {
   username: [{ required: true, trigger: 'blur', message: '请输入您的账号' }],
@@ -188,11 +194,9 @@ function getCookie() {
   const username = Cookies.get('username')
   const password = Cookies.get('password')
   const rememberMe = Cookies.get('rememberMe')
-  loginForm.value = {
-    username: username === undefined ? loginForm.value.username : username,
-    password: password === undefined ? loginForm.value.password : decrypt(password),
-    rememberMe: rememberMe === undefined ? false : Boolean(rememberMe)
-  }
+  loginForm.value.username = username === undefined ? loginForm.value.username : username
+  loginForm.value.password = password === undefined ? loginForm.value.password : decrypt(password)
+  loginForm.value.rememberMe = rememberMe === undefined ? false : Boolean(rememberMe)
 }
 function handleForgetPwd() {
   proxy.$modal.msg('请联系管理员')
@@ -222,6 +226,15 @@ function handleShowQrLogin() {
   nextTick(() => {
     proxy.$refs.qrLoginRef.generateCode()
   })
+}
+
+/**
+ * 切换租户
+ */
+function handleTenantId() {
+  userStore.tenantId = loginForm.value.tenantId
+
+  getCode()
 }
 getCode()
 getCookie()
