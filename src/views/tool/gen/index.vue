@@ -76,12 +76,16 @@
     <pagination v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" v-model:total="total" @pagination="getList" />
 
     <!-- 预览界面 -->
-    <zr-dialog v-model="preview.open" width="80%" top="5vh" append-to-body>
+    <zr-dialog v-model="preview.open" draggable="" width="80%" append-to-body>
       <el-tabs v-model="preview.activeName">
         <el-tab-pane v-for="(item, key) in preview.data" :label="item.title" :id="key" :name="key.toString()" :key="key">
           {{ item.path }}
           <el-link :underline="false" icon="DocumentCopy" @click="onCopy(item.content)" class="btn-copy">复制 </el-link>
-          <pre><code class="hljs" v-html="highlightedCode(item.content)"></code></pre>
+          <el-scrollbar>
+            <div style="height: 500px">
+              <pre><code class="hljs" v-html="highlightedCode(item.content)"></code></pre>
+            </div>
+          </el-scrollbar>
         </el-tab-pane>
       </el-tabs>
     </zr-dialog>
