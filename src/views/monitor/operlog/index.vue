@@ -67,7 +67,7 @@
       <el-table-column label="请求方法" align="center" prop="requestMethod" v-if="columns.showColumn('requestMethod')" />
       <el-table-column label="操作人员" align="center" prop="operName" v-if="columns.showColumn('operName')" />
 
-      <el-table-column label="操作地址" prop="operIp" width="120">
+      <el-table-column label="操作地址" prop="operIp" width="140" :show-overflow-tooltip="true">
         <template #default="{ row }">
           <div>{{ row.operLocation }}</div>
           <div>{{ row.operIp }}</div>
@@ -95,7 +95,7 @@
       <el-table-column prop="method" label="操作方法" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('method')" />
       <el-table-column prop="operParam" label="请求参数" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('operParam')" />
       <el-table-column prop="jsonResult" label="返回结果" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('jsonResult')" />
-      <el-table-column label="操作" align="center" width="130">
+      <el-table-column label="操作" align="center" width="140">
         <template #default="scope">
           <el-button size="small" text icon="view" @click="handleView(scope.row, scope.index)" v-hasPermi="['monitor:operlog:query']">
             详细
@@ -207,14 +207,9 @@ const columns = ref([
   { visible: false, prop: 'operId', label: '操作id' },
   { visible: true, prop: 'title', label: '系统模块' },
   { visible: true, prop: 'businessType', label: '业务类型' },
-  { visible: true, prop: 'requestMethod', label: '请求方式' },
-  // { visible: true, prop: 'operatorType', label: '操作类型' },
+  { visible: false, prop: 'requestMethod', label: '请求方式' },
   { visible: true, prop: 'operName', label: '操作人员' },
-  // { visible: true, prop: 'deptName', label: '部门' },
-  // { visible: true, prop: 'operUrl', label: '请求地址' },
-  // { visible: true, prop: 'operIP', label: '请求IP' },
   { visible: true, prop: 'status', label: '操作状态' },
-  // { visible: true, prop: 'operLocation', label: '操作人地址' },
   { visible: true, prop: 'operTime', label: '操作时间' },
   { visible: false, prop: 'method', label: '操作方法' },
   { visible: false, prop: 'operParam', label: '请求参数' },

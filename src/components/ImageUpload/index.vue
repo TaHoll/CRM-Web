@@ -38,7 +38,7 @@
     </el-upload>
 
     <el-dialog v-model="dialogVisible" append-to-body>
-      <el-form label-width="100px">
+      <el-form label-width="100px" label-position="top">
         <el-form-item label="预览">
           <el-image style="display: block; max-width: 50%" :src="dialogImageUrl">
             <template #error>

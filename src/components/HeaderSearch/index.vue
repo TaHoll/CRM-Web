@@ -207,7 +207,7 @@ watch(searchPool, (list) => {
 })
 
 const handleKeydown = (event) => {
-  if (event.ctrlKey && event.key === 'f') {
+  if (event.ctrlKey && event.key === 'k') {
     event.preventDefault()
     click()
   }

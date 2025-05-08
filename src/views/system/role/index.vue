@@ -31,7 +31,7 @@
       <el-table-column label="名称" prop="roleName" />
       <el-table-column label="显示顺序" prop="roleSort"></el-table-column>
       <el-table-column label="权限字符" prop="roleKey" />
-      <el-table-column label="权限范围" prop="dataScope" :formatter="dataScopeFormat"></el-table-column>
+      <el-table-column label="数据权限范围" prop="dataScope" :formatter="dataScopeFormat"></el-table-column>
       <el-table-column label="状态" width="90">
         <template #default="scope">
           <el-switch
