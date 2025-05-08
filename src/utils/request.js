@@ -91,7 +91,7 @@ service.interceptors.response.use(
     let { message, response } = error
 
     if (response.status == 404) {
-      message = '接口404'
+      message = `${response.config.url}接口404`
     } else if (response.status == 403) {
       window.location.href = import.meta.env.VITE_APP_ROUTER_PREFIX + '401'
     } else if (message == 'Network Error') {
