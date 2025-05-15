@@ -165,7 +165,7 @@ function handleUploadSuccess(res) {
     number.value = 0
     emit('update:modelValue', listToString(fileList.value))
   }
-  proxy.$modal.closeLoading()
+  //proxy.$modal.closeLoading()
 }
 
 // 上传前loading加载
@@ -195,7 +195,7 @@ function handleBeforeUpload(file) {
       return false
     }
   }
-  proxy.$modal.loading('正在上传图片，请稍候...')
+  // proxy.$modal.loading('正在上传图片，请稍候...')
   number.value++
 }
 
@@ -207,7 +207,7 @@ function handleExceed() {
 // 上传失败
 function handleUploadError() {
   proxy.$modal.msgError('上传图片失败')
-  proxy.$modal.closeLoading()
+  // proxy.$modal.closeLoading()
 }
 
 // 预览
