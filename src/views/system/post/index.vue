@@ -92,7 +92,7 @@
       </el-form>
       <template #footer>
         <el-button text @click="cancel">{{ $t('btn.cancel') }}</el-button>
-        <el-button type="primary" @click="submitForm">{{ $t('btn.submit') }}</el-button>
+        <el-button type="primary" :loading="state.submitLoading" @click="submitForm">{{ $t('btn.submit') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -134,7 +134,8 @@ const state = reactive({
     postName: [{ required: true, message: '岗位名称不能为空', trigger: 'blur' }],
     postCode: [{ required: true, message: '岗位编码不能为空', trigger: 'blur' }],
     postSort: [{ required: true, message: '岗位顺序不能为空', trigger: 'blur' }]
-  }
+  },
+  submitLoading: false
 })
 const formRef = ref(null)
 const { form, rules } = toRefs(state)
@@ -186,6 +187,7 @@ function handleSelectionChange(selection) {
 /** 新增按钮操作 */
 function handleAdd() {
   reset()
+  state.submitLoading = false
   open.value = true
   title.value = '添加岗位'
 }
@@ -203,18 +205,25 @@ function handleUpdate(row) {
 function submitForm() {
   proxy.$refs['formRef'].validate((valid) => {
     if (valid) {
+      state.submitLoading = true
       if (form.value.postId != undefined) {
-        updatePost(form.value).then((response) => {
+        updatePost(form.value).then(() => {
           proxy.$modal.msgSuccess('修改成功')
           open.value = false
           getList()
         })
       } else {
-        addPost(form.value).then((response) => {
-          proxy.$modal.msgSuccess('新增成功')
-          open.value = false
-          getList()
-        })
+        addPost(form.value)
+          .then(() => {
+            proxy.$modal.msgSuccess('新增成功')
+            open.value = false
+            getList()
+          })
+          .finally(() => {
+            setTimeout(() => {
+              state.submitLoading = false
+            }, 1000)
+          })
       }
     }
   })
