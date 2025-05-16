@@ -38,8 +38,9 @@ import iframeToggle from './components/IframeToggle/index'
 import useAppStore from '@/store/modules/app'
 import useSettingsStore from '@/store/modules/settings'
 import useTagsViewStore from '@/store/modules/tagsView'
+import useUserStore from '@/store/modules/user'
 const appStore = useAppStore()
-
+const { proxy } = getCurrentInstance()
 const dev = import.meta.env.DEV
 const settingsStore = useSettingsStore()
 const theme = computed(() => settingsStore.theme)
@@ -81,7 +82,25 @@ watchEffect(() => {
     }
   }
 })
-
+const token = computed(() => {
+  return useUserStore().userId
+})
+watch(
+  token,
+  (val) => {
+    if (val) {
+      proxy.signalr.start().then(async (res) => {
+        if (res) {
+          await proxy.signalr.SR.invoke('logOut')
+        }
+      })
+    }
+  },
+  {
+    immediate: true,
+    deep: true
+  }
+)
 const settingRef = ref(null)
 function setLayout() {
   settingRef.value.openSetting()
