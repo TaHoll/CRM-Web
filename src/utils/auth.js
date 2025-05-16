@@ -1,15 +1,20 @@
-// import Cookies from 'js-cookie'
+import settings from '@/settings'
+// auth.js
 
 const TokenKey = 'ZR-Token'
 
+function getStorage() {
+  return settings.tokenSaveType === 'sessionStorage' ? sessionStorage : localStorage
+}
+
 export function getToken() {
-  return localStorage.getItem(TokenKey)
+  return getStorage().getItem(TokenKey)
 }
 
 export function setToken(token) {
-  return localStorage.setItem(TokenKey, token)
+  return getStorage().setItem(TokenKey, token)
 }
 
 export function removeToken() {
-  return localStorage.removeItem(TokenKey)
+  return getStorage().removeItem(TokenKey)
 }

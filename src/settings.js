@@ -2,7 +2,7 @@ export default {
   /**
    * 框架版本号
    */
-  version: '20250306',
+  version: '20250516',
   /**
    * 网页标题
    */
@@ -111,5 +111,9 @@ export default {
   /**
    * 前往通知地址
    */
-  noticeUrl: 'https://gitee.com/izory/ZrAdminNetCore'
+  noticeUrl: 'https://gitee.com/izory/ZrAdminNetCore',
+  /**
+   *token存储类型 可选值 sessionStorage | localStorage
+   */
+  tokenSaveType: 'localStorage'
 }
