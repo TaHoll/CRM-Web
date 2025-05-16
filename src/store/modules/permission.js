@@ -116,7 +116,7 @@ export const loadView = (viewPath) => {
 
   // 返回404组件
   var path = import.meta.glob('../../views/error/404.vue')['../../views/error/404.vue']
-  console.error(`404组件${view}`)
+  console.warn(`404组件${view}`)
   return path
 }
 

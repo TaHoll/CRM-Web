@@ -9,7 +9,7 @@
         </el-col>
         <el-col :lg="24">
           <el-form-item prop="content" label="">
-            <el-input type="textarea" rows="10" placeholder="说点什么吧" show-word-limit v-model="form.content"></el-input>
+            <el-input type="textarea" :rows="10" placeholder="说点什么吧" show-word-limit v-model="form.content"></el-input>
           </el-form-item>
         </el-col>
 

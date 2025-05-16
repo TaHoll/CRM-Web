@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-form :model="queryParams" label-position="left" inline ref="queryForm" v-show="showSearch" @submit.prevent>
+    <el-form :model="queryParams" label-position="left" inline ref="queryForm" @submit.prevent>
       <el-form-item label="" prop="storeType">
         <el-radio-group v-model="queryParams.storeType" @change="handleQuery" placeholder="请选择存储类型">
           <el-radio-button value=""> 全部 </el-radio-button>
@@ -48,7 +48,6 @@
           {{ $t('btn.delete') }}
         </el-button>
       </el-col>
-      <right-toolbar :showSearch="showSearch" @queryTable="getList"> </right-toolbar>
     </el-row>
 
     <!-- 数据区域 -->
@@ -278,8 +277,6 @@ const single = ref(true)
 const multiple = ref(true)
 // 遮罩层
 const loading = ref(true)
-// 显示搜索条件
-const showSearch = ref(true)
 // 弹出层标题
 const title = ref('')
 // 是否显示弹出层
@@ -469,6 +466,7 @@ function submitUpload() {
       //使用异步解决第一次上次获取不到表单的值
       result.then(() => {
         proxy.$refs.uploadRef.submitUpload()
+        queryParams.value.storeType = form.value.storeType
       })
     }
   })
@@ -486,8 +484,6 @@ const copyText = async (val) => {
   }
 }
 function handleClassifyChange(row) {
-  console.log(row)
-
   updateSysfile(row).then(() => {
     proxy.$modal.msgSuccess('修改成功')
   })
