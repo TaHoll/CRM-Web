@@ -1,6 +1,5 @@
 <template>
-  <div :style="'height:' + height">
-    <div v-if="showLoading">加载中...</div>
+  <div :style="'height:' + height" v-loading="showLoading">
     <iframe :id="iframeId" style="width: 100%; height: 100%" :src="src" ref="iframeRef" frameborder="no"></iframe>
   </div>
 </template>
