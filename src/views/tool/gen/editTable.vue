@@ -60,6 +60,11 @@
                 <el-checkbox v-model="scope.row.isList"></el-checkbox>
               </template>
             </el-table-column>
+            <el-table-column label="表单" width="60" align="center">
+              <template #default="scope">
+                <el-checkbox v-model="scope.row.isEdit" :disabled="info.tplCategory == 'select'"></el-checkbox>
+              </template>
+            </el-table-column>
             <el-table-column label="排序" width="60" align="center">
               <template #default="scope">
                 <el-checkbox
