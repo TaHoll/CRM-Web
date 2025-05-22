@@ -120,8 +120,10 @@
             <el-option v-for="item in columns" :key="item.columnId" :label="item.csharpField" :value="item.csharpField"> </el-option>
           </el-select>
 
-          <el-radio v-model="info.sortType" value="asc">正序</el-radio>
-          <el-radio v-model="info.sortType" value="desc">倒序</el-radio>
+          <el-radio-group v-model="info.sortType">
+            <el-radio-button value="asc">正序</el-radio-button>
+            <el-radio-button value="desc">倒序</el-radio-button>
+          </el-radio-group>
         </el-form-item>
       </el-col>
       <el-col :lg="12">
