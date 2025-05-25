@@ -2,7 +2,8 @@
   <div style="border: 1px solid #ccc" v-if="show">
     <Toolbar style="border-bottom: 1px solid #ccc" :editor="editorRef" :defaultConfig="toolbarConfig" :mode="mode" />
     <Editor
-      style="height: 300px; overflow-y: hidden"
+      style="overflow-y: hidden"
+      :style="{ height: props.height }"
       v-model="valueHtml"
       :defaultConfig="editorConfig"
       :mode="mode"
@@ -16,6 +17,7 @@ import '@wangeditor/editor/dist/css/style.css' // 引入 css
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import { getToken } from '@/utils/auth'
 import useUserStore from '@/store/modules/user'
+import { ElMessage } from 'element-plus'
 const editorRef = shallowRef()
 const emit = defineEmits()
 const props = defineProps({
@@ -28,7 +30,11 @@ const props = defineProps({
     type: [Object],
     default: () => {}
   },
-  modelValue: [Object, String]
+  modelValue: [Object, String],
+  height: {
+    type: [String],
+    default: '320px'
+  }
 })
 const mode = ref('default')
 const show = ref(false)
@@ -58,10 +64,12 @@ const editorConfig = {
       timeout: 5 * 1000, // 5 秒
       // 自定义插入图片
       customInsert(res, insertFn) {
-        ;-(
-          // 从 res 中找到 url alt href ，然后插图图片
+        // 从 res 中找到 url alt href ，然后插图图片
+        if (res.code == 200) {
           insertFn(res.data.url)
-        )
+        } else {
+          ElMessage.error(res.msg)
+        }
       }
     },
     uploadVideo: {
