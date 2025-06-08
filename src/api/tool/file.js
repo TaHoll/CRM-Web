@@ -66,3 +66,15 @@ export function exportSysfile(query) {
     params: query
   })
 }
+
+/**
+ * 文件存储分组查询
+ * @param {查询条件} data
+ */
+export function listSysfileByGroup(query) {
+  return request({
+    url: 'tool/file/listByGroup',
+    method: 'get',
+    params: query
+  })
+}
