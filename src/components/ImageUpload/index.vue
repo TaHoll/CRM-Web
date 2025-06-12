@@ -146,7 +146,8 @@ watch(
 )
 
 // 删除图片
-function handleRemove(file, files) {
+function handleRemove(file) {
+  fileList.value = fileList.value.filter((f) => f.url !== file.url)
   emit('update:modelValue', listToString(fileList.value))
 }
 
