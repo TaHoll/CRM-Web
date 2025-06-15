@@ -1,17 +1,24 @@
 <template>
   <div class="p-4">
+    <el-row class="mb10">
+      <el-button type="primary" icon="refresh" @click="handleQuery">刷新</el-button>
+    </el-row>
     <el-card class="mb10">
       <template #header>
         <div class="flex justify-between items-center">
-          <span>销售总额</span>
+          <span class="mr10">销售总额</span>
+
           <el-date-picker
             v-model="dateRange"
-            type="daterange"
+            type="datetimerange"
+            range-separator="-"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            @change="fetchSales" />
+            :default-time="defaultTime"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            @change="fetchSales"
+            style="width: 320px"
+            :shortcuts="dateOptions"></el-date-picker>
         </div>
       </template>
       <el-row :gutter="20" class="mb10" v-if="saleInfo">
@@ -29,8 +36,18 @@
         <el-card>
           <template #header>
             <div class="flex justify-between items-center">
-              <span>销售趋势</span>
-              <el-date-picker v-model="trendDateRange" @change="fetchTrendData" type="daterange" size="small" style="margin-left: 8px" />
+              <span class="mr10">销售趋势</span>
+              <el-date-picker
+                v-model="trendDateRange"
+                type="datetimerange"
+                range-separator="-"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                :default-time="defaultTime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                @change="fetchTrendData"
+                style="width: 320px"
+                :shortcuts="dateOptions"></el-date-picker>
             </div>
           </template>
           <div ref="lineChartRef" style="height: 300px" />
@@ -41,8 +58,18 @@
         <el-card>
           <template #header>
             <div class="flex justify-between items-center">
-              <span>商品销量排行</span>
-              <el-date-picker v-model="rankDateRange" @change="fetchTopProduct" type="daterange" size="small" style="margin-left: 8px" />
+              <span class="mr10">商品销量排行</span>
+              <el-date-picker
+                v-model="rankDateRange"
+                type="datetimerange"
+                range-separator="-"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                :default-time="defaultTime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                @change="fetchTopProduct"
+                style="width: 320px"
+                :shortcuts="dateOptions"></el-date-picker>
             </div>
           </template>
           <div ref="barChartRef" style="height: 300px" />
@@ -55,17 +82,15 @@
 <script setup>
 import * as echarts from 'echarts'
 import { listSales, listSalesTrade, listSaleTopProduct } from '@/api/shopping/omsorder'
-// 日期区间
-const dateRange = ref([new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0], new Date().toISOString().split('T')[0]])
-const trendDateRange = ref([
-  new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
-  new Date().toISOString().split('T')[0]
-])
+import { dayjs } from 'element-plus'
+const end = dayjs().endOf('week').add(1, 'day').format('YYYY-MM-DD') + ' 23:59:59'
+const start = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD 00:00:00')
+const defaultTime = ref([new Date(2000, 1, 1, 0, 0, 0), new Date(2000, 2, 1, 23, 59, 59)])
 
-const rankDateRange = ref([
-  new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
-  new Date().toISOString().split('T')[0]
-])
+// 日期区间
+const dateRange = ref([start, end])
+const trendDateRange = ref([start, end])
+const rankDateRange = ref([start, end])
 const lineChartRef = ref(null)
 const barChartRef = ref(null)
 
@@ -77,7 +102,7 @@ const renderLineChart = (data) => {
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
-      data: data.map((d) => d.date)
+      data: data.map((d) => dayjs(d.date).format('YYYY/MM/DD'))
     },
     yAxis: {
       type: 'value'
@@ -100,12 +125,12 @@ const renderBarChart = (data) => {
       type: 'category',
       data: data.map((d) => d.productName),
       axisLabel: {
-        interval: 0 // ✅ 强制显示每个标签
-        // formatter: function (value) {
-        //   const maxLength = 6 // 每行最多6个字
-        //   const reg = new RegExp(`.{1,${maxLength}}`, 'g')
-        //   return value.match(reg)?.join('\n') ?? value
-        // }
+        interval: 0, // ✅ 强制显示每个标签
+        formatter: function (value) {
+          const maxLength = 6 // 每行最多6个字
+          const reg = new RegExp(`.{1,${maxLength}}`, 'g')
+          return value.match(reg)?.join('\n') ?? value
+        }
       }
     },
     yAxis: {
@@ -116,7 +141,7 @@ const renderBarChart = (data) => {
         name: '销量',
         type: 'bar',
         data: data.map((d) => d.totalSold),
-        barWidth: '40%' // 控制柱子宽度
+        barWidth: '10%' // 控制柱子宽度
       }
     ]
   })
@@ -143,9 +168,13 @@ function fetchSales() {
   })
 }
 const saleInfo = ref()
-fetchTrendData()
-fetchTopProduct()
-fetchSales()
+
+function handleQuery() {
+  fetchTrendData()
+  fetchTopProduct()
+  fetchSales()
+}
+handleQuery()
 </script>
 
 <style scoped>
