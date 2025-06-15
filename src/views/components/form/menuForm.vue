@@ -109,7 +109,30 @@
             <el-input v-model="form.perms" placeholder="请输入权限标识" maxlength="100" />
             <template #label>
               <span>
-                <el-tooltip content="控制器中定义的权限字符，如：[ActionPermissionFilter(Permission = 'system:user:delete')])" placement="top">
+                <el-tooltip placement="top">
+                  <template #content>
+                    控制器中定义的权限字符，如：[ActionPermissionFilter(Permission = 'system:user:delete')])
+                    <br />
+                    系统内置一些查看敏感信息字符，比如
+                    <table>
+                      <tr>
+                        <td>手机号</td>
+                        <td>p:vrp</td>
+                      </tr>
+                      <tr>
+                        <td>身份证</td>
+                        <td>p:vri</td>
+                      </tr>
+                      <tr>
+                        <td>邮箱</td>
+                        <td>p:ve</td>
+                      </tr>
+                      <tr>
+                        <td>IP地址</td>
+                        <td>p:vip</td>
+                      </tr>
+                    </table>
+                  </template>
                   <el-icon :size="15">
                     <questionFilled />
                   </el-icon>

@@ -93,6 +93,7 @@
           <el-checkbox v-model="menuExpand" @change="handleCheckedTreeExpand($event, 'menu')">展开/折叠</el-checkbox>
           <el-checkbox v-model="menuNodeAll" @change="handleCheckedTreeNodeAll($event, 'menu')">全选/全不选</el-checkbox>
           <el-checkbox v-model="form.menuCheckStrictly" @change="handleCheckedTreeConnect($event, 'menu')">父子联动</el-checkbox>
+          <el-checkbox v-model="showPermi">显示权限</el-checkbox>
           <el-tree
             class="tree-border"
             :data="menuOptions"
@@ -106,10 +107,16 @@
             :props="{ children: 'children', label: 'label', class: customNodeClass }">
             <template #default="{ node, data }">
               <div class="custom-tree-node">
-                <span class="fl" :title="data.permission">{{ node.label }}</span>
-                <span class="fr ml10">
-                  <el-tag v-if="data.status == 1" type="danger">停用</el-tag>
-                </span>
+                <div class="fl" :title="data.permission">
+                  {{ node.label }}
+                  <span class="fr ml10">
+                    <el-tag v-if="data.status == 1" type="danger">停用</el-tag>
+                    <el-tag v-if="data.visible == 1" type="primary">隐藏</el-tag>
+                  </span>
+                </div>
+                <div v-if="showPermi">
+                  {{ data.permission }}
+                </div>
               </div>
             </template>
           </el-tree>
@@ -400,6 +407,7 @@ function reset() {
     })
   proxy.resetForm('form')
 }
+const showPermi = ref(false)
 /** 搜索按钮操作 */
 function handleQuery() {
   queryParams.pageNum = 1
@@ -665,5 +673,14 @@ function customNodeClass(data, node) {
 }
 .el-dropdown {
   vertical-align: middle;
+}
+
+.custom-tree-node {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  padding-right: 8px;
 }
 </style>

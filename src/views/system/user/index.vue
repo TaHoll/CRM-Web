@@ -142,7 +142,7 @@
               <el-avatar :src="scope.row.avatar" />
             </template>
           </el-table-column>
-          <el-table-column prop="email" label="用户邮箱" align="center" v-if="columns.showColumn('email')" />
+          <el-table-column prop="email" label="用户邮箱" v-if="columns.showColumn('email')" />
           <el-table-column prop="loginDate" label="最后登录时间" align="center" v-if="columns.showColumn('loginDate')" />
           <el-table-column label="操作" align="left" width="110" class-name="small-padding fixed-width">
             <template #default="scope">
