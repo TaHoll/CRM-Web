@@ -269,9 +269,9 @@
 <script setup name="order">
 import { listOMSOrder, delOMSOrder, updateOMSOrder } from '@/api/shopping/omsorder.js'
 import { dayjs, ElMessage } from 'element-plus'
-import shipments from './components/shipmentsForm.vue'
-import merchantNoteForm from './components/merchantNoteForm.vue'
-import addressForm from './components/addressForm.vue'
+import shipments from './components/ShipmentsForm.vue'
+import merchantNoteForm from './components/MerchantNoteForm.vue'
+import addressForm from './components/AddressForm.vue'
 import router from '@/router'
 import useDictStore from '@/store/modules/dict'
 
