@@ -201,11 +201,17 @@ watch(
   },
   { deep: true } // 深度监听每个规格和规格值
 )
-
+function getSkuKey(specs) {
+  return specs
+    .map((s) => `${s.name}:${s.value}`)
+    .sort() // 保证顺序一致
+    .join('|')
+}
 // SKU 生成（笛卡尔积）
 // 单规格模式不需要笛卡尔积
 function generateSkus() {
   const specs = form.specList.filter((s) => s.name && s.values.length > 0)
+
   if (specs.length === 0) {
     form.skus = []
 
@@ -216,7 +222,7 @@ function generateSkus() {
   const combinations = cartesianProduct(specs.map((s) => s.values))
 
   // 旧数据映射，用 key = 颜色:红|尺码:M 的方式保存
-  const oldMap = new Map(props.skus.map((sku) => [sku.specs.map((s) => `${s.name}:${s.value}`).join('|'), sku]))
+  const oldMap = new Map(props.skus.map((sku) => [getSkuKey(sku.specs), sku]))
 
   // 生成新 SKU
   form.skus = combinations.map((comb) => {
@@ -224,7 +230,7 @@ function generateSkus() {
       name: specs[i].name,
       value: val
     }))
-    const key = specItems.map((s) => `${s.name}:${s.value}`).join('|')
+    const key = getSkuKey(specItems)
 
     if (oldMap.has(key)) {
       return { ...oldMap.get(key) }

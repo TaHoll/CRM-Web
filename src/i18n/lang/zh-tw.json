@@ -190,5 +190,6 @@
     "newPwd": "新密碼",
     "oldPwd": "舊密碼",
     "nickName": "用戶暱稱"
-  }
+  },
+  "currency": "￥"
 }

@@ -59,15 +59,17 @@ function reset() {
     deliveryCompany: undefined,
     deliveryNo: undefined,
     orderNo: '',
+    id: undefined,
     operType: 1 //发货
   }
 
   proxy.resetForm('formRef')
 }
 
-function handleOpen(orderNo) {
+function handleOpen(row) {
   reset()
-  form.value.orderNo = orderNo
+  form.value.orderNo = row.orderNo
+  form.value.id = row.id
   open.value = true
 }
 

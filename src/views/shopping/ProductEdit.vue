@@ -19,10 +19,8 @@
       </el-tab-pane>
     </el-tabs>
 
-    <el-row class="mt20">
-      <el-form-item label-width="100px">
-        <el-button type="success" @click="handleSubmit" :loading="submitLoading">提交商品</el-button>
-      </el-form-item>
+    <el-row class="mt20 bt">
+      <el-button type="success" icon="check" @click="handleSubmit" :loading="submitLoading">提交商品</el-button>
     </el-row>
   </div>
 </template>
@@ -299,5 +297,9 @@ function handleClose() {
 }
 .el-card__header {
   padding: 10px;
+}
+.bt {
+  display: flex;
+  justify-content: center;
 }
 </style>

@@ -87,16 +87,7 @@
       </el-table-column>
       <!-- <el-table-column prop="orderNo" label="订单号" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('orderNo')" /> -->
       <el-table-column prop="userId" label="用户ID" align="center" v-if="columns.showColumn('userId')" />
-      <el-table-column prop="totalAmount" label="总金额" sortable width="120" v-if="columns.showColumn('totalAmount')">
-        <template #default="{ row }">
-          <div>
-            <span class="amount_label">总金额</span> <span class="text-warning">￥{{ row.totalAmount }}</span>
-          </div>
-          <div>
-            <span class="amount_label">付款金额</span> <span class="text-danger">￥{{ row.payAmount }}</span>
-          </div>
-        </template>
-      </el-table-column>
+
       <el-table-column prop="orderStatus" label="订单状态" width="190" v-if="columns.showColumn('orderStatus')">
         <template #default="{ row }">
           <dict-tag :options="dictStore.orderStatusOptions" :value="row.orderStatus" />
@@ -120,7 +111,7 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="下单/付款时间" width="150" v-if="columns.showColumn('createTime')">
+      <el-table-column prop="payTime" sortable label="下单/付款时间" width="150" v-if="columns.showColumn('createTime')">
         <template #default="{ row }">
           <div v-if="row.createTime">
             <el-tag>下单</el-tag>
@@ -134,28 +125,22 @@
       </el-table-column>
 
       <el-table-column prop="cancelTime" label="取消时间" :show-overflow-tooltip="true" v-if="columns.showColumn('cancelTime')" />
-      <el-table-column prop="orderNote" label="订单备注" width="140" v-if="columns.showColumn('orderNote')">
-        <template #default="{ row }">
-          <template v-if="row.orderNote">
-            <div style="font-size: 12px; font-weight: bold">买家备注</div>
-            {{ row.orderNote }}
-          </template>
 
-          <template v-if="row.merchantNote">
-            <div style="font-size: 12px; font-weight: bold">商家备注</div>
-            {{ row.merchantNote }}
-          </template>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="confirmStatus" label="确认收货状态" align="center" v-if="columns.showColumn('confirmStatus')">
+      <el-table-column prop="deliveryStatus" label="发货状态" align="center" v-if="columns.showColumn('deliveryStatus')">
         <template #default="scope">
-          <dict-tag :options="options.confirmStatusOptions" :value="scope.row.confirmStatus" />
+          <dict-tag :options="options.confirmStatusOptions" :value="scope.row.deliveryStatus" />
         </template>
       </el-table-column>
-
-      <!-- <el-table-column prop="deliverySn" label="物流单号" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('deliverySn')" /> -->
-
+      <el-table-column prop="totalAmount" label="总金额" sortable width="120" v-if="columns.showColumn('totalAmount')">
+        <template #default="{ row }">
+          <div>
+            <span class="amount_label">总金额</span> <span class="text-warning">{{ $t('currency') }}{{ row.totalAmount }}</span>
+          </div>
+          <div>
+            <span class="amount_label">付款金额</span> <span class="text-danger">{{ $t('currency') }}{{ row.payAmount }}</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="商品明细" prop="items" width="200">
         <template #default="scope">
           <div class="order-product" v-for="item in scope.row.items">
@@ -167,12 +152,25 @@
                 </el-text>
               </div>
               <div>
-                <span class="price"> ￥{{ item.totalPrice }} </span>
+                <span class="price">{{ $t('currency') }}{{ item.totalPrice }} </span>
                 x{{ item.quantity }}
               </div>
               <div>{{ item.skuSpec }}</div>
             </div>
           </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="orderNote" label="订单备注" width="140" v-if="columns.showColumn('orderNote')">
+        <template #default="{ row }">
+          <template v-if="row.orderNote">
+            <div style="font-size: 12px; font-weight: bold">买家备注</div>
+            {{ row.orderNote }}
+          </template>
+
+          <template v-if="row.merchantNote">
+            <div style="font-size: 12px; font-weight: bold">商家备注</div>
+            {{ row.merchantNote }}
+          </template>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="190" fixed="right">
@@ -201,7 +199,7 @@
               size="small"
               v-hasPermi="['oms:order:ship']"
               @click="handleShipments(scope.row)"
-              v-if="scope.row.orderStatus == 1">
+              v-if="scope.row.orderStatus == 1 && scope.row.deliveryStatus == 0">
               发货
             </el-button>
             <el-button type="info" link size="small" disabled v-else>发货</el-button>
@@ -303,7 +301,7 @@ const columns = ref([
   { visible: false, align: 'center', type: '', prop: 'cancelTime', label: '取消时间', showOverflowTooltip: true },
   { visible: true, align: 'center', type: '', prop: 'orderNote', label: '订单备注', showOverflowTooltip: true },
   // { visible: false, align: 'center', type: '', prop: 'merchantNote', label: '商家备注', showOverflowTooltip: true },
-  { visible: false, align: 'center', type: 'dict', prop: 'confirmStatus', label: '确认收货状态' },
+  { visible: true, align: 'center', type: 'dict', prop: 'deliveryStatus', label: '发货状态' },
   { visible: true, align: 'center', type: '', prop: 'addressSnapshot', label: '收货地址', showOverflowTooltip: true }
 ])
 const total = ref(0)
@@ -313,7 +311,7 @@ const defaultTime = ref([new Date(2000, 1, 1, 0, 0, 0), new Date(2000, 2, 1, 23,
 const end = dayjs().endOf('week').add(1, 'day').format('YYYY-MM-DD') + ' 23:59:59'
 const start = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD 00:00:00')
 // 下单时间时间范围
-const dateRangeCreateTime = ref([start, end])
+const dateRangeCreateTime = ref([])
 
 var dictParams = []
 
@@ -333,6 +331,9 @@ function getList() {
 // 查询
 function handleQuery() {
   queryParams.pageNum = 1
+  // if (queryParams.orderStatus == '') {
+  //   dateRangeCreateTime.value = [start, end]
+  // }
   getList()
 }
 
@@ -373,8 +374,9 @@ const state = reactive({
   },
   options: {
     confirmStatusOptions: [
-      { dictLabel: '未确认', dictValue: '0' },
-      { dictLabel: '已确认', dictValue: '1' }
+      { dictLabel: '未发货', dictValue: '0' },
+      { dictLabel: '已发货', dictValue: '1', listClass: 'success' },
+      { dictLabel: '已收货', dictValue: '2', listClass: 'danger' }
     ]
   }
 })
