@@ -6,7 +6,7 @@
 <template>
   <div>
     <el-form :model="queryParams" label-position="right" inline ref="queryRef" v-show="showSearch" @submit.prevent>
-      <el-form-item label="商品Id" prop="productId">
+      <!-- <el-form-item label="商品Id" prop="productId">
         <el-input v-model="queryParams.productId" placeholder="请输入商品Id" />
       </el-form-item>
       <el-form-item label="商品名" prop="productName">
@@ -14,7 +14,26 @@
       </el-form-item>
       <el-form-item label="商品编码" prop="productCode">
         <el-input v-model="queryParams.productCode" placeholder="请输入商品编码" />
+      </el-form-item> -->
+
+      <el-form-item label="查询条件">
+        <el-input
+          v-model="searchValue"
+          label-width="130px"
+          clearable
+          placeholder="请输入搜索内容"
+          style="max-width: 600px"
+          class="input-with-select">
+          <template #prepend>
+            <el-select v-model="searchType" placeholder="请选择字段" style="width: 115px">
+              <el-option label="商品ID" value="productId" />
+              <el-option label="商品名" value="productName" />
+              <el-option label="商品编码" value="productCode" />
+            </el-select>
+          </template>
+        </el-input>
       </el-form-item>
+
       <BrandSelect v-model="queryParams.brandId" />
       <el-form-item label="分类">
         <el-cascader
@@ -33,7 +52,7 @@
       <el-form-item label="商品状态" prop="saleStatus">
         <el-radio-group v-model="queryParams.saleStatus" @change="handleQuery">
           <el-radio-button value="">全部</el-radio-button>
-          <el-radio-button v-for="item in dictStore.saleStatusOptions" :key="item.dictValue" :value="item.dictValue">
+          <el-radio-button v-for="item in dictStore.saleStatusOptions" :key="item.dictValue" :value="parseInt(item.dictValue)">
             {{ item.dictLabel }}
           </el-radio-button>
         </el-radio-group>
@@ -59,6 +78,21 @@
       <el-col :span="1.5">
         <el-button type="primary" v-hasPermi="['shop:product:add']" plain icon="plus" @click="handleAdd"> 新增商品 </el-button>
       </el-col>
+      <el-col :span="1.5" v-if="parseInt(queryParams.saleStatus) == 0">
+        <el-button type="success" plain icon="Top" :disabled="multiple" @click="handleMulti('up')" v-hasPermi="['shop:product:edit']">
+          批量上架
+        </el-button>
+      </el-col>
+      <el-col :span="1.5" v-if="queryParams.saleStatus == 1">
+        <el-button type="danger" plain icon="Bottom" :disabled="multiple" @click="handleMulti('down')" v-hasPermi="['shop:product:edit']">
+          批量下架
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['shop:product:delete']">
+          {{ $t('btn.delete') }}
+        </el-button>
+      </el-col>
       <el-col :span="1.5">
         <el-button type="warning" plain icon="download" @click="handleExport" v-hasPermi="['shop:product:export']">
           {{ $t('btn.export') }}
@@ -74,8 +108,10 @@
       border
       header-cell-class-name="el-table-header-cell"
       highlight-current-row
+      @selection-change="handleSelectionChange"
       @sort-change="sortChange">
-      <el-table-column prop="productId" label="商品ID" align="center" v-if="columns.showColumn('productId')" />
+      <el-table-column type="selection" width="50" align="center" :selectable="checkSelectable" />
+      <el-table-column prop="productId" label="商品ID" align="center" sortable v-if="columns.showColumn('productId')" />
       <el-table-column prop="mainImage" label="封面" align="center" width="60" v-if="columns.showColumn('mainImage')">
         <template #default="scope">
           <ImagePreview :src="scope.row.mainImage"></ImagePreview>
@@ -106,7 +142,7 @@
       <el-table-column prop="price" label="价格" align="center" sortable v-if="columns.showColumn('price')">
         <template #default="{ row }"> ￥{{ row.price }}- {{ row.maxPrice }} </template>
       </el-table-column>
-      <el-table-column prop="stock" label="总库存" sortable align="center" />
+      <el-table-column prop="stock" label="总库存" align="center" />
       <el-table-column prop="totalSalesVolume" label="总销量" sortable align="center" />
       <el-table-column prop="sortId" label="排序ID" align="center" sortable width="90" v-if="columns.showColumn('sortId')">
         <template #default="scope">
@@ -152,7 +188,7 @@
 </template>
 
 <script setup name="product">
-import { listShoppingProduct, delShoppingProduct, changeSort } from '@/api/shopping/product.js'
+import { listShoppingProduct, delShoppingProduct, changeSort, operateShoppingProduct } from '@/api/shopping/product.js'
 import { treelistCategory } from '@/api/shopping/category.js'
 
 // import ProductEdit from './components/ProductEdit.vue'
@@ -162,25 +198,26 @@ import router from '@/router'
 
 const { proxy } = getCurrentInstance()
 const ids = ref([])
+const multiple = ref(true)
 const loading = ref(false)
 const showSearch = ref(true)
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 10,
-  sort: '',
-  sortType: 'asc',
   productName: undefined,
   productCode: undefined,
-  saleStatus: '',
+  saleStatus: 1,
   categoryId: undefined,
   productId: undefined,
   brandId: undefined
 })
+const searchType = ref('')
+const searchValue = ref(undefined)
 const dictStore = useDictStore()
 const columns = ref([
   { visible: true, prop: 'productId', label: '商品ID' },
   { visible: true, prop: 'productName', label: '商品名' },
-  { visible: true, prop: 'introduce', label: '卖点' },
+  { visible: false, prop: 'introduce', label: '卖点' },
   { visible: true, prop: 'categoryId', label: '商品分类' },
   { visible: true, prop: 'price', label: '价格' },
   { visible: false, prop: 'specSummary', label: '规格汇总' },
@@ -196,11 +233,17 @@ const defaultTime = ref([new Date(2000, 1, 1, 0, 0, 0), new Date(2000, 2, 1, 23,
 // 添加时间时间范围
 const dateRangeAddTime = ref([])
 
-var dictParams = []
-
 function getList() {
+  // 清空这三个字段
+  queryParams.productId = undefined
+  queryParams.productName = undefined
+  queryParams.productCode = undefined
   proxy.addDateRange(queryParams, dateRangeAddTime.value, 'AddTime')
   loading.value = true
+  // 设置被选中的字段
+  if (searchType.value && searchValue.value) {
+    queryParams[searchType.value] = searchValue.value
+  }
   listShoppingProduct(queryParams).then((res) => {
     const { code, data } = res
     if (code == 200) {
@@ -221,6 +264,8 @@ function handleQuery() {
 function resetQuery() {
   // 添加时间时间范围
   dateRangeAddTime.value = []
+  searchType.value = ''
+  searchValue.value = ''
   proxy.resetForm('queryRef')
   handleQuery()
 }
@@ -298,6 +343,27 @@ function handleDelete(row) {
     })
 }
 
+/**
+ * 商品批量上架下架
+ * @param type up/down
+ */
+function handleMulti(type) {
+  const Ids = ids.value
+
+  proxy
+    .$confirm(`是否确认【${type == 'up' ? '上架' : '下架'}】商品编号为${Ids}的数据项？`, '警告', {
+      confirmButtonText: proxy.$t('common.ok'),
+      cancelButtonText: proxy.$t('common.cancel'),
+      type: 'warning'
+    })
+    .then(() => {
+      return operateShoppingProduct(Ids, type)
+    })
+    .then(() => {
+      getList()
+      proxy.$modal.msgSuccess('操作成功')
+    })
+}
 // 导出按钮操作
 function handleExport() {
   proxy
@@ -309,6 +375,16 @@ function handleExport() {
     .then(async () => {
       await proxy.downFile('/shopping/product/export', { ...queryParams })
     })
+}
+
+/** 选择条数  */
+function handleSelectionChange(selection) {
+  ids.value = selection.map((item) => item.productId)
+
+  multiple.value = !selection.length
+}
+function checkSelectable(row) {
+  return true
 }
 const categoryOptions = ref([])
 treelistCategory().then((res) => {

@@ -87,3 +87,15 @@ export function changeSort(data) {
     params: data
   })
 }
+
+/**
+ * 上架/下架商品
+ * @param {商品id字符串} ids
+ * @param { 操作类型 up/down} type
+ */
+export function operateShoppingProduct(ids, type) {
+  return request({
+    url: `shopping/product/multi/${type}/${ids}`,
+    method: 'POST'
+  })
+}

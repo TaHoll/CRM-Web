@@ -131,16 +131,8 @@
           <dict-tag :options="options.confirmStatusOptions" :value="scope.row.deliveryStatus" />
         </template>
       </el-table-column>
-      <el-table-column prop="totalAmount" label="总金额" sortable width="120" v-if="columns.showColumn('totalAmount')">
-        <template #default="{ row }">
-          <div>
-            <span class="amount_label">总金额</span> <span class="text-warning">{{ $t('currency') }}{{ row.totalAmount }}</span>
-          </div>
-          <div>
-            <span class="amount_label">付款金额</span> <span class="text-danger">{{ $t('currency') }}{{ row.payAmount }}</span>
-          </div>
-        </template>
-      </el-table-column>
+      <el-table-column prop="payAmount" label="实付金额" align="center"></el-table-column>
+      <el-table-column prop="totalAmount" label="总金额" align="center" v-if="columns.showColumn('totalAmount')"> </el-table-column>
       <el-table-column label="商品明细" prop="items" width="200">
         <template #default="scope">
           <div class="order-product" v-for="item in scope.row.items">
@@ -190,7 +182,6 @@
             </el-button>
           </div>
           <div class="fr">
-            <el-button type="primary" text @click="handlemerchantNote(scope.row)">备注</el-button>
             <el-button type="primary" text size="small" v-hasPermi="['oms:order:query']" @click="handleDetails(scope.row)"> 详情</el-button>
             <!-- <el-button type="primary" text size="small">日志</el-button> -->
             <el-button
@@ -203,6 +194,35 @@
               发货
             </el-button>
             <el-button type="info" link size="small" disabled v-else>发货</el-button>
+
+            <el-dropdown>
+              <el-button size="small" text>
+                {{ $t('btn.more') }}
+                <el-icon class="el-icon--right">
+                  <arrow-down />
+                </el-icon>
+              </el-button>
+
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <div class="mb10">
+                    <el-dropdown-item>
+                      <el-button icon="edit" link @click="handlemerchantNote(scope.row)">备注</el-button>
+                    </el-dropdown-item>
+                  </div>
+                  <div>
+                    <el-dropdown-item>
+                      <el-button icon="Delete" link>删除</el-button>
+                    </el-dropdown-item>
+                  </div>
+                  <div class="mt10">
+                    <el-dropdown-item>
+                      <el-button icon="Delete" type="danger" link> 退款 </el-button>
+                    </el-dropdown-item>
+                  </div>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -294,8 +314,8 @@ const columns = ref([
   { visible: false, align: 'center', type: '', prop: 'id', label: '订单Id' },
   // { visible: true, align: 'center', type: '', prop: 'orderNo', label: '订单号', showOverflowTooltip: true },
   { visible: true, align: 'center', type: '', prop: 'userId', label: '用户ID' },
-  { visible: true, align: 'center', type: '', prop: 'totalAmount', label: '总金额' },
-  { visible: true, align: 'center', type: '', prop: 'payAmount', label: '付款金额' },
+  { visible: false, align: 'center', type: '', prop: 'totalAmount', label: '总金额' },
+  // { visible: true, align: 'center', type: '', prop: 'payAmount', label: '付款金额' },
   { visible: true, align: 'center', type: 'dict', prop: 'orderStatus', label: '订单状态' },
   { visible: true, align: 'center', type: '', prop: 'createTime', label: '下单时间', showOverflowTooltip: true },
   { visible: false, align: 'center', type: '', prop: 'cancelTime', label: '取消时间', showOverflowTooltip: true },
