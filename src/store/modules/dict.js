@@ -18,7 +18,7 @@ const useDictStore = defineStore('dict', {
     // 售卖状态
     saleStatusOptions: [
       { dictLabel: '在售', dictValue: '1' },
-      { dictLabel: '下架', dictValue: '0', listClass: 'info' }
+      { dictLabel: '下架', dictValue: '0', listClass: 'danger' }
     ]
   }),
   actions: {}

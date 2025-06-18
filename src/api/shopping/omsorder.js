@@ -92,3 +92,15 @@ export function listSaleTopProduct(query) {
     params: query
   })
 }
+
+/**
+ * 订单发货
+ * @param data
+ */
+export function deliveryOrder(data) {
+  return request({
+    url: 'shopping/Order/delivery',
+    method: 'PUT',
+    data: data
+  })
+}

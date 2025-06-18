@@ -1,6 +1,7 @@
 <template>
   <el-dialog title="订单发货" v-model="open" width="300px">
     <el-form :model="form" label-position="right" :rules="rules" ref="formRef" label-width="80px">
+ 
       <el-form-item label="订单号" prop="orderNo">
         <el-input v-model="form.orderNo" disabled></el-input>
       </el-form-item>
@@ -26,7 +27,7 @@
 </template>
 
 <script setup>
-import { updateOMSOrder } from '@/api/shopping/omsorder'
+import { deliveryOrder } from '@/api/shopping/omsorder'
 import { ElMessage } from 'element-plus'
 const { proxy } = getCurrentInstance()
 
@@ -59,8 +60,8 @@ function reset() {
     deliveryCompany: undefined,
     deliveryNo: undefined,
     orderNo: '',
-    id: undefined,
-    operType: 1 //发货
+    id: undefined ,
+		addressSnapshot: {}
   }
 
   proxy.resetForm('formRef')
@@ -70,6 +71,7 @@ function handleOpen(row) {
   reset()
   form.value.orderNo = row.orderNo
   form.value.id = row.id
+  form.value.addressSnapshot = row.addressSnapshot
   open.value = true
 }
 
@@ -80,7 +82,7 @@ function handleSubmit() {
   formRef.value.validate((valid) => {
     if (!valid) return
 
-    updateOMSOrder(form.value).then(() => {
+    deliveryOrder(form.value).then(() => {
       ElMessage.success('发货成功')
       open.value = false
       emits('success')

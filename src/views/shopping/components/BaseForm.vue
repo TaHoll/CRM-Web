@@ -28,7 +28,7 @@
               </el-cascader>
             </el-form-item>
           </el-col>
-          <el-col :lg="12">
+          <el-col :lg="24">
             <el-form-item label="售卖状态" prop="saleStatus">
               <el-radio-group v-model="info.saleStatus">
                 <el-radio-button v-for="item in saleStatusOptions" :key="item.dictValue" :value="parseInt(item.dictValue)">
@@ -64,22 +64,35 @@
                   原价
                 </span>
               </template>
-              <el-input-number type="number" v-model="info.originalPrice" />
+              <el-input-number type="number" placeholder="请输入商品原价" :min="0" v-model="info.originalPrice" />
             </el-form-item>
           </el-col>
           <el-col :lg="8">
             <el-form-item label="单位" prop="unit">
-              <el-input type="text" style="width: 50px" v-model="info.unit" />
+              <el-input type="text" show-word-limit style="width: 190px" :maxlength="5" placeholder="请输入单位" v-model="info.unit">
+                <template #append>
+                  <el-select style="width: 70px" v-model="info.unit">
+                    <el-option value="位">位</el-option>
+                    <el-option value="米">米</el-option>
+                    <el-option value="千克">千克</el-option>
+                    <el-option value="升">升</el-option>
+                    <el-option value="匹">匹</el-option>
+                    <el-option value="盏">盏</el-option>
+                    <el-option value="扇">扇</el-option>
+                    <el-option value="幅">幅</el-option>
+                  </el-select>
+                </template>
+              </el-input>
             </el-form-item>
           </el-col>
           <el-col :lg="24">
             <el-form-item label="商品编码" prop="productCode">
-              <el-input type="text" v-model="info.productCode" />
+              <el-input type="text" v-model="info.productCode" style="width: 200px" />
             </el-form-item>
           </el-col>
           <el-col :lg="24">
             <el-form-item label="商品卖点" prop="introduce">
-              <el-input type="textarea" show-word-limit :maxlength="200" v-model="info.introduce" />
+              <el-input type="textarea" show-word-limit :maxlength="200" v-model="info.introduce" placeholder="请输入商品卖点" />
             </el-form-item>
           </el-col>
           <el-col :lg="24">
@@ -116,7 +129,7 @@
       </el-col>
       <el-col :lg="24">
         <el-form-item v-if="operType == 1">
-          <el-button icon="check" type="primary" @click="handleSubmitInfo">保存基本信息</el-button>
+          <el-button icon="check" type="primary" size="default" @click="handleSubmitInfo">保存</el-button>
         </el-form-item>
       </el-col>
     </el-row>

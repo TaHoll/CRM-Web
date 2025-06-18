@@ -1,5 +1,5 @@
 <template>
-  <el-form ref="specFormRef" :model="info" :rules="rules" label-position="left" label-width="110px">
+  <el-form ref="specFormRef" label-position="left" label-width="110px">
     <el-form-item label="商品规格">
       <div class="spec-wrap" v-for="(spec, specIndex) in form.specList" :key="specIndex">
         <div class="left">
@@ -78,28 +78,6 @@
         </el-table-column>
       </el-table>
     </el-form-item>
-
-    <el-form-item label="商品限购" prop="purchaseLimit.limit">
-      <el-radio-group v-model="info.purchaseLimit.limit">
-        <el-radio-button :value="false">不限购</el-radio-button>
-        <el-radio-button :value="true">限购</el-radio-button>
-      </el-radio-group>
-    </el-form-item>
-    <el-row :gutter="10" style="margin-left: 100px">
-      <template v-if="info.purchaseLimit.limit">
-        <el-col :lg="24">
-          <el-form-item label="总限购" prop="purchaseLimit.totalLimit">
-            <el-input-number v-model.number="info.purchaseLimit.totalLimit" :min="1" style="width: 100px"></el-input-number> 件/人
-          </el-form-item>
-        </el-col>
-        <el-col :lg="24">
-          <el-form-item label="每单限购" prop="purchaseLimit.singleLimit">
-            <el-input-number v-model.number="info.purchaseLimit.singleLimit" :min="1" style="width: 100px"></el-input-number> 件/人
-          </el-form-item>
-        </el-col>
-        <div class="text-muted" style="font-size: 13px">用于限制每人购买该商品的数量</div>
-      </template>
-    </el-row>
   </el-form>
 </template>
 <script setup name="SpecInfoForm">
@@ -109,16 +87,8 @@ const commonSpecNames = ['颜色', '尺寸', '尺码', '版本', '材质', '内�
 const tableKey = ref(0)
 const form = reactive({
   specList: [],
-  skus: [],
-  // 规格类型 1.单规格 2.多规格
-  specType: 2
+  skus: []
 })
-const rules = {
-  'purchaseLimit.limit': [{ required: true, trigger: 'blur' }],
-  'purchaseLimit.totalLimit': [{ required: true, trigger: 'blur' }],
-  'purchaseLimit.singleLimit': [{ required: true, trigger: 'blur' }]
-}
-
 const props = defineProps({
   specList: {
     type: Array,
@@ -127,15 +97,6 @@ const props = defineProps({
   skus: {
     type: Array,
     default: () => []
-  },
-  info: {
-    type: Object,
-    default: () => {
-      return {
-        type: 1,
-        purchaseLimit: {}
-      }
-    }
   }
 })
 const emit = defineEmits(['update:specList', 'update:skus'])

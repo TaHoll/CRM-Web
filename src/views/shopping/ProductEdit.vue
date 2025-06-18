@@ -10,17 +10,48 @@
           :sale-status-options="dictStore.saleStatusOptions"></BaseForm>
       </el-tab-pane>
       <el-tab-pane label="价格/库存" name="sku">
-        <SpecForm ref="specFormRef" v-model:info="form.data" v-model:spec-list="form.specList" v-model:skus="form.skus"></SpecForm>
+        <el-form-item label="规格类型" label-width="110px" label-position="left">
+          <el-radio-group v-model="form.data.specType" @change="handleSelectSpec">
+            <el-radio :value="1">单规格</el-radio>
+            <el-radio :value="2">多规格</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <SpecForm
+          ref="specFormRef"
+          v-if="form.data.specType == 2"
+          v-model:info="form.data"
+          v-model:spec-list="form.specList"
+          v-model:skus="form.skus"></SpecForm>
+        <SingleSkuForm
+          ref="singleSkuFormRef"
+          v-if="form.data.specType == 1"
+          v-model:info="form.data"
+          v-model:spec-list="form.specList"
+          v-model:skus="form.skus"></SingleSkuForm>
       </el-tab-pane>
       <el-tab-pane label="商品详情" name="detail">
         <el-form-item label="商品详情" label-width="70px">
-          <editor v-model="form.data.detailsHtml" style="width: 500px" :toolbarConfig="toolbarConfig" :min-height="196" />
+          <el-row :gutter="10">
+            <el-col :lg="16">
+              <editor v-model="form.data.detailsHtml" style="width: 500px" :toolbarConfig="toolbarConfig" :min-height="196" />
+            </el-col>
+
+            <el-col :lg="8">
+              <el-scrollbar height="400px">
+                <div class="pre-wrap" v-html="form.data.detailsHtml"></div>
+              </el-scrollbar>
+            </el-col>
+          </el-row>
         </el-form-item>
+      </el-tab-pane>
+
+      <el-tab-pane label="销售设置" name="sale">
+        <OtherForm ref="otherFormRef" :info="form.data"></OtherForm>
       </el-tab-pane>
     </el-tabs>
 
     <el-row class="mt20 bt">
-      <el-button type="success" icon="check" @click="handleSubmit" :loading="submitLoading">提交商品</el-button>
+      <el-button type="success" icon="check" size="default" @click="handleSubmit" :loading="submitLoading">提交商品</el-button>
     </el-row>
   </div>
 </template>
@@ -35,29 +66,32 @@ import { ElMessage } from 'element-plus'
 import Editor from '@/components/Editor'
 import BaseForm from './components/BaseForm.vue'
 import SpecForm from './components/SpecForm.vue'
+import SingleSkuForm from './components/SingleSkuForm.vue'
 import router from '@/router'
+import OtherForm from './components/OtherForm.vue'
 const dictStore = useDictStore()
 const { proxy } = getCurrentInstance()
-const open = ref(false)
+
 const toolbarConfig = ref({
   toolbarKeys: [
     // 菜单 key
     // 'headerSelect',
     'bold', // 加粗
-    // 'italic', // 斜体
-    // 'through', // 删除线
+    'italic', // 斜体
+    'through', // 删除线
     'underline', // 下划线
     // 'bulletedList', // 无序列表
     // 'numberedList', // 有序列表
     'color', // 文字颜色
     'uploadImage', // 上传图片
+    'uploadVideo', // 上传图片
     'delIndent', // 缩进
     'indent', // 增进
-    // 'insertLink', // 插入链接
+    'insertLink', // 插入链接
     'fontSize', // 字体大小
     'clearStyle', // 清除格式
     'divider', // 分割线
-    'insertTable', // 插入表格
+    // 'insertTable', // 插入表格
     'justifyCenter', // 居中对齐
     'justifyJustify', // 两端对齐
     'justifyLeft', // 左对齐
@@ -95,6 +129,7 @@ function reset() {
     categoryId: undefined,
     brandId: undefined,
     mainImage: '',
+    specType: 2, // 规格类型 1.单 2.多
     purchaseLimit: {
       limit: false,
       totalLimit: 0,
@@ -109,6 +144,8 @@ function reset() {
   proxy.resetForm('formRef')
 }
 const specFormRef = ref()
+const singleSkuFormRef = ref()
+const otherFormRef = ref()
 
 function getFormPromise(form) {
   return new Promise((resolve) => {
@@ -123,10 +160,18 @@ function getFormPromise(form) {
 
 // 提交校验
 function handleSubmit() {
-  const basicForm = proxy.$refs.basicInfo.$refs.basicInfoForm
-  const specFormRef = proxy.$refs.specFormRef.$refs.specFormRef
-
-  const formList = [basicForm, specFormRef].filter(Boolean) // 过滤掉不存在的 form
+  const basicForm = proxy.$refs.basicInfo?.$refs.basicInfoForm
+  // const specFormRef = proxy.$refs.specFormRef?.$refs.specFormRef
+  const singleSkuFormRef = proxy.$refs.singleSkuFormRef?.$refs.singleSkuFormRef
+  const otherFormRef = proxy.$refs.otherFormRef?.$refs.formRef
+  // 1. 动态收集当前启用的 form 表单
+  const formList = [basicForm, otherFormRef]
+  if (form.data.specType === 1 && singleSkuFormRef) {
+    formList.push(singleSkuFormRef)
+  }
+  // else if (form.data.specType === 2 && specFormRef) {
+  //   formList.push(specFormRef)
+  // }
   Promise.all(formList.map(getFormPromise)).then((results) => {
     const validateResult = results.every((item) => item.isValid)
     if (!validateResult) {
@@ -147,20 +192,29 @@ function handleSubmit() {
       return
     }
 
-    // 多规格校验
-    if (form.specList.length === 0) {
-      activeName.value = 'sku'
-      ElMessage.error('请在【价格库存】标签里面至少添加一个商品规格')
-      return
+    if (form.data.specType === 1 && form.specList.length === 0) {
+      // 单规格模式下，自动填入一个默认规格（用于统一数据结构）
+      form.specList = [{ name: '规格', values: ['默认'] }]
+      for (const sku of form.skus) {
+        sku.specs = [{ name: '规格', value: '默认' }]
+      }
     }
-    for (const [i, spec] of form.specList.entries()) {
-      if (!spec.name.trim()) {
-        ElMessage.error(`第 ${i + 1} 个规格名称不能为空`)
+    if (form.data.specType == 2) {
+      // 多规格校验
+      if (form.specList.length === 0) {
+        activeName.value = 'sku'
+        ElMessage.error('请在【价格库存】标签里面至少添加一个商品规格')
         return
       }
-      if (spec.values.length === 0) {
-        ElMessage.error(`规格 "${spec.name}" 必须包含至少一个值`)
-        return
+      for (const [i, spec] of form.specList.entries()) {
+        if (!spec.name.trim()) {
+          ElMessage.error(`第 ${i + 1} 个规格名称不能为空`)
+          return
+        }
+        if (spec.values.length === 0) {
+          ElMessage.error(`规格 "${spec.name}" 必须包含至少一个值`)
+          return
+        }
       }
     }
 
@@ -194,16 +248,13 @@ function handleSubmit() {
     if (opertype.value == 0) {
       addShoppingProduct(payload)
         .then((res) => {
-          // const { data } = res
           ElMessage({
             type: 'success',
             message: '添加成功',
             onClose: () => {
-              handleClose()
+              handleClose(res.data)
             }
           })
-
-          // emits('success')
         })
         .finally(() => {
           submitLoading.value = false
@@ -211,22 +262,21 @@ function handleSubmit() {
     } else {
       updateShoppingProduct(payload)
         .then((res) => {
-          // const { data } = res
+          proxy.$modal.loading('跳转中...')
           ElMessage({
             type: 'success',
             message: '修改成功',
             onClose: () => {
-              console.log('关闭')
-              handleClose()
+              proxy.$modal.closeLoading()
+              handleClose(res.data)
             }
           })
-          // emits('success')
         })
         .finally(() => {
           submitLoading.value = false
         })
     }
-    console.log('提交表单数据:', JSON.stringify(payload, null, 2))
+    // console.log('提交表单数据:', JSON.stringify(payload, null, 2))
   })
 }
 
@@ -272,17 +322,17 @@ function getInfo(productId) {
     }
   })
 }
-function handleClose() {
-  // proxy.$tab.closePage()
+function handleClose(info) {
   router.push({
     path: './product',
     replace: true
   })
 }
-
-// defineExpose({
-//   handleEdit
-// })
+// 选择规格
+function handleSelectSpec(val) {
+  // form.specList.length = 0
+  // form.skus.length = 0
+}
 </script>
 
 <style scoped lang="scss">
@@ -301,5 +351,14 @@ function handleClose() {
 .bt {
   display: flex;
   justify-content: center;
+}
+.pre-wrap {
+  width: 300px;
+  overflow: hidden;
+  img {
+    width: 100%;
+    max-width: 100%;
+    display: block;
+  }
 }
 </style>

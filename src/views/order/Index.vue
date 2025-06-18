@@ -33,18 +33,12 @@
           start-placeholder="开始日期"
           end-placeholder="结束日期"
           value-format="YYYY-MM-DD HH:mm:ss"
+          @change="handleTimed"
           :default-time="defaultTime"
           :shortcuts="dateOptions">
         </el-date-picker>
       </el-form-item>
-      <!-- <el-form-item label="确认收货状态" prop="confirmStatus">
-        <el-radio-group v-model="queryParams.confirmStatus">
-          <el-radio-button value="">全部</el-radio-button>
-          <el-radio-button v-for="item in options.confirmStatusOptions" :key="item.dictValue" :value="item.dictValue">
-            {{ item.dictLabel }}
-          </el-radio-button>
-        </el-radio-group>
-      </el-form-item> -->
+       
       <el-form-item>
         <el-button icon="search" type="primary" @click="handleQuery">{{ $t('btn.search') }}</el-button>
         <el-button icon="refresh" @click="resetQuery">{{ $t('btn.reset') }}</el-button>
@@ -56,6 +50,30 @@
         <el-button type="warning" plain icon="download" @click="handleExport" v-hasPermi="['oms:order:export']">
           {{ $t('btn.export') }}
         </el-button>
+      </el-col>
+
+      <el-col :span="1.5">
+        <el-dropdown trigger="click" v-hasPermi="['oms:order:ship']">
+          <el-button type="primary" plain icon="Upload">
+            批量发货<el-icon class="el-icon--right"><arrow-down /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="upload">
+                <importData
+                  :data="queryParams"
+                  templateUrl="shopping/Order/exportDelivery"
+                  importUrl="/shopping/Order/importData"
+                  @success="handleQuery()"
+                  :resultFields="[
+                    { prop: 'orderNo', label: '订单号' },
+                    { prop: 'status', label: '发货状态' }
+                  ]">
+                </importData>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" :columns="columns"></right-toolbar>
     </el-row>
@@ -84,8 +102,7 @@
           </div>
           {{ row.addressLabel }}
         </template>
-      </el-table-column>
-      <!-- <el-table-column prop="orderNo" label="订单号" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('orderNo')" /> -->
+      </el-table-column> 
       <el-table-column prop="userId" label="用户ID" align="center" v-if="columns.showColumn('userId')" />
 
       <el-table-column prop="orderStatus" label="订单状态" width="190" v-if="columns.showColumn('orderStatus')">
@@ -212,7 +229,7 @@
                   </div>
                   <div>
                     <el-dropdown-item>
-                      <el-button icon="Delete" link>删除</el-button>
+                      <el-button icon="Delete" link @click="handleDelete(scope.row)">删除</el-button>
                     </el-dropdown-item>
                   </div>
                   <div class="mt10">
@@ -292,6 +309,7 @@ import merchantNoteForm from './components/MerchantNoteForm.vue'
 import addressForm from './components/AddressForm.vue'
 import router from '@/router'
 import useDictStore from '@/store/modules/dict'
+import importData from '@/components/ImportData'
 
 const { proxy } = getCurrentInstance()
 const ids = ref([])
@@ -351,9 +369,7 @@ function getList() {
 // 查询
 function handleQuery() {
   queryParams.pageNum = 1
-  // if (queryParams.orderStatus == '') {
-  //   dateRangeCreateTime.value = [start, end]
-  // }
+
   getList()
 }
 
@@ -453,7 +469,7 @@ function handleDelete(row) {
   const Ids = row.id || ids.value
 
   proxy
-    .$confirm('是否确认删除参数编号为"' + Ids + '"的数据项？', '警告', {
+    .$confirm('删除后订单将消失，确认删除订单吗?', '警告', {
       confirmButtonText: proxy.$t('common.ok'),
       cancelButtonText: proxy.$t('common.cancel'),
       type: 'warning'
@@ -479,6 +495,10 @@ function handleExport() {
       await proxy.downFile('/shopping/Order/export', { ...queryParams })
     })
 }
+function handleTimed() {
+  proxy.addDateRange(queryParams, dateRangeCreateTime.value, 'CreateTime')
+}
+
 function copySuccess() {
   ElMessage.success('复制成功')
 }
@@ -491,7 +511,7 @@ function handleShipments(row) {
     ElMessage.error('用户还未选择收货地址不能发货')
     return
   }
-  shipmentsRef.value.handleOpen(row.orderNo)
+  shipmentsRef.value.handleOpen(row)
 }
 
 const merchantNoteFormRef = ref()

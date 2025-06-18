@@ -12,3 +12,4 @@ public
 /vite/
 .eslintrc.js
 .prettierrc.js
+/.vs/
