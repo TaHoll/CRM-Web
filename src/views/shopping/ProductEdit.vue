@@ -192,7 +192,7 @@ function handleSubmit() {
       return
     }
 
-    if (form.data.specType === 1 && form.specList.length === 0) {
+    if (form.data.specType === 1) {
       // 单规格模式下，自动填入一个默认规格（用于统一数据结构）
       form.specList = [{ name: '规格', values: ['默认'] }]
       for (const sku of form.skus) {

@@ -16,7 +16,7 @@
         <el-input v-model="queryParams.productCode" placeholder="请输入商品编码" />
       </el-form-item> -->
 
-      <el-form-item label="查询条件">
+      <el-form-item label="搜索">
         <el-input
           v-model="searchValue"
           label-width="130px"

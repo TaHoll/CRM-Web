@@ -14,9 +14,14 @@
     <el-form :model="queryParams" label-position="right" inline ref="queryRef" v-show="showSearch" @submit.prevent>
       <el-tabs v-model="queryParams.orderStatus" class="demo-tabs" @tab-change="handleQuery">
         <el-tab-pane label="全部" name=""></el-tab-pane>
-        <el-tab-pane :label="item.dictLabel" :name="parseInt(item.dictValue)" v-for="item in dictStore.orderStatusOptions"></el-tab-pane>
+        <el-tab-pane :label="item.dictLabel" :name="parseInt(item.dictValue)" v-for="item in dictStore.orderStatusOptions">
+          <template #label>
+            {{ item.dictLabel }}
+            <span v-if="item.dictValue == 1"> ({{ notDelivereOrder }}) </span>
+          </template>
+        </el-tab-pane>
       </el-tabs>
-      <el-form-item label="订单号" prop="orderNo">
+      <!-- <el-form-item label="订单号" prop="orderNo">
         <el-input v-model="queryParams.orderNo" placeholder="请输入订单号" />
       </el-form-item>
       <el-form-item label="物流单号" prop="deliveryNo">
@@ -24,9 +29,21 @@
       </el-form-item>
       <el-form-item label="用户ID" prop="userId">
         <el-input v-model.number="queryParams.userId" placeholder="请输入用户ID" />
+      </el-form-item> -->
+
+      <el-form-item label="搜索">
+        <el-input v-model="searchValue" label-width="130px" clearable placeholder="请输入搜索内容" style="width: 300px">
+          <template #prepend>
+            <el-select v-model="searchType" style="width: 115px">
+              <el-option label="订单号" value="orderNo" />
+              <el-option label="快递单号" value="deliveryNo" />
+              <el-option label="用户id" value="userId" />
+            </el-select>
+          </template>
+        </el-input>
       </el-form-item>
 
-      <el-form-item label="下单时间">
+      <el-form-item label="创建时间">
         <el-date-picker
           v-model="dateRangeCreateTime"
           type="datetimerange"
@@ -38,7 +55,7 @@
           :shortcuts="dateOptions">
         </el-date-picker>
       </el-form-item>
-       
+
       <el-form-item>
         <el-button icon="search" type="primary" @click="handleQuery">{{ $t('btn.search') }}</el-button>
         <el-button icon="refresh" @click="resetQuery">{{ $t('btn.reset') }}</el-button>
@@ -48,7 +65,7 @@
     <el-row :gutter="15" class="mb10">
       <el-col :span="1.5">
         <el-button type="warning" plain icon="download" @click="handleExport" v-hasPermi="['oms:order:export']">
-          {{ $t('btn.export') }}
+          {{ $t('btn.export') }}订单
         </el-button>
       </el-col>
 
@@ -102,7 +119,7 @@
           </div>
           {{ row.addressLabel }}
         </template>
-      </el-table-column> 
+      </el-table-column>
       <el-table-column prop="userId" label="用户ID" align="center" v-if="columns.showColumn('userId')" />
 
       <el-table-column prop="orderStatus" label="订单状态" width="190" v-if="columns.showColumn('orderStatus')">
@@ -232,9 +249,9 @@
                       <el-button icon="Delete" link @click="handleDelete(scope.row)">删除</el-button>
                     </el-dropdown-item>
                   </div>
-                  <div class="mt10">
+                  <div class="mt10" v-if="[1, 2, 3].includes(scope.row.orderStatus)">
                     <el-dropdown-item>
-                      <el-button icon="Delete" type="danger" link> 退款 </el-button>
+                      <el-button icon="SoldOut" type="danger" link @click="handleOpen(scope.row)"> 退款 </el-button>
                     </el-dropdown-item>
                   </div>
                 </el-dropdown-menu>
@@ -246,53 +263,24 @@
     </el-table>
     <pagination :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
-    <el-dialog :title="title" :lock-scroll="false" v-model="open">
+    <el-dialog title="退款" :lock-scroll="false" v-model="open" width="400px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-row :gutter="20">
-          <el-col :lg="12">
+          <el-col :lg="24">
             <el-form-item label="订单号" prop="orderNo">
-              <el-input v-model="form.orderNo" placeholder="请输入订单号" />
+              <el-input v-model="form.orderNo" disabled placeholder="请输入订单号" />
             </el-form-item>
           </el-col>
-
-          <el-col :lg="12">
-            <el-form-item label="订单备注" prop="orderNote">
-              <el-input v-model="form.orderNote" placeholder="请输入订单备注" />
-            </el-form-item>
-          </el-col>
-
-          <el-col :lg="12">
-            <el-form-item label="商家备注" prop="merchantNote">
-              <el-input v-model="form.merchantNote" placeholder="请输入商家备注" />
-            </el-form-item>
-          </el-col>
-
-          <el-col :lg="12">
-            <el-form-item label="确认收货状态" prop="confirmStatus">
-              <el-radio-group v-model="form.confirmStatus">
-                <el-radio v-for="item in options.confirmStatusOptions" :key="item.dictValue" :value="parseInt(item.dictValue)">
-                  {{ item.dictLabel }}
-                </el-radio>
-              </el-radio-group>
-            </el-form-item>
-          </el-col>
-
-          <el-col :lg="12">
-            <el-form-item label="物流公司" prop="deliveryCompany">
-              <el-input v-model="form.deliveryCompany" placeholder="请输入物流公司" />
-            </el-form-item>
-          </el-col>
-
-          <el-col :lg="12">
-            <el-form-item label="物流单号" prop="deliveryNo">
-              <el-input v-model="form.deliveryNo" placeholder="请输入物流单号" />
+          <el-col :lg="24">
+            <el-form-item label="退款金额" prop="payAmount">
+              <el-input-number v-model="form.payAmount" :min="0.01" :max="form.payAmount" placeholder="请输入退款金额" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
-      <template #footer v-if="opertype != 3">
+      <template #footer>
         <el-button text @click="cancel">{{ $t('btn.cancel') }}</el-button>
-        <el-button type="primary" :loading="state.submitLoading" @click="submitForm">{{ $t('btn.submit') }}</el-button>
+        <el-button type="primary" :loading="state.submitLoading">{{ $t('btn.submit') }}</el-button>
       </template>
     </el-dialog>
     <shipments ref="shipmentsRef" @success="handleQuery"></shipments>
@@ -318,15 +306,14 @@ const showSearch = ref(true)
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 10,
-  sort: 'Id',
-  sortType: 'asc',
   orderNo: undefined,
   userId: undefined,
   orderStatus: 1,
-  createTime: undefined,
-  confirmStatus: '',
   deliveryNo: undefined
 })
+
+const searchType = ref('')
+const searchValue = ref(undefined)
 const dictStore = useDictStore()
 const columns = ref([
   { visible: false, align: 'center', type: '', prop: 'id', label: '订单Id' },
@@ -352,16 +339,26 @@ const start = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD 00:00:00'
 const dateRangeCreateTime = ref([])
 
 var dictParams = []
-
+const notDelivereOrder = ref(0)
 function getList() {
   proxy.addDateRange(queryParams, dateRangeCreateTime.value, 'CreateTime')
   loading.value = true
+
+  // 清空这三个字段
+  queryParams.userId = undefined
+  queryParams.orderNo = undefined
+  queryParams.deliveryNo = undefined
+  // 设置被选中的字段
+  if (searchType.value && searchValue.value) {
+    queryParams[searchType.value] = searchValue.value
+  }
   listOMSOrder(queryParams).then((res) => {
     const { code, data } = res
     if (code == 200) {
       dataList.value = data.result
       total.value = data.totalNum
       loading.value = false
+      notDelivereOrder.value = data.extra.notDelivereOrder
     }
   })
 }
@@ -375,6 +372,8 @@ function handleQuery() {
 
 // 重置查询操作
 function resetQuery() {
+  searchType.value = ''
+  searchValue.value = ''
   // 下单时间时间范围
   dateRangeCreateTime.value = []
   proxy.resetForm('queryRef')
@@ -396,9 +395,6 @@ function sortChange(column) {
 
 /*************** form操作 ***************/
 const formRef = ref()
-const title = ref('')
-// 操作类型 1、add 2、edit 3、view
-const opertype = ref(0)
 const open = ref(false)
 const state = reactive({
   single: true,
@@ -406,7 +402,7 @@ const state = reactive({
   submitLoading: false,
   form: {},
   rules: {
-    userId: [{ required: true, message: '用户ID不能为空', trigger: 'blur', type: 'number' }]
+    payAmount: [{ required: true, message: '退款金额不能为空', trigger: 'blur', type: 'number' }]
   },
   options: {
     confirmStatusOptions: [
@@ -417,48 +413,26 @@ const state = reactive({
   }
 })
 
-const { form, rules, options, single, multiple } = toRefs(state)
+const { form, rules, options } = toRefs(state)
 
 // 关闭dialog
 function cancel() {
   open.value = false
-  reset()
 }
 
-// 重置表单
-function reset() {
-  form.value = {
-    id: null,
-    orderNo: null,
-    userId: null,
-    totalAmount: null,
-    payAmount: null,
-    orderStatus: null,
-    createTime: null,
-    payTime: null,
-    cancelTime: null,
-    orderNote: null,
-    merchantNote: null,
-    confirmStatus: null,
-    addressSnapshot: null,
-    deliveryCompany: null,
-    deliverySn: null
+function handleOpen(row) {
+  state.form = {
+    ...row
   }
-  proxy.resetForm('formRef')
+  open.value = true
 }
-
 // 添加&修改 表单提交
 function submitForm() {
   proxy.$refs['formRef'].validate((valid) => {
     if (valid) {
       state.submitLoading = true
 
-      if (form.value.id != undefined && opertype.value === 2) {
-        updateOMSOrder(form.value).then((res) => {
-          proxy.$modal.msgSuccess('修改成功')
-          open.value = false
-          getList()
-        })
+      if (form.value.id != undefined) {
       }
     }
   })
