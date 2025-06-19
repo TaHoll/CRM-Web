@@ -92,6 +92,16 @@ function reset() {
 function handleHelp() {
   proxy.$modal.msg('请将svg图标放置在目录/src/assets/icons/svg里面')
 }
+watch(
+  () => activeName.value,
+  (val) => {
+    reset()
+    emit('selected', '')
+  },
+  {
+    immediate: true
+  }
+)
 defineExpose({
   reset
 })

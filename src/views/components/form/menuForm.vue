@@ -1,5 +1,5 @@
 <template>
-  <el-dialog draggable="" :title="title" v-model="open" width="720px" append-to-body>
+  <el-dialog draggable="" :title="title" v-model="open" width="760px" append-to-body>
     <el-form ref="menuRef" :model="form" :rules="rules" label-width="110px">
       <el-row>
         <el-col :lg="24">
@@ -30,46 +30,26 @@
         </el-col>
         <el-col :lg="12">
           <el-form-item :label="$t('m.menuName')" prop="menuName">
-            <el-input v-model="form.menuName" placeholder="请输入菜单名称" />
-          </el-form-item>
-        </el-col>
-        <el-col :lg="12">
-          <el-form-item label="菜单名" prop="menuNameKey">
-            <template #label>
-              <span>
-                <el-tooltip content="多语言翻译key：eg：menu.system，不需要多语言的可不用填写" placement="top">
-                  <el-icon :size="15">
-                    <questionFilled />
-                  </el-icon>
-                </el-tooltip>
-                {{ $t('m.menuNameKey') }}
-              </span>
-            </template>
-            <el-input v-model="form.menuNameKey" placeholder="请输入菜单名翻译key" />
-          </el-form-item>
-        </el-col>
-        <el-col :lg="12" v-if="form.menuType != 'F'">
-          <el-form-item :label="$t('m.icon')" prop="icon">
-            <el-popover placement="bottom-start" :width="540" trigger="click">
-              <template #reference>
-                <el-input v-model="form.icon" placeholder="点击选择图标" readonly>
-                  <template #prefix>
-                    <svg-icon v-if="form.icon" :name="form.icon" />
-                    <el-icon v-else>
-                      <search />
-                    </el-icon>
+            <el-input v-model="form.menuName" placeholder="请输入菜单名称">
+              <template #prepend v-if="form.menuType != 'F'">
+                <el-popover placement="bottom-start" :width="540" trigger="click">
+                  <template #reference>
+                    <el-link v-model="form.icon">
+                      <svg-icon v-if="form.icon" :name="form.icon" />
+
+                      <div class="text-info" v-else>
+                        <svg-icon name="ele-upload"></svg-icon>
+                        图标
+                      </div>
+                    </el-link>
                   </template>
-                </el-input>
+                  <icon-select ref="iconSelectRef" @selected="selected" />
+                </el-popover>
               </template>
-              <icon-select ref="iconSelectRef" @selected="selected" />
-            </el-popover>
+            </el-input>
           </el-form-item>
         </el-col>
-        <el-col :lg="12">
-          <el-form-item :label="$t('m.sort')" prop="orderNum">
-            <el-input-number v-model="form.orderNum" controls-position="right" :min="0" />
-          </el-form-item>
-        </el-col>
+
         <el-col :lg="12" v-if="!['F'].includes(form.menuType)">
           <el-form-item prop="path">
             <template #label>
@@ -83,6 +63,25 @@
               </span>
             </template>
             <el-input v-model="form.path" placeholder="请输入路由地址"> </el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :lg="12" v-if="['C'].includes(form.menuType)">
+          <el-form-item prop="routeName">
+            <template #label>
+              <span>
+                <el-tooltip content="setup name,尽量不要重复" placement="top">
+                  <el-icon :size="15">
+                    <questionFilled />
+                  </el-icon>
+                </el-tooltip>
+                路由名
+              </span>
+            </template>
+            <el-input v-model="form.routeName" placeholder="请输入路由名">
+              <template #prepend>
+                <span style="width: 60px">setup name</span>
+              </template>
+            </el-input>
           </el-form-item>
         </el-col>
         <el-col :lg="12" v-if="!['F', 'M', 'L'].includes(form.menuType)">
@@ -115,22 +114,24 @@
                     <br />
                     系统内置一些查看敏感信息字符，比如
                     <table>
-                      <tr>
-                        <td>手机号</td>
-                        <td>p:vrp</td>
-                      </tr>
-                      <tr>
-                        <td>身份证</td>
-                        <td>p:vri</td>
-                      </tr>
-                      <tr>
-                        <td>邮箱</td>
-                        <td>p:ve</td>
-                      </tr>
-                      <tr>
-                        <td>IP地址</td>
-                        <td>p:vip</td>
-                      </tr>
+                      <tbody>
+                        <tr>
+                          <td>手机号</td>
+                          <td>p:vrp</td>
+                        </tr>
+                        <tr>
+                          <td>身份证</td>
+                          <td>p:vri</td>
+                        </tr>
+                        <tr>
+                          <td>邮箱</td>
+                          <td>p:ve</td>
+                        </tr>
+                        <tr>
+                          <td>IP地址</td>
+                          <td>p:vip</td>
+                        </tr>
+                      </tbody>
                     </table>
                   </template>
                   <el-icon :size="15">
@@ -140,6 +141,26 @@
                 {{ $t('m.permissionStr') }}
               </span>
             </template>
+          </el-form-item>
+        </el-col>
+        <el-col :lg="12">
+          <el-form-item :label="$t('m.sort')" prop="orderNum">
+            <el-input-number v-model="form.orderNum" controls-position="right" :min="0" />
+          </el-form-item>
+        </el-col>
+        <el-col :lg="12">
+          <el-form-item label="菜单名" prop="menuNameKey">
+            <template #label>
+              <span>
+                <el-tooltip content="多语言翻译key：eg：menu.system，不需要多语言的可不用填写" placement="top">
+                  <el-icon :size="15">
+                    <questionFilled />
+                  </el-icon>
+                </el-tooltip>
+                {{ $t('m.menuNameKey') }}
+              </span>
+            </template>
+            <el-input v-model="form.menuNameKey" placeholder="请输入菜单名翻译key" />
           </el-form-item>
         </el-col>
         <el-col :lg="12" v-if="form.menuType == 'C'">
@@ -296,7 +317,8 @@ function reset() {
     isFrame: '0',
     isCache: '0',
     visible: '0',
-    status: '0'
+    status: '0',
+    routeName: ''
   }
   proxy.resetForm('menuRef')
 }

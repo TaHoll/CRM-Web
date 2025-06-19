@@ -5,7 +5,7 @@ export default defineComponent({
   props: {
     // svg 图标组件名字
     name: {
-      type: String,
+      type: [String, null],
       required: true,
       default: ''
     },
