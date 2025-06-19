@@ -104,3 +104,15 @@ export function deliveryOrder(data) {
     data: data
   })
 }
+
+/**
+ * 订单退款
+ * @param {主键} pid
+ */
+export function RefundOrder(data) {
+  return request({
+    url: 'shopping/Order/refund',
+    method: 'POST',
+    data: data
+  })
+}

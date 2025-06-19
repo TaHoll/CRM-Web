@@ -280,7 +280,7 @@
       </el-form>
       <template #footer>
         <el-button text @click="cancel">{{ $t('btn.cancel') }}</el-button>
-        <el-button type="primary" :loading="state.submitLoading">{{ $t('btn.submit') }}</el-button>
+        <el-button type="primary" @click="submitForm(form)" :loading="state.submitLoading">{{ $t('btn.submit') }}</el-button>
       </template>
     </el-dialog>
     <shipments ref="shipmentsRef" @success="handleQuery"></shipments>
@@ -290,7 +290,7 @@
 </template>
 
 <script setup name="order">
-import { listOMSOrder, delOMSOrder, updateOMSOrder } from '@/api/shopping/omsorder.js'
+import { listOMSOrder, delOMSOrder, RefundOrder } from '@/api/shopping/omsorder.js'
 import { dayjs, ElMessage } from 'element-plus'
 import shipments from './components/ShipmentsForm.vue'
 import merchantNoteForm from './components/MerchantNoteForm.vue'
@@ -327,7 +327,7 @@ const columns = ref([
   { visible: true, align: 'center', type: '', prop: 'orderNote', label: '订单备注', showOverflowTooltip: true },
   // { visible: false, align: 'center', type: '', prop: 'merchantNote', label: '商家备注', showOverflowTooltip: true },
   { visible: true, align: 'center', type: 'dict', prop: 'deliveryStatus', label: '发货状态' },
-  { visible: true, align: 'center', type: '', prop: 'addressSnapshot', label: '收货地址', showOverflowTooltip: true }
+  { visible: true, align: 'center', type: '', prop: 'addressSnapshot', label: '收货信息', showOverflowTooltip: true }
 ])
 const total = ref(0)
 const dataList = ref([])
@@ -426,14 +426,18 @@ function handleOpen(row) {
   }
   open.value = true
 }
-// 添加&修改 表单提交
-function submitForm() {
+// 表单提交
+function submitForm(row) {
   proxy.$refs['formRef'].validate((valid) => {
     if (valid) {
       state.submitLoading = true
-
-      if (form.value.id != undefined) {
-      }
+      RefundOrder(row)
+        .then((res) => {
+          proxy.$modal.msgSuccess(res.msg)
+        })
+        .finally(() => {
+          state.submitLoading = false
+        })
     }
   })
 }
