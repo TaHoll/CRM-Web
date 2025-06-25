@@ -15,6 +15,22 @@
             <el-radio :value="1">单规格</el-radio>
             <el-radio :value="2">多规格</el-radio>
           </el-radio-group>
+
+          <template v-if="form.data.specType == 2">
+            <el-dropdown @command="handleCommand">
+              <span class="el-dropdown-link ml10 text-success">
+                选择规格模板
+                <el-icon class="el-icon--right">
+                  <arrow-down />
+                </el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="item" v-for="item in specTplList">{{ item.templateName }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
         </el-form-item>
         <SpecForm
           ref="specFormRef"
@@ -58,6 +74,7 @@
 
 <script setup>
 import { addShoppingProduct, getShoppingProduct, updateShoppingProduct } from '@/api/shopping/product'
+import { listSpecTemplate } from '@/api/shopping/spectemplate'
 import { treelistCategory } from '@/api/shopping/category.js'
 import useDictStore from '@/store/modules/dict'
 import { ElMessage } from 'element-plus'
@@ -332,6 +349,23 @@ function handleClose(info) {
 function handleSelectSpec(val) {
   // form.specList.length = 0
   // form.skus.length = 0
+}
+const specTplList = ref([])
+watch(
+  () => form.data.specType,
+  (val) => {
+    if (val == 2) {
+      listSpecTemplate().then((res) => {
+        specTplList.value = res.data
+      })
+    }
+  },
+  {
+    immediate: true
+  }
+)
+function handleCommand(e) {
+  form.specList = e.specJson
 }
 </script>
 

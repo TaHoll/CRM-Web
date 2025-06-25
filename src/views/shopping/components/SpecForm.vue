@@ -49,30 +49,30 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="规格图片" width="70">
+        <el-table-column label="规格图片" width="100" align="center">
           <template #default="{ row }">
             <UploadImage v-model="row.imageUrl" :limit="1" style="width: 50px"></UploadImage>
           </template>
         </el-table-column>
-        <el-table-column label="商品价格" width="120">
+        <el-table-column label="商品价格" width="120" align="center">
           <template #default="{ row }">
             <el-input-number v-model="row.price" :min="0" style="width: 100px" controls-position="right" />
           </template>
         </el-table-column>
-        <el-table-column label="库存数量" width="120">
+        <el-table-column label="库存数量" width="120" align="center">
           <template #default="{ row }">
             <el-input-number v-model="row.stock" :min="0" style="width: 100px" controls-position="right" />
           </template>
         </el-table-column>
-        <el-table-column label="商品重量(KG)" width="120">
+        <el-table-column label="商品重量(KG)" width="120" align="center">
           <template #default="{ row }">
             <el-input-number v-model="row.weight" :min="0" style="width: 100px" controls-position="right" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="50">
+        <el-table-column label="操作" width="80" align="center">
           <template #default="scope">
             <el-button-group>
-              <el-button type="danger" text icon="delete" size="small" @click="removeSku(scope.$index, scope.row)"> </el-button>
+              <el-button type="danger" icon="delete" size="small" @click="removeSku(scope.$index, scope.row)"> </el-button>
             </el-button-group>
           </template>
         </el-table-column>

@@ -37,7 +37,7 @@
                     <el-link v-model="form.icon">
                       <svg-icon v-if="form.icon" :name="form.icon" />
 
-                      <div class="text-info" v-else>
+                      <div class="text-info" v-if="!form.icon">
                         <svg-icon name="ele-upload"></svg-icon>
                         图标
                       </div>

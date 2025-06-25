@@ -18,13 +18,15 @@
 
     <el-card header="收货信息" class="mb10">
       <el-descriptions v-if="info.addressSnapshot">
-        <el-descriptions-item label="收货人姓名">{{ info.addressSnapshot.userName }}</el-descriptions-item>
+        <el-descriptions-item label="收货人姓名">
+          {{ info.addressSnapshot.userName }}
+        </el-descriptions-item>
         <el-descriptions-item label="收货人手机号">{{ info.addressSnapshot.phone }}</el-descriptions-item>
         <el-descriptions-item label="收货地区"> {{ info.addressLabel }}</el-descriptions-item>
 
-        <el-descriptions-item label="详细地址">
+        <!-- <el-descriptions-item label="详细地址">
           {{ info.addressSnapshot.detailsAddress }}
-        </el-descriptions-item>
+        </el-descriptions-item> -->
       </el-descriptions>
     </el-card>
 
@@ -32,7 +34,7 @@
       <el-table :data="info.items">
         <el-table-column prop="productPic" label="商品图片">
           <template #default="scope">
-            <image-preview :src="scope.row.productPic"></image-preview>
+            <image-preview :src="scope.row.productPic" style="width: 60px"></image-preview>
           </template>
         </el-table-column>
 
