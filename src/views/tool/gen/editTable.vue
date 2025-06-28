@@ -172,9 +172,17 @@
                   scope.row.htmlType == 'selectRadio'
                 ">
                 <el-option v-for="dict in dictOptions" :key="dict.dictType" :label="dict.dictName" :value="dict.dictType">
-                  <span style="float: left">{{ dict.dictName }}</span>
-                  <span style="float: right; color: #8492a6; font-size: 13px">{{ dict.dictType }}</span>
+                  <span style="float: left">
+                    {{ dict.dictName }}
+                    <span style="color: #8492a6; font-size: 13px"> ({{ dict.dictType }}) </span>
+                  </span>
+                  <span style="float: right; color: #8492a6; font-size: 13px">
+                    <el-button text icon="plus" @click="showDictData(dict)"></el-button>
+                  </span>
                 </el-option>
+                <template #footer>
+                  <el-button @click="handleAddDict">添加字典</el-button>
+                </template>
               </el-select>
             </template>
           </el-table-column>
@@ -192,16 +200,23 @@
       <el-button type="success" icon="refresh" @click="handleQuery()">刷新</el-button>
       <el-button icon="back" @click="close()">返回</el-button>
     </footer>
+
+    <el-dialog v-model="dictDataVisible" draggable width="60%" :lock-scroll="false">
+      <dict-data v-model:dictId="dictId"></dict-data>
+    </el-dialog>
+    <dictForm ref="dictFormRef" @success="getDictType()"></dictForm>
   </div>
 </template>
 <script setup name="genedit">
+import dictForm from '@/views/components/form/dictForm.vue'
+import dictData from '@/views/components/dictData.vue'
 import { updateGenTable, getGenTable } from '@/api/tool/gen'
 import { listType } from '@/api/system/dict/type'
 import basicInfoForm from './basicInfoForm'
 import genInfoForm from './genInfoForm'
 import { useRoute } from 'vue-router'
 import Sortable from 'sortablejs'
-
+const dictFormRef = ref()
 // 选中选项卡的 name
 const activeName = ref('basic')
 // 表格的高度
@@ -270,11 +285,16 @@ function getFormPromise(form) {
     })
   })
 }
-
-/** 查询字典下拉列表 */
-listType({ pageSize: 100 }).then((response) => {
-  dictOptions.value = response.data.result
-})
+function getDictType() {
+  /** 查询字典下拉列表 */
+  listType({ pageSize: 100 }).then((response) => {
+    dictOptions.value = response.data.result
+  })
+}
+function handleAddDict() {
+  proxy.$refs.dictFormRef.handleAdd()
+}
+getDictType()
 /** 关闭按钮 */
 function close() {
   const obj = {
@@ -321,7 +341,12 @@ const tableSort = () => {
     }
   })
 }
-
+const dictId = ref()
+const dictDataVisible = ref(false)
+function showDictData(row) {
+  dictId.value = row.dictId
+  dictDataVisible.value = true
+}
 onMounted(() => {
   tableSort()
 })
