@@ -311,7 +311,7 @@ function reset() {
     menuId: undefined,
     parentId: 0,
     menuName: undefined,
-    icon: undefined,
+    icon: '',
     menuType: 'M',
     orderNum: 999,
     isFrame: '0',
@@ -339,12 +339,12 @@ function handleAdd(row) {
   title.value = proxy.$t('btn.add')
 }
 /** 修改按钮操作 */
-async function handleUpdate(row) {
+function handleUpdate(row) {
   reset()
   getMenu(row.menuId).then((response) => {
-    form.value = response.data
     open.value = true
     title.value = proxy.$t('btn.edit')
+    form.value = response.data
   })
 }
 /** 提交按钮 */
