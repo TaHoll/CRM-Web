@@ -344,7 +344,9 @@ function handleUpdate(row) {
   getMenu(row.menuId).then((response) => {
     open.value = true
     title.value = proxy.$t('btn.edit')
-    form.value = response.data
+    proxy.$nextTick(() => {
+      form.value = response.data
+    })
   })
 }
 /** 提交按钮 */
