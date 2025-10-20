@@ -178,9 +178,9 @@ function handleGenTable(row) {
           if (row.genType === '1') {
             proxy.$modal.msgSuccess('成功生成到自定义路径')
           } else {
-            proxy.$modal.msgSuccess('恭喜你，代码生成完成！')
-            // proxy.download(data.path)
             await proxy.downFile('/common/downloadFile', { path: data.path })
+
+            proxy.$modal.msgSuccess('恭喜你，代码生成完成！')
           }
         })
         .finally(() => {
