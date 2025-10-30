@@ -78,3 +78,15 @@ export function listSysfileByGroup(query) {
     params: query
   })
 }
+
+/**
+ * 移动文件分组
+ * @param data
+ */
+export function moveFileGroup(data) {
+  return request({
+    url: 'tool/file/move',
+    method: 'POST',
+    data: data
+  })
+}

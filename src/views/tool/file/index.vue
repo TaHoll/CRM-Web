@@ -20,7 +20,21 @@
       <el-form-item label="" prop="fileId">
         <el-input v-model="queryParams.fileId" placeholder="请输入文件id" clearable />
       </el-form-item>
-      <el-form-item label="">
+      <el-form-item label="分组">
+        <el-cascader
+          class="w100"
+          :options="fileGroupTreeList"
+          :props="{ checkStrictly: true, value: 'groupId', label: 'groupName', emitPath: false }"
+          placeholder="请选择上级分组"
+          clearable
+          v-model="queryParams.categoryId">
+          <template #default="{ node, data }">
+            <span>{{ data.groupName }}</span>
+            <span v-if="!node.isLeaf"> ({{ data.children.length }}) </span>
+          </template>
+        </el-cascader>
+      </el-form-item>
+      <el-form-item>
         <el-date-picker
           v-model="dateRangeAddTime"
           type="daterange"
@@ -46,6 +60,11 @@
       <el-col :span="1.5">
         <el-button type="danger" :disabled="multiple" v-hasPermi="['tool:file:delete']" plain icon="delete" @click="handleDelete">
           {{ $t('btn.delete') }}
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button type="success" :disabled="multiple" v-hasPermi="['tool:file:edit']" plain icon="Promotion" @click="handleAddGroup">
+          移动至
         </el-button>
       </el-col>
     </el-row>
@@ -83,14 +102,9 @@
       </el-table-column>
       <el-table-column prop="fileSize" label="文件大小" align="center" :show-overflow-tooltip="true" />
       <el-table-column prop="fileExt" label="扩展名" align="center" :show-overflow-tooltip="true" width="80px" />
-      <!-- <el-table-column prop="storeType" label="存储类型" align="center">
-        <template #default="scope">
-          <dict-tag :options="storeTypeOptions" :value="parseInt(scope.row.storeType)" />
-        </template>
-      </el-table-column> -->
+
       <el-table-column prop="classifyType" label="存储分类" align="center" width="100px">
         <template #default="scope">
-          <!-- <dict-tag :options="classifyTypeOptions" :value="scope.row.classifyType" /> -->
           <el-select
             v-model="scope.row.classifyType"
             clearable
@@ -103,6 +117,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="storePath" label="存储目录"></el-table-column>
+      <el-table-column prop="groupName" label="分组名" align="center"></el-table-column>
       <el-table-column prop="create_by" label="操作人" align="center" />
       <el-table-column prop="create_time" label="创建日期" align="center">
         <template #default="{ row }">
@@ -262,10 +277,16 @@
         </el-row>
       </el-form>
     </el-dialog>
+
+    <!-- 添加或修改文件分组对话框 -->
+    <moveFileForm ref="moveFileGroupRef" @success="handleMove"></moveFileForm>
   </div>
 </template>
 <script setup name="file">
-import { listSysfile, delSysfile, getSysfile, updateSysfile } from '@/api/tool/file.js'
+import moveFileForm from '@/views/components/moveFileForm.vue'
+import { listSysfile, delSysfile, getSysfile, updateSysfile, moveFileGroup } from '@/api/tool/file.js'
+
+import { treelistFileGroup } from '@/api/tool/filegroup.js'
 import { useClipboard } from '@vueuse/core'
 import QRCode from 'qrcodejs2-fixes'
 import { showTime } from '@/utils'
@@ -421,7 +442,6 @@ function handleDelete(row) {
       handleQuery()
       proxy.$modal.msgSuccess('删除成功')
     })
-    .catch(() => {})
 }
 /** 查看按钮操作 */
 function handleView(row) {
@@ -488,6 +508,26 @@ function handleClassifyChange(row) {
     proxy.$modal.msgSuccess('修改成功')
   })
 }
+
+const moveFileGroupRef = ref()
+const handleAddGroup = () => {
+  nextTick(() => {
+    proxy.$refs.moveFileGroupRef.handleAdd()
+  })
+}
+function handleMove(form) {
+  moveFileGroup({ ...form, ids: ids.value }).then((res) => {
+    proxy.$modal.msgSuccess('移动成功')
+    getList()
+  })
+}
+const fileGroupTreeList = ref([])
+treelistFileGroup().then((res) => {
+  const { code, data } = res
+  if (code == 200) {
+    fileGroupTreeList.value = data
+  }
+})
 handleQuery()
 </script>
 <style scoped>
