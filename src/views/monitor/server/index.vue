@@ -13,7 +13,7 @@
           <div class="col-item">
             <div class="title">CPU使用率</div>
             <div class="content">
-              <el-progress type="dashboard" :percentage="parseFloat(server.cpu.cpuRate)" />
+              <el-progress type="dashboard" :percentage="parseFloat(server.cpu.cpuRate)" :color="colors" />
             </div>
             <div class="footer" v-if="server.sys">{{ server.sys.cpuNum }} 核心</div>
           </div>
@@ -30,7 +30,7 @@
               </template>
 
               <div class="content">
-                <el-progress type="dashboard" :percentage="parseFloat(server.cpu.ramRate)" />
+                <el-progress type="dashboard" :percentage="parseFloat(server.cpu.ramRate)" :color="colors" />
               </div>
             </el-tooltip>
             <div class="footer">{{ server.cpu.usedRam }} / {{ server.cpu.totalRAM }}</div>
@@ -39,7 +39,7 @@
           <div class="col-item">
             <div class="title">.NETCore服务</div>
             <div class="content">
-              <el-progress type="dashboard" :percentage="parseFloat(appPercent)" />
+              <el-progress type="dashboard" :percentage="parseFloat(appPercent)" :color="colors" />
             </div>
             <div class="footer" v-if="server.app">{{ server.app.appRAM }}</div>
           </div>
@@ -207,6 +207,12 @@ import { onBeforeRouteLeave } from 'vue-router'
 onBeforeRouteLeave((to) => {
   clear()
 })
+const colors = [
+  { color: '#f56c6c', percentage: 100 },
+  { color: '#e6a23c', percentage: 80 },
+  { color: '#5cb87a', percentage: 60 },
+  { color: '#1989fa', percentage: 40 }
+]
 const appPercent = ref(0)
 // 服务器信息
 const server = ref([])
