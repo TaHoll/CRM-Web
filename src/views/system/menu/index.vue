@@ -112,7 +112,7 @@
             <el-button text size="small" icon="Plus" @click="handleAdd(scope.row)" v-hasPermi="['system:menu:add']"></el-button>
             <el-button text size="small" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:menu:edit']"></el-button>
             <el-dropdown>
-              <el-button size="small" text>
+              <el-button size="small" text v-hasPermi="['system:menu:remove']">
                 {{ $t('btn.more') }}
                 <el-icon class="el-icon--right">
                   <arrow-down />
