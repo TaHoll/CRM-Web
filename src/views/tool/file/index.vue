@@ -67,6 +67,11 @@
           移动至
         </el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['tool:file:export']">
+          {{ $t('btn.export') }}
+        </el-button>
+      </el-col>
     </el-row>
 
     <!-- 数据区域 -->
@@ -284,7 +289,7 @@
 </template>
 <script setup name="file">
 import moveFileForm from '@/views/components/moveFileForm.vue'
-import { listSysfile, delSysfile, getSysfile, updateSysfile, moveFileGroup } from '@/api/tool/file.js'
+import { listSysfile, delSysfile, getSysfile, updateSysfile, moveFileGroup, exportSysfile } from '@/api/tool/file.js'
 
 import { treelistFileGroup } from '@/api/tool/filegroup.js'
 import { useClipboard } from '@vueuse/core'
@@ -528,6 +533,19 @@ treelistFileGroup().then((res) => {
     fileGroupTreeList.value = data
   }
 })
+
+/** 导出按钮操作 */
+function handleExport() {
+  proxy.$modal
+    .confirm('是否确认导出数据?', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    .then(async () => {
+      await exportSysfile(queryParams.value)
+    })
+}
 handleQuery()
 </script>
 <style scoped>

@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-
+import { downFile } from '@/utils/request'
 /**
  * 文件存储分页查询
  * @param {查询条件} data
@@ -59,12 +59,13 @@ export function delSysfile(pid) {
 }
 
 // 导出文件存储
-export function exportSysfile(query) {
-  return request({
-    url: 'tool/file/export',
-    method: 'get',
-    params: query
-  })
+export async function exportSysfile(query) {
+  // return request({
+  //   url: 'tool/file/export',
+  //   method: 'get',
+  //   params: query
+  // })
+  await downFile('/tool/file/export', { ...query })
 }
 
 /**
