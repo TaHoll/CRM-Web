@@ -198,9 +198,9 @@ function handleExport() {
     .then(function () {
       return exportType(queryParams.value)
     })
-    .then((response) => {
-      proxy.download(response.data.path)
-    })
+  // .then((response) => {
+  //   proxy.download(response.data.path)
+  // })
 }
 function showDictData(row) {
   dictId.value = row.dictId

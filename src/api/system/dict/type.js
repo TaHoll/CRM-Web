@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-
+import { downFile } from '@/utils/request'
 // 查询字典类型列表
 export function listType(query) {
   return request({
@@ -52,12 +52,8 @@ export function clearCache() {
 }
 
 // 导出字典类型
-export function exportType(query) {
-  return request({
-    url: '/system/dict/type/export',
-    method: 'get',
-    params: query
-  })
+export async function exportType(query) {
+  return await downFile('/system/dict/type/export', query)
 }
 
 // 获取字典选择框列表
