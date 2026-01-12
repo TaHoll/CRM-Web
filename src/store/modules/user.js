@@ -116,7 +116,7 @@ const useUserStore = defineStore('user', {
         getInfo()
           .then((res) => {
             const data = res.data
-            const avatar = data.user.avatar == '' ? defAva : data.user.avatar
+            const avatar = data.user.avatar || defAva
 
             if (data.roles && data.roles.length > 0) {
               // 验证返回的roles是否是一个非空数组
