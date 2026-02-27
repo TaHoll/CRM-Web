@@ -163,8 +163,11 @@
 <script setup name="sqldifflog">
 import { listSqlDiffLog, delSqlDiffLog } from '@/api/monitor/sqldifflog.js'
 import { CodeDiff } from 'v-code-diff'
-import hljs from 'highlight.js'
+// import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/default.css' // 这里有多个样式，自己可以根据需要切换
+import json from 'highlight.js/lib/languages/sql'
+hljs.registerLanguage('json', json)
 
 const { proxy } = getCurrentInstance()
 const ids = ref([])
@@ -333,3 +336,8 @@ function highlightedCode(code) {
 }
 handleQuery()
 </script>
+<style lang="scss">
+.hljs {
+  display: unset;
+}
+</style>

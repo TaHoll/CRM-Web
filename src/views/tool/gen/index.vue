@@ -97,7 +97,15 @@
 import { codeGenerator, listTable, delTable, previewTable, synchDb } from '@/api/tool/gen'
 import { useRouter } from 'vue-router'
 import importTable from './importTable'
-import hljs from 'highlight.js'
+// import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import csharp from 'highlight.js/lib/languages/csharp'
+import javascript from 'highlight.js/lib/languages/javascript'
+import xml from 'highlight.js/lib/languages/xml'
+hljs.registerLanguage('csharp', csharp)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('xml', xml)
+
 import 'highlight.js/styles/dark.css' // 这里有多个样式，自己可以根据需要切换
 import { useClipboard } from '@vueuse/core'
 const route = useRoute()
