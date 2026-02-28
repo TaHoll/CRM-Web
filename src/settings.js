@@ -2,7 +2,7 @@ export default {
   /**
    * 框架版本号
    */
-  version: '20250516',
+  version: '20260228',
   /**
    * 网页标题
    */
@@ -55,7 +55,7 @@ export default {
   /**
    * 版权信息
    */
-  copyright: 'Copyright ©2025 <a target="_black" href="http://www.izhaorui.cn">ZRAdmin.NET</a> All Rights Reserved.',
+  copyright: 'Copyright ©2026 <a target="_black" href="http://www.izhaorui.cn">ZRAdmin.NET</a> All Rights Reserved.',
   /**
    * 是否显示底部栏
    */
