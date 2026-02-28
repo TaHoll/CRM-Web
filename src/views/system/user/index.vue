@@ -192,7 +192,8 @@
                 value-key="id"
                 placeholder="请选择归属部门"
                 check-strictly
-                :render-after-expand="false" />
+                :render-after-expand="false"
+                clearable />
             </el-form-item>
           </el-col>
           <el-col :lg="12">
