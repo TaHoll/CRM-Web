@@ -45,7 +45,10 @@
       <li :key="file.uid" class="el-upload-list__item ele-upload-list__item-content" v-for="(file, index) in fileList">
         <el-link :href="`${file.url}`" :underline="false" target="_blank">
           <svg-icon class-name="doc-icon" name="documentation" />
-          {{ file.name }}
+
+          <el-text class="file-name" truncated>
+            {{ file.name }}
+          </el-text>
         </el-link>
         <div class="ele-upload-list__item-content-action" v-if="!disabled">
           <el-link :underline="false" @click="handleDelete(index)" type="danger">删除</el-link>
@@ -202,7 +205,7 @@ function handleUploadSuccess(response, uploadFile) {
 // 删除文件
 function handleDelete(index) {
   fileList.value.splice(index, 1)
-  emit('update:modelValue', listToString(fileList.value))
+  // emit('update:modelValue', listToString(fileList.value))
 }
 
 // 获取文件名称
@@ -256,5 +259,8 @@ defineExpose({
 }
 .doc-icon {
   margin: 0 10px;
+}
+.file-name {
+  width: 260px;
 }
 </style>
