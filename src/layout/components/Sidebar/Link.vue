@@ -1,5 +1,5 @@
 <template>
-  <component :is="type" v-bind="linkProps()">
+  <component :is="type" v-bind="linkProps()" class="ext-link">
     <slot />
   </component>
 </template>
@@ -50,3 +50,10 @@ function linkProps() {
   }
 }
 </script>
+<style lang="scss">
+.ext-link {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+}
+</style>
