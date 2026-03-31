@@ -1,40 +1,45 @@
 <template>
   <template v-if="!item.hidden">
-    <template v-if="hasOneShowingChild(item.children, item) && (!onlyOneChild.children || onlyOneChild.noShowingChildren) && !item.alwaysShow">
-      <app-link v-if="onlyOneChild.meta" :data="item" :to="resolvePath(onlyOneChild.path, onlyOneChild.query)">
-        <el-menu-item :index="resolvePath(onlyOneChild.path)">
-          <svg-icon class="menu-icon" :name="onlyOneChild.meta.icon || (item.meta && item.meta.icon)" />
-          <span v-if="props.isCollapse && !onlyOneChild.meta.icon">{{ hasTitle2(onlyOneChild.meta.title) }}</span>
-          <template #title>
-            <span v-if="onlyOneChild.meta.titleKey">{{ $t(onlyOneChild.meta.titleKey) }}</span>
-            <span v-else-if="onlyOneChild.meta.title">{{ onlyOneChild.meta.title }}</span>
-            <svg-icon
-              name="new"
-              color="#fff"
-              style="width: 50px; height: 25px"
-              v-if="onlyOneChild.meta.title && onlyOneChild.meta.isNew == 1 && defaultSettings.menuShowNew" />
-          </template>
-        </el-menu-item>
-      </app-link>
-    </template>
+    <!-- ✅ 没有子菜单 or 只有一个有效子菜单 -->
+    <el-menu-item v-if="isSingleMenu" :index="resolvePath(finalChild.path)">
+      <app-link :to="resolvePath(finalChild.path, finalChild.query)">
+        <svg-icon class="menu-icon" :name="finalChild.meta?.icon || item.meta?.icon" />
 
-    <el-sub-menu v-else ref="subMenu" :index="resolvePath(item.path)">
+        <span v-if="isCollapse && !finalChild.meta?.icon">
+          {{ shortTitle(finalChild.meta?.title) }}
+        </span>
+
+        <span v-if="finalChild.meta?.titleKey">
+          {{ $t(finalChild.meta.titleKey) }}
+        </span>
+        <span v-else>
+          {{ finalChild.meta?.title }}
+        </span>
+
+        <svg-icon v-if="finalChild.meta?.isNew == 1 && defaultSettings.menuShowNew" name="new" color="#fff" style="width: 50px; height: 25px" />
+      </app-link>
+    </el-menu-item>
+
+    <!-- ✅ 有多个子菜单 -->
+    <el-sub-menu v-else-if="visibleChildren.length > 0" :index="resolvePath(item.path)">
       <template #title>
-        <svg-icon class="menu-icon" :name="item.meta && item.meta.icon" />
-        <span v-if="item.meta && item.meta.titleKey">{{ $t(item.meta.titleKey) }}</span>
-        <span v-else-if="item.meta && item.meta.title">{{ item.meta.title }}</span>
-        <svg-icon
-          name="new"
-          color="#fff"
-          style="width: 50px; height: 25px"
-          v-if="item.meta.title && item.meta.isNew == 1 && defaultSettings.menuShowNew" />
+        <svg-icon class="menu-icon" :name="item.meta?.icon" />
+
+        <span v-if="item.meta?.titleKey">
+          {{ $t(item.meta.titleKey) }}
+        </span>
+        <span v-else>
+          {{ item.meta?.title }}
+        </span>
+
+        <svg-icon v-if="item.meta?.isNew == 1 && defaultSettings.menuShowNew" name="new" color="#fff" style="width: 50px; height: 25px" />
       </template>
 
       <sidebar-item
-        v-for="(child, index) in item.children"
+        v-for="(child, index) in visibleChildren"
         :key="child.path + index"
-        :is-nest="true"
         :item="child"
+        :is-nest="true"
         :base-path="resolvePath(child.path)" />
     </el-sub-menu>
   </template>
@@ -42,82 +47,63 @@
 
 <script setup>
 import { isExternal } from '@/utils/validate'
-import AppLink from './Link'
 import { getNormalPath } from '@/utils/ruoyi'
 import defaultSettings from '@/settings'
+import AppLink from './Link.vue'
+
 const props = defineProps({
-  // route object
-  item: {
-    type: Object,
-    required: true
-  },
-  isNest: {
-    type: Boolean,
-    default: false
-  },
-  basePath: {
-    type: String,
-    default: ''
-  },
-  isCollapse: {
-    type: Boolean,
-    default: false
-  }
+  item: { type: Object, required: true },
+  isNest: { type: Boolean, default: false },
+  basePath: { type: String, default: '' },
+  isCollapse: { type: Boolean, default: false }
 })
 
-const onlyOneChild = ref({})
+/**
+ * ✅ 过滤可见子菜单（核心优化点）
+ */
+const visibleChildren = computed(() => {
+  return (props.item.children || []).filter((c) => !c.hidden)
+})
 
-function hasOneShowingChild(children = [], parent) {
-  if (!children) {
-    children = []
+/**
+ * ✅ 是否单菜单
+ */
+const isSingleMenu = computed(() => {
+  return !props.item.alwaysShow && (visibleChildren.value.length === 0 || visibleChildren.value.length === 1)
+})
+
+/**
+ * ✅ 最终使用的子节点
+ */
+const finalChild = computed(() => {
+  if (visibleChildren.value.length === 1) {
+    return visibleChildren.value[0]
   }
-  const showingChildren = children.filter((item) => {
-    if (item.hidden) {
-      return false
-    } else {
-      // Temp set(will be used if only has one showing child)
-      onlyOneChild.value = item
-      return true
-    }
-  })
+  return { ...props.item, path: '' }
+})
 
-  // When there is only one child router, the child router is displayed by default
-  if (showingChildren.length === 1) {
-    return true
-  }
-
-  // Show parent if there are no child router to display
-  if (showingChildren.length === 0) {
-    onlyOneChild.value = { ...parent, path: '', noShowingChildren: true }
-    return true
-  }
-
-  return false
-}
-
+/**
+ * 路径处理
+ */
 function resolvePath(routePath, routeQuery) {
-  if (isExternal(routePath)) {
-    return routePath
-  }
-  if (isExternal(props.basePath)) {
-    return props.basePath
-  }
+  if (isExternal(routePath)) return routePath
+  if (isExternal(props.basePath)) return props.basePath
+
   if (routeQuery) {
-    console.log(`路由参数${routePath}-${routeQuery}`)
-    let query = JSON.parse(routeQuery)
     return {
       path: getNormalPath(props.basePath + '/' + routePath),
-      query: query
+      query: JSON.parse(routeQuery)
     }
   }
+
   return getNormalPath(props.basePath + '/' + routePath)
 }
 
-function hasTitle2(title) {
-  if (title.length >= 1) {
-    return title.charAt(0) + '...'
-  } else {
-    return ''
-  }
+/**
+ * 标题缩短
+ */
+function shortTitle(title) {
+  if (!title) return ''
+  return title.length > 1 ? title.charAt(0) + '...' : title
 }
 </script>
