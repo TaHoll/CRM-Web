@@ -79,11 +79,11 @@
       </vxe-column>
       <vxe-column field="orderNum" :title="$t('m.sort')" width="110" sortable align="center" v-if="columns.showColumn('orderNum')">
         <template #default="scope">
-          <span v-show="editIndex != scope.row.menuId" @click="editCurrRow(scope.row.menuId)">{{ scope.row.orderNum }}</span>
+          <span v-show="editIndex != scope.row.menuId" @click="editCurrRow(scope.row.menuId, scope.row.orderNum)">{{ scope.row.orderNum }}</span>
           <el-input
-            :ref="setColumnsRef"
+            :ref="(el) => setColumnsRef(el, scope.row.menuId)"
             v-show="editIndex == scope.row.menuId"
-            v-model="scope.row.orderNum"
+            v-model.number="inputOrderNum"
             @blur="handleChangeSort(scope.row)"></el-input>
         </template>
       </vxe-column>
@@ -281,29 +281,33 @@ function handleDeleteAll(row) {
     })
 }
 // ******************自定义编辑 start **********************
-// 动态ref设置值
-const columnRefs = ref([])
-const setColumnsRef = (el) => {
-  if (el) {
-    columnRefs.value.push(el)
+// 动态ref设置值（按 menuId 建立映射）
+const columnRefs = ref({})
+const setColumnsRef = (el, rowId) => {
+  if (el && rowId != null) {
+    columnRefs.value[rowId] = el
   }
 }
+const inputOrderNum = ref(0)
 const editIndex = ref(-1)
 // 显示编辑排序
-function editCurrRow(rowId) {
+function editCurrRow(rowId, orderNum) {
   editIndex.value = rowId
-
+  inputOrderNum.value = orderNum
   setTimeout(() => {
-    columnRefs.value[rowId].focus()
+    columnRefs.value[rowId] && columnRefs.value[rowId].focus()
   }, 100)
 }
 // 保存排序
 function handleChangeSort(info) {
   editIndex.value = -1
+  if (inputOrderNum.value == info.orderNum) {
+    return
+  }
   proxy
-    .$confirm('是否保存数据?')
+    .$confirm(`是否将排序从"${info.orderNum}"修改为"${inputOrderNum.value}"?`)
     .then(function () {
-      return changeSort({ value: info.orderNum, id: info.menuId })
+      return changeSort({ value: inputOrderNum.value, id: info.menuId })
     })
     .then(() => {
       handleQuery()
