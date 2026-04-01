@@ -3,6 +3,7 @@ import { getToken, setToken, removeToken } from '@/utils/auth'
 import useTagsViewStore from './tagsView'
 import defAva from '@/assets/images/profile.jpg'
 import md5 from 'crypto-js/md5'
+import useLockStore from './lock'
 
 const useUserStore = defineStore('user', {
   persist: {
@@ -43,6 +44,7 @@ const useUserStore = defineStore('user', {
             if (res.code == 200) {
               setToken(res.data)
               this.token = res.data
+              useLockStore().unlockScreen() //登录成功后解锁屏幕
               resolve() //then处理
             } else {
               console.log('login error ', res)

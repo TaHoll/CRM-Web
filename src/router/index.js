@@ -90,6 +90,12 @@ export const constantRoutes = [
         meta: { title: '个人中心', icon: 'user', titleKey: 'menu.personalCenter' }
       }
     ]
+  },
+  {
+    path: '/lock',
+    component: () => import('@/views/lock'),
+    hidden: true,
+    meta: { title: '锁定屏幕' }
   }
 ]
 

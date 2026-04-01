@@ -30,6 +30,10 @@
               <router-link to="/user/profile">
                 <el-dropdown-item>{{ $t('layout.personalCenter') }}</el-dropdown-item>
               </router-link>
+
+              <el-dropdown-item command="lockScreen">
+                <span>锁定屏幕</span>
+              </el-dropdown-item>
               <!-- <el-dropdown-item command="setLayout">
                 <span>{{ $t('layout.layoutSetting') }}</span>
               </el-dropdown-item> -->
@@ -68,6 +72,7 @@ import useAppStore from '@/store/modules/app'
 import useUserStore from '@/store/modules/user'
 import useSettingsStore from '@/store/modules/settings'
 import useSocketStore from '@/store/modules/socket'
+import useLockStore from '@/store/modules/lock'
 import TopBar from './TopBar'
 // import { useClipboard } from '@vueuse/core'
 import useClipboard from 'vue-clipboard3'
@@ -76,7 +81,9 @@ const { proxy } = getCurrentInstance()
 const appStore = useAppStore()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
-
+const lockStore = useLockStore()
+const route = useRoute()
+const router = useRouter()
 const sideTheme = computed(() => settingsStore.sideTheme)
 function toggleSideBar() {
   appStore.toggleSideBar()
@@ -95,6 +102,9 @@ function handleCommand(command) {
       break
     case 'clear':
       useSocketStore().clear()
+      break
+    case 'lockScreen':
+      lockScreen()
       break
     default:
       break
@@ -127,6 +137,11 @@ function logout() {
 const emits = defineEmits(['setLayout'])
 function setLayout() {
   emits('setLayout')
+}
+function lockScreen() {
+  const currentPath = route.fullPath
+  lockStore.lockScreen(currentPath)
+  router.push('/lock')
 }
 </script>
 

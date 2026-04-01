@@ -117,3 +117,17 @@ export function phoneLogin(data) {
     data: data
   })
 }
+
+/**
+ * 解锁屏幕
+ * @param {*} username
+ * @param {*} password
+ * @returns
+ */
+export function unlockScreen(username, password) {
+  return request({
+    url: '/unlockscreen',
+    method: 'post',
+    data: { username, password }
+  })
+}

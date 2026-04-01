@@ -310,25 +310,7 @@ function handleSideTheme(val) {
 function handleNavType(val) {
   settingsStore.changeSetting({ key: 'navType', value: val })
 }
-function saveSetting() {
-  proxy.$modal.loading('正在保存到本地，请稍候...')
-  // let layoutSetting = {
-  //   topNav: storeSettings.value.topNav,
-  //   tagsView: storeSettings.value.tagsView,
-  //   fixedHeader: storeSettings.value.fixedHeader,
-  //   sidebarLogo: storeSettings.value.sidebarLogo,
-  //   dynamicTitle: storeSettings.value.dynamicTitle,
-  //   sideTheme: storeSettings.value.sideTheme,
-  //   theme: storeSettings.value.theme,
-  //   showFooter: storeSettings.value.showFooter,
-  //   showWatermark: storeSettings.value.showWatermark,
-  //   tagsViewPersist: storeSettings.value.tagsViewPersist,
-  //   tagsShowIcon: storeSettings.value.tagsShowIcon
-  // }
-  // localStorage.setItem('layout-setting', JSON.stringify(layoutSetting))
-  setTimeout(proxy.$modal.closeLoading(), 100)
-  setTimeout('window.location.reload()', 200)
-}
+
 function resetSetting() {
   proxy.$modal.loading('正在清除设置缓存并刷新，请稍候...')
   localStorage.removeItem('layout-setting')

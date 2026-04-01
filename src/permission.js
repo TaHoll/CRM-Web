@@ -7,6 +7,7 @@ import { isHttp } from '@/utils/validate'
 import useUserStore from '@/store/modules/user'
 import useSettingsStore from '@/store/modules/settings'
 import usePermissionStore from '@/store/modules/permission'
+import useLockStore from '@/store/modules/lock'
 import { getQueryObject } from '@/utils/index'
 NProgress.configure({ showSpinner: false })
 
@@ -16,8 +17,15 @@ router.beforeEach((to, from, next) => {
   NProgress.start()
   if (getToken()) {
     to.meta.title && useSettingsStore().setTitle(to.meta.title)
+    const isLock = useLockStore().isLock
     /* has token*/
     if (to.path === '/login') {
+      next({ path: '/' })
+      NProgress.done()
+    } else if (isLock && to.path !== '/lock') {
+      next({ path: '/lock' })
+      NProgress.done()
+    } else if (!isLock && to.path === '/lock') {
       next({ path: '/' })
       NProgress.done()
     } else {
