@@ -54,15 +54,17 @@ export default {
       //使用async和await 或 promise的then 和catch 处理来自服务端的异常
       if (this.SR.state === signalR.HubConnectionState.Disconnected) {
         await this.SR.start()
+        // 连接成功后重置失败重试次数
+        this.failNum = 4
       }
 
       console.log('signalR-2', this.SR.state)
       return true
     } catch (error) {
-      console.error(error)
       this.failNum--
+      console.error('剩余异常次数:' + this.failNum, error)
       // console.log(`失败重试剩余次数${that.failNum}`, error)
-      if (this.failNum > 0 && this.SR.state.Disconnected) {
+      if (this.failNum > 0 && this.SR.state === signalR.HubConnectionState.Disconnected) {
         setTimeout(async () => {
           await this.start()
         }, 5000)
