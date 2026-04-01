@@ -64,15 +64,41 @@ const options = {
 
 let chart = null
 const initChart = () => {
-  const chart = echarts.init(chartsRef.value)
+  if (!chartsRef.value) return
+  const el = chartsRef.value
+  const { clientWidth, clientHeight } = el
+  // 容器尚未正确渲染宽高时先不初始化，避免 0 尺寸 canvas 触发 drawImage 异常
+  if (!clientWidth || !clientHeight) return
+
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
+
+  chart = echarts.init(el)
   chart.setOption(options)
-  return chart
 }
+
+const handleResize = () => {
+  if (!chartsRef.value) return
+  if (!chart) {
+    initChart()
+  } else {
+    chart.resize()
+  }
+}
+
 onMounted(() => {
-  chart = initChart()
-  window.addEventListener('resize', function () {
-    chart && chart.resize()
-  })
+  initChart()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
 })
 </script>
 <style lang="scss" scoped>
