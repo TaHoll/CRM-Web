@@ -34,7 +34,8 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const permissionStore = usePermissionStore()
 
-const sidebarRouters = computed(() => permissionStore.sidebarRouters)
+// 只把真正的路由对象传给 SidebarItem，避免函数等异常项
+const sidebarRouters = computed(() => permissionStore.sidebarRouters.filter((r) => r && typeof r === 'object' && typeof r.path === 'string'))
 const showLogo = computed(() => settingsStore.sidebarLogo)
 const sideTheme = computed(() => settingsStore.sideTheme)
 const theme = computed(() => settingsStore.theme)

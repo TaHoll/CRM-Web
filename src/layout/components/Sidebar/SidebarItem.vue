@@ -1,27 +1,29 @@
 <template>
   <template v-if="!item.hidden">
-    <!-- ✅ 没有子菜单 or 只有一个有效子菜单 -->
-    <el-menu-item v-if="isSingleMenu" :index="resolvePath(finalChild.path)">
-      <app-link :to="resolvePath(finalChild.path, finalChild.query)">
-        <svg-icon class="menu-icon" :name="finalChild.meta?.icon || item.meta?.icon" />
+    <!-- ✅ 单个可见子菜单（旧写法逻辑） -->
+    <el-menu-item
+      v-if="hasOneShowingChild(item.children, item) && (!onlyOneChild.children || onlyOneChild.noShowingChildren) && !item.alwaysShow"
+      :index="resolvePath(onlyOneChild.path)">
+      <app-link v-if="onlyOneChild.meta" :to="resolvePath(onlyOneChild.path, onlyOneChild.query)">
+        <svg-icon class="menu-icon" :name="onlyOneChild.meta?.icon || item.meta?.icon" />
 
-        <span v-if="isCollapse && !finalChild.meta?.icon">
-          {{ shortTitle(finalChild.meta?.title) }}
+        <span v-if="isCollapse && !onlyOneChild.meta?.icon">
+          {{ shortTitle(onlyOneChild.meta?.title) }}
         </span>
 
-        <span v-if="finalChild.meta?.titleKey">
-          {{ $t(finalChild.meta.titleKey) }}
+        <span v-if="onlyOneChild.meta?.titleKey">
+          {{ $t(onlyOneChild.meta.titleKey) }}
         </span>
         <span v-else>
-          {{ finalChild.meta?.title }}
+          {{ onlyOneChild.meta?.title }}
         </span>
 
-        <svg-icon v-if="finalChild.meta?.isNew == 1 && defaultSettings.menuShowNew" name="new" color="#fff" style="width: 50px; height: 25px" />
+        <svg-icon v-if="onlyOneChild.meta?.isNew == 1 && defaultSettings.menuShowNew" name="new" color="#fff" style="width: 50px; height: 25px" />
       </app-link>
     </el-menu-item>
 
-    <!-- ✅ 有多个子菜单 -->
-    <el-sub-menu v-else-if="visibleChildren.length > 0" :index="resolvePath(item.path)">
+    <!-- ✅ 多个子菜单，渲染为 el-sub-menu -->
+    <el-sub-menu v-else :index="resolvePath(item.path)">
       <template #title>
         <svg-icon class="menu-icon" :name="item.meta?.icon" />
 
@@ -58,29 +60,44 @@ const props = defineProps({
   isCollapse: { type: Boolean, default: false }
 })
 
+// 判断一个子路由是否是“有效菜单项”（用于显示）
+function isValidMenuChild(route) {
+  if (!route || typeof route !== 'object') return false
+  if (route.hidden) return false
+  // path 异常（undefined 等）直接视为无效，避免空菜单路由
+  if (typeof route.path !== 'string' || route.path.includes('undefined')) return false
+  // 没有 meta 或标题的，也不作为可见菜单
+  const meta = route.meta || {}
+  if (!meta.title && !meta.titleKey) return false
+  return true
+}
+
 /**
  * ✅ 过滤可见子菜单（核心优化点）
  */
 const visibleChildren = computed(() => {
-  return (props.item.children || []).filter((c) => !c.hidden)
+  return (props.item.children || []).filter((c) => isValidMenuChild(c))
 })
 
-/**
- * ✅ 是否单菜单
- */
-const isSingleMenu = computed(() => {
-  return !props.item.alwaysShow && (visibleChildren.value.length === 0 || visibleChildren.value.length === 1)
-})
+// 旧写法里的 onlyOneChild
+const onlyOneChild = ref({})
 
-/**
- * ✅ 最终使用的子节点
- */
-const finalChild = computed(() => {
-  if (visibleChildren.value.length === 1) {
-    return visibleChildren.value[0]
+// 旧写法里的 hasOneShowingChild：结合 visibleChildren 做判断
+function hasOneShowingChild(children = [], parent) {
+  const showingChildren = (children || []).filter((c) => isValidMenuChild(c))
+
+  if (showingChildren.length === 1) {
+    onlyOneChild.value = showingChildren[0]
+    return true
   }
-  return { ...props.item, path: '' }
-})
+
+  if (showingChildren.length === 0) {
+    onlyOneChild.value = { ...parent, path: '', noShowingChildren: true }
+    return true
+  }
+
+  return false
+}
 
 /**
  * 路径处理

@@ -59,6 +59,12 @@
       .menu-icon {
         margin-right: 0;
       }
+
+      // 只通过样式隐藏折叠时的菜单文字
+      .el-menu-item span,
+      .el-sub-menu__title span {
+        display: none;
+      }
     }
   }
 
