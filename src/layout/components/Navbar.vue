@@ -23,7 +23,7 @@
           <span class="avatar-wrapper">
             <el-avatar :size="25" shape="circle" class="user-avatar" :src="userStore.avatar" />
             <span class="name">{{ userStore.name }}</span>
-            <!-- <el-icon><ArrowDown /></el-icon> -->
+            <el-icon><ArrowDown /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -220,6 +220,10 @@ function lockScreen() {
       }
       .name {
         font-size: 12px;
+        max-width: 50px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
       }
       i {
         cursor: pointer;
