@@ -146,6 +146,16 @@ const useUserStore = defineStore('user', {
                 router.push({ name: 'Profile', params: { activeTab: 'resetPwd' } })
               })
             }
+            /* 过期密码提示 */
+            if (!data.isDefaultModifyPwd && data.isPasswordExpired) {
+              ElMessageBox.confirm('您的密码已过期，请尽快修改密码！', '安全提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+              }).then(() => {
+                router.push({ name: 'Profile', params: { activeTab: 'resetPwd' } })
+              })
+            }
             resolve(res)
           })
           .catch((error) => {
