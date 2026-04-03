@@ -50,7 +50,7 @@
               <span>{{ $t('user.basicInfo') }}</span>
             </div>
           </template> -->
-          <el-tabs v-model="activeTab">
+          <el-tabs v-model="selectedTab">
             <el-tab-pane :label="$t('user.basicInfo')" name="userinfo">
               <userInfo :user="state.user" />
             </el-tab-pane>
@@ -82,7 +82,8 @@ import loginLog from './loginLog.vue'
 import accountBind from './accountBind.vue'
 import { getUserProfile } from '@/api/system/user'
 
-const activeTab = ref('userinfo')
+const route = useRoute()
+const selectedTab = ref('userinfo')
 const state = reactive({
   user: {},
   roles: [],
@@ -99,7 +100,13 @@ function getUser() {
   })
 }
 
-getUser()
+onMounted(() => {
+  const activeTab = route.params && route.params.activeTab
+  if (activeTab) {
+    selectedTab.value = activeTab
+  }
+  getUser()
+})
 </script>
 
 <style scoped>

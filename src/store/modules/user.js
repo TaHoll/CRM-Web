@@ -1,3 +1,5 @@
+import router from '@/router'
+import { ElMessageBox } from 'element-plus'
 import { login, logout, getInfo, oauthCallback, phoneLogin } from '@/api/system/login'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import useTagsViewStore from './tagsView'
@@ -133,6 +135,17 @@ const useUserStore = defineStore('user', {
             this.userInfo = data.user //新加
             this.userId = data.user.userId //新加
             this.userName = data.user.userName //新加
+
+            /* 初始密码提示 */
+            if (data.isDefaultModifyPwd) {
+              ElMessageBox.confirm('您的密码还是初始密码，请修改密码！', '安全提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+              }).then(() => {
+                router.push({ name: 'Profile', params: { activeTab: 'resetPwd' } })
+              })
+            }
             resolve(res)
           })
           .catch((error) => {
