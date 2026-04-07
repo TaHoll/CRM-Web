@@ -1,150 +1,160 @@
 <template>
   <div class="app-container">
-    <el-form :model="queryParams" label-position="left" inline ref="queryForm" @submit.prevent>
-      <el-form-item label="" prop="storeType">
-        <el-radio-group v-model="queryParams.storeType" @change="handleQuery" placeholder="请选择存储类型">
-          <el-radio-button value=""> 全部 </el-radio-button>
-          <el-radio-button v-for="item in storeTypeOptions" :key="item.dictValue" :value="item.dictValue">
-            {{ item.dictLabel }}
-          </el-radio-button>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item label="存储分类" prop="classifyType">
-        <el-select clearable v-model="queryParams.classifyType" placeholder="请选择存储分类">
-          <el-option v-for="item in classifyTypeOptions" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue">
-            <span class="fl">{{ item.dictLabel }}</span>
-            <span class="fr" style="color: var(--el-text-color-secondary)">{{ item.dictValue }}</span>
-          </el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="" prop="fileId">
-        <el-input v-model="queryParams.fileId" placeholder="请输入文件id" clearable />
-      </el-form-item>
-      <el-form-item label="分组">
-        <el-cascader
-          class="w100"
-          :options="fileGroupTreeList"
-          :props="{ checkStrictly: true, value: 'groupId', label: 'groupName', emitPath: false }"
-          placeholder="请选择上级分组"
-          clearable
-          v-model="queryParams.categoryId">
+    <el-row :gutters="10" class="mb8">
+      <el-col :lg="4">
+        <el-tree
+          :data="fileGroupTreeList"
+          :props="{ label: 'groupName', value: 'groupId', children: 'children' }"
+          :expand-on-click-node="false"
+          ref="deptTreeRef"
+          node-key="groupId"
+          highlight-current
+          default-expand-all
+          @node-click="handleNodeClick">
           <template #default="{ node, data }">
-            <span>{{ data.groupName }}</span>
-            <span v-if="!node.isLeaf"> ({{ data.children.length }}) </span>
+            <span class="custom-tree-node">
+              <span>
+                <svg-icon name="index" v-if="data.children && data.children.length > 0"></svg-icon>
+                {{ node.label }}
+              </span>
+            </span>
           </template>
-        </el-cascader>
-      </el-form-item>
-      <el-form-item>
-        <el-date-picker
-          v-model="dateRangeAddTime"
-          type="daterange"
-          range-separator="-"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          placeholder="请选择上传时间"
-          :shortcuts="dateOptions"></el-date-picker>
-      </el-form-item>
+        </el-tree>
+      </el-col>
+      <el-col :lg="20">
+        <div style="padding: 0 10px">
+          <el-form :model="queryParams" label-position="left" inline ref="queryForm" @submit.prevent>
+            <el-form-item label="" prop="storeType">
+              <el-radio-group v-model="queryParams.storeType" @change="handleQuery" placeholder="请选择存储类型">
+                <el-radio-button value=""> 全部 </el-radio-button>
+                <el-radio-button v-for="item in storeTypeOptions" :key="item.dictValue" :value="item.dictValue">
+                  {{ item.dictLabel }}
+                </el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="存储分类" prop="classifyType">
+              <el-select clearable v-model="queryParams.classifyType" placeholder="请选择存储分类">
+                <el-option v-for="item in classifyTypeOptions" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue">
+                  <span class="fl">{{ item.dictLabel }}</span>
+                  <span class="fr" style="color: var(--el-text-color-secondary)">{{ item.dictValue }}</span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="" prop="fileId">
+              <el-input v-model="queryParams.fileId" placeholder="请输入文件id" clearable />
+            </el-form-item>
+            <el-form-item>
+              <el-date-picker
+                v-model="dateRangeAddTime"
+                type="daterange"
+                range-separator="-"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                placeholder="请选择上传时间"
+                :shortcuts="dateOptions"></el-date-picker>
+            </el-form-item>
 
-      <el-form-item>
-        <el-button type="primary" icon="search" @click="handleQuery">{{ $t('btn.search') }}</el-button>
-        <el-button icon="refresh" @click="resetQuery">{{ $t('btn.reset') }}</el-button>
-      </el-form-item>
-    </el-form>
-    <!-- 工具区域 -->
-    <el-row :gutter="10" class="mb8">
-      <el-col :span="1.5">
-        <el-button type="primary" v-hasPermi="['tool:file:add']" plain icon="upload" @click="handleAdd">
-          {{ $t('btn.upload') }}
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button type="danger" :disabled="multiple" v-hasPermi="['tool:file:delete']" plain icon="delete" @click="handleDelete">
-          {{ $t('btn.delete') }}
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button type="success" :disabled="multiple" v-hasPermi="['tool:file:edit']" plain icon="Promotion" @click="handleAddGroup">
-          移动至
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['tool:file:export']">
-          {{ $t('btn.export') }}
-        </el-button>
+            <el-form-item>
+              <el-button type="primary" icon="search" @click="handleQuery">{{ $t('btn.search') }}</el-button>
+              <el-button icon="refresh" @click="resetQuery">{{ $t('btn.reset') }}</el-button>
+            </el-form-item>
+          </el-form>
+          <!-- 工具区域 -->
+          <el-row :gutter="10" class="mb8">
+            <el-col :span="1.5">
+              <el-button type="primary" v-hasPermi="['tool:file:add']" plain icon="upload" @click="handleAdd">
+                {{ $t('btn.upload') }}
+              </el-button>
+            </el-col>
+            <el-col :span="1.5">
+              <el-button type="danger" :disabled="multiple" v-hasPermi="['tool:file:delete']" plain icon="delete" @click="handleDelete">
+                {{ $t('btn.delete') }}
+              </el-button>
+            </el-col>
+            <el-col :span="1.5">
+              <el-button type="success" :disabled="multiple" v-hasPermi="['tool:file:edit']" plain icon="Promotion" @click="handleAddGroup">
+                移动至
+              </el-button>
+            </el-col>
+            <el-col :span="1.5">
+              <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['tool:file:export']">
+                {{ $t('btn.export') }}
+              </el-button>
+            </el-col>
+          </el-row>
+
+          <!-- 数据区域 -->
+          <el-table :data="dataList" v-loading="loading" ref="table" border highlight-current-row @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="50" align="center" />
+            <el-table-column prop="id" label="文件id" width="100" :show-overflow-tooltip="true">
+              <template #default="scope">
+                <el-text style="cursor: pointer" truncated type="primary" @click="handleView(scope.row)">
+                  {{ scope.row.id }}
+                </el-text>
+              </template>
+            </el-table-column>
+            <el-table-column prop="fileName" label="文件名" align="left" width="100" :show-overflow-tooltip="true"> </el-table-column>
+            <el-table-column prop="accessUrl" align="center" label="预览图" width="80">
+              <template #default="{ row }">
+                <el-image
+                  preview-teleported
+                  :src="row.accessUrl"
+                  :preview-src-list="[row.accessUrl]"
+                  :hide-on-click-modal="true"
+                  fit="contain"
+                  lazy
+                  class="el-avatar">
+                  <template #error>
+                    <el-icon><document /></el-icon>
+                  </template>
+                </el-image>
+              </template>
+            </el-table-column>
+            <el-table-column prop="fileSize" label="文件大小" align="center" :show-overflow-tooltip="true" />
+            <el-table-column prop="fileExt" label="扩展名" align="center" :show-overflow-tooltip="true" width="80px" />
+
+            <el-table-column prop="classifyType" label="存储分类" align="center" width="100px">
+              <template #default="scope">
+                <el-select
+                  v-model="scope.row.classifyType"
+                  clearable
+                  @change="handleClassifyChange(scope.row)"
+                  size="small"
+                  style="width: 90px"
+                  placeholder="选择分类">
+                  <el-option v-for="item in classifyTypeOptions" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue"></el-option>
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column prop="storePath" label="存储目录"></el-table-column>
+            <el-table-column prop="groupName" label="分组名" align="center"></el-table-column>
+            <el-table-column prop="create_by" label="操作人" align="center" />
+            <el-table-column prop="create_time" label="创建日期" align="center">
+              <template #default="{ row }">
+                {{ showTime(row.create_time) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" align="center" width="110">
+              <template #default="scope">
+                <el-button
+                  text
+                  size="small"
+                  icon="download"
+                  title="下载"
+                  v-hasPermi="['tool:file:download']"
+                  v-if="scope.row.storeType == 1"
+                  @click="handleDown(scope.row)"></el-button>
+                <el-button class="copy-btn-main" icon="document-copy" title="复制" text size="small" @click="copyText(scope.row.accessUrl)">
+                </el-button>
+                <el-button v-hasPermi="['tool:file:delete']" title="删除" text size="small" icon="delete" @click="handleDelete(scope.row)">
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <pagination background :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
+        </div>
       </el-col>
     </el-row>
-
-    <!-- 数据区域 -->
-    <el-table :data="dataList" v-loading="loading" ref="table" border highlight-current-row @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column prop="id" label="文件id" width="150" :show-overflow-tooltip="true">
-        <template #default="scope">
-          <el-button text size="small" type="success" @click="handleView(scope.row)">
-            {{ scope.row.id }}
-          </el-button>
-        </template>
-      </el-table-column>
-      <el-table-column prop="fileName" label="文件名" align="left" width="180" :show-overflow-tooltip="true">
-        <template #default="scope">
-          <el-link type="primary" :href="scope.row.accessUrl" target="_blank">{{ scope.row.fileName }}</el-link>
-        </template>
-      </el-table-column>
-      <el-table-column prop="accessUrl" align="center" label="预览图" width="80">
-        <template #default="{ row }">
-          <el-image
-            preview-teleported
-            :src="row.accessUrl"
-            :preview-src-list="[row.accessUrl]"
-            :hide-on-click-modal="true"
-            fit="contain"
-            lazy
-            class="el-avatar">
-            <template #error>
-              <el-icon><document /></el-icon>
-            </template>
-          </el-image>
-        </template>
-      </el-table-column>
-      <el-table-column prop="fileSize" label="文件大小" align="center" :show-overflow-tooltip="true" />
-      <el-table-column prop="fileExt" label="扩展名" align="center" :show-overflow-tooltip="true" width="80px" />
-
-      <el-table-column prop="classifyType" label="存储分类" align="center" width="100px">
-        <template #default="scope">
-          <el-select
-            v-model="scope.row.classifyType"
-            clearable
-            @change="handleClassifyChange(scope.row)"
-            size="small"
-            style="width: 90px"
-            placeholder="选择分类">
-            <el-option v-for="item in classifyTypeOptions" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue"></el-option>
-          </el-select>
-        </template>
-      </el-table-column>
-      <el-table-column prop="storePath" label="存储目录"></el-table-column>
-      <el-table-column prop="groupName" label="分组名" align="center"></el-table-column>
-      <el-table-column prop="create_by" label="操作人" align="center" />
-      <el-table-column prop="create_time" label="创建日期" align="center">
-        <template #default="{ row }">
-          {{ showTime(row.create_time) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" align="center" width="110">
-        <template #default="scope">
-          <el-button
-            text
-            size="small"
-            icon="download"
-            title="下载"
-            v-hasPermi="['tool:file:download']"
-            v-if="scope.row.storeType == 1"
-            @click="handleDown(scope.row)"></el-button>
-          <el-button class="copy-btn-main" icon="document-copy" title="复制" text size="small" @click="copyText(scope.row.accessUrl)"> </el-button>
-          <el-button v-hasPermi="['tool:file:delete']" title="删除" text size="small" icon="delete" @click="handleDelete(scope.row)"> </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <pagination background :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
     <el-dialog :title="title" :lock-scroll="false" v-model="open" width="400px" draggable>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px" label-position="left">
@@ -530,7 +540,7 @@ const fileGroupTreeList = ref([])
 treelistFileGroup().then((res) => {
   const { code, data } = res
   if (code == 200) {
-    fileGroupTreeList.value = data
+    fileGroupTreeList.value = [{ groupId: 0, groupName: '全部', children: [] }, ...data]
   }
 })
 
@@ -545,6 +555,11 @@ function handleExport() {
     .then(async () => {
       await exportSysfile(queryParams.value)
     })
+}
+function handleNodeClick(data) {
+  queryParams.value.categoryId = data.groupId
+
+  handleQuery()
 }
 handleQuery()
 </script>
