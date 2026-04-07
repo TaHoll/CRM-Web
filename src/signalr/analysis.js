@@ -4,8 +4,16 @@ import useUserStore from '@/store/modules/user'
 import { webNotify } from '@/utils/index'
 import gongaoIcon from '@/assets/icons/svg/gonggao.svg'
 
+const MsgType = {
+  M001: 'onlineNum',
+  M002: 'connId',
+  LogOut: 'logOut'
+}
+
 export default {
   onMessage(connection) {
+    const routerPrefix = import.meta.env.VITE_APP_ROUTER_PREFIX || ''
+
     connection.on(MsgType.M001, (data) => {
       useSocketStore().setOnlineUsers(data)
     })
@@ -23,7 +31,7 @@ export default {
     })
     // 接收系统通知/公告
     connection.on('moreNotice', (data) => {
-      if (data.code == 200) {
+      if (data && data.code === 200) {
         useSocketStore().setNoticeList(data.data)
       }
     })
@@ -35,26 +43,26 @@ export default {
 
     // 接收强退通知
     connection.on('forceUser', (data) => {
-      useSocketStore().setGlobalError({ code: 0, msg: `你的账号已被强退，原因：${data.reason || '无'}` })
+      useSocketStore().setGlobalError({ code: 0, msg: `你的账号已被强退，原因：${data?.reason || '无'}` })
       useUserStore()
         .logOut()
         .then(() => {
-          location.href = import.meta.env.VITE_APP_ROUTER_PREFIX + 'error'
+          location.href = routerPrefix + 'error'
         })
     })
     // 接收聊天数据
     connection.on('receiveChat', (data) => {
-      const { fromUser, message } = data
+      const { fromUser, message } = data || {}
 
       useSocketStore().setChat(data)
-      if (data.userId != useUserStore().userId) {
+      if (data && data.userId !== useUserStore().userId) {
         ElNotification({
-          title: fromUser.nickName,
+          title: fromUser?.nickName,
           message: message,
           type: 'success',
           duration: 3000
         })
-        webNotify({ title: '来自：' + fromUser.nickName, body: message, icon: gongaoIcon })
+        webNotify({ title: `来自：${fromUser?.nickName || '未知用户'}`, body: message, icon: gongaoIcon })
       }
     })
 
@@ -69,15 +77,10 @@ export default {
           ElMessageBox.alert(`你的账号已在其他设备登录，如果不是你的操作请尽快修改密码`, '提示', {
             confirmButtonText: '确定',
             callback: () => {
-              location.href = import.meta.env.VITE_APP_ROUTER_PREFIX + 'index'
+              location.href = routerPrefix + 'index'
             }
           })
         })
     })
   }
-}
-const MsgType = {
-  M001: 'onlineNum',
-  M002: 'connId',
-  LogOut: 'logOut'
 }

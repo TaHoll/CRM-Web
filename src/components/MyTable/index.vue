@@ -61,11 +61,14 @@ const props = defineProps({
   /**
    * 所有字典
    */
-  dicts: {},
+  dicts: {
+    type: Object,
+    default: () => ({})
+  },
   //表头数据
   columns: {
     type: Array,
-    default: []
+    default: () => []
   },
   //是否首列索引
   index: {
