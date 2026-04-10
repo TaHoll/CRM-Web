@@ -105,7 +105,9 @@
     "tagsPersist": "标签持久化",
     "tagsShowIcon": "标签显示icon",
     "navMode": "导航模式",
-    "sideColor": "侧边栏颜色"
+    "sideColor": "侧边栏颜色",
+    "lockscreen": "锁定屏幕",
+    "clean_cache": "清空缓存"
   },
   "common": {
     "ok": "确定",

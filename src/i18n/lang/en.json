@@ -105,7 +105,9 @@
     "tagsPersist": "tabs Persist",
     "tagsShowIcon": "tabas show icon",
     "navMode": "nav mode",
-    "sideColor": "side color"
+    "sideColor": "side color",
+    "lockscreen": "lock screen",
+    "clean_cache": "Clear cache"
   },
   "common": {
     "ok": "Ok",

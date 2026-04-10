@@ -105,7 +105,9 @@
     "tagsPersist": "標簽持久化",
     "tagsShowIcon": "標簽顯示icon",
     "navMode": "導航模式",
-    "sideColor": "側邊欄顏色"
+    "sideColor": "側邊欄顏色",
+    "lockscreen": "鎖定屏幕",
+    "clean_cache": "清空緩存"
   },
   "common": {
     "ok": "確定",

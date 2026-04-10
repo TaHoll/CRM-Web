@@ -27,24 +27,39 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <router-link to="/user/profile">
-                <el-dropdown-item>{{ $t('layout.personalCenter') }}</el-dropdown-item>
+              <router-link to="/user/profile" class="dropdown-menu-link">
+                <el-dropdown-item>
+                  <span class="dropdown-item-content">
+                    <el-icon class="menu-icon"><User /></el-icon>
+                    <span>{{ $t('layout.personalCenter') }}</span>
+                  </span>
+                </el-dropdown-item>
               </router-link>
 
               <el-dropdown-item command="lockScreen">
-                <span>锁定屏幕</span>
+                <span class="dropdown-item-content">
+                  <el-icon class="menu-icon"><Lock /></el-icon>
+                  <span>{{ $t('layout.lockscreen') }}</span>
+                </span>
               </el-dropdown-item>
-              <!-- <el-dropdown-item command="setLayout">
-                <span>{{ $t('layout.layoutSetting') }}</span>
-              </el-dropdown-item> -->
+
               <el-dropdown-item command="copyToken" v-if="dev">
-                <span>复制token</span>
+                <span class="dropdown-item-content">
+                  <el-icon class="menu-icon"><DocumentCopy /></el-icon>
+                  <span>复制token</span>
+                </span>
               </el-dropdown-item>
               <el-dropdown-item command="clear">
-                <span>清空缓存</span>
+                <span class="dropdown-item-content">
+                  <el-icon class="menu-icon"><Delete /></el-icon>
+                  <span>{{ $t('layout.clean_cache') }}</span>
+                </span>
               </el-dropdown-item>
               <el-dropdown-item divided command="logout">
-                <span>{{ $t('layout.logOut') }}</span>
+                <span class="dropdown-item-content">
+                  <el-icon class="menu-icon"><SwitchButton /></el-icon>
+                  <span>{{ $t('layout.logOut') }}</span>
+                </span>
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -231,5 +246,27 @@ function lockScreen() {
       }
     }
   }
+}
+
+:deep(.el-dropdown-menu__item) {
+  min-height: 30px;
+  line-height: 30px;
+  padding: 0 16px;
+
+  .dropdown-item-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .menu-icon {
+    width: 16px;
+    font-size: 15px;
+    color: var(--el-text-color-regular);
+  }
+}
+
+.dropdown-menu-link {
+  display: block;
 }
 </style>
