@@ -11,68 +11,63 @@ import useLockStore from '@/store/modules/lock'
 import { getQueryObject } from '@/utils/index'
 NProgress.configure({ showSpinner: false })
 
-const whiteList = ['/login', '/auth-redirect', '/bind', '/register', '/socialLogin', '/error']
+const whiteList = new Set(['/login', '/bind', '/register', '/socialLogin', '/error'])
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to) => {
   NProgress.start()
-  if (getToken()) {
-    to.meta.title && useSettingsStore().setTitle(to.meta.title)
-    const isLock = useLockStore().isLock
-    /* has token*/
-    if (to.path === '/login') {
-      next({ path: '/' })
-      NProgress.done()
-    } else if (isLock && to.path !== '/lock') {
-      next({ path: '/lock' })
-      NProgress.done()
-    } else if (!isLock && to.path === '/lock') {
-      next({ path: '/' })
-      NProgress.done()
-    } else {
-      if (useUserStore().roles.length === 0) {
-        // 判断当前用户是否已拉取完user_info信息
-        useUserStore()
-          .getInfo()
-          .then(() => {
-            usePermissionStore()
-              .generateRoutes()
-              .then((accessRoutes) => {
-                // 根据roles权限生成可访问的路由表
-                accessRoutes.forEach((route) => {
-                  if (!isHttp(route.path)) {
-                    router.addRoute(route) // 动态添加可访问路由表
-                  }
-                })
-                next({ ...to, replace: true }) // hack方法 确保addRoutes已完成
-              })
-          })
-          .catch((err) => {
-            useUserStore()
-              .logOut()
-              .then(() => {
-                // ElMessage.error(err != undefined ? err : '登录失败')
-                next({ path: '/' })
-              })
-          })
-      } else {
-        next()
-      }
-    }
-  } else {
-    // 没有token
-    if (whiteList.indexOf(to.path) !== -1) {
-      // 在免登录白名单，直接进入
-      next()
-    } else {
-      var toPath = to.fullPath // /index?redirect=/demo
-      var obj = getQueryObject(to.fullPath)
+  const userStore = useUserStore()
+  const settingsStore = useSettingsStore()
+  const permissionStore = usePermissionStore()
+  const lockStore = useLockStore()
 
-      if (obj.redirect) {
-        toPath = obj.redirect
-      }
-      next(`/login?redirect=${encodeURIComponent(toPath)}`) // 否则全部重定向到登录页
-      NProgress.done()
+  if (!getToken()) {
+    // 没有token
+    if (whiteList.has(to.path)) {
+      // 在免登录白名单，直接进入
+      return true
     }
+
+    let toPath = to.fullPath // /index?redirect=/demo
+    const obj = getQueryObject(to.fullPath)
+    if (obj.redirect) {
+      toPath = obj.redirect
+    }
+    return `/login?redirect=${encodeURIComponent(toPath)}` // 否则全部重定向到登录页
+  }
+
+  to.meta.title && settingsStore.setTitle(to.meta.title)
+  const isLock = lockStore.isLock
+
+  /* has token*/
+  if (to.path === '/login') {
+    return { path: '/' }
+  }
+  if (isLock && to.path !== '/lock') {
+    return { path: '/lock' }
+  }
+  if (!isLock && to.path === '/lock') {
+    return { path: '/' }
+  }
+
+  if (userStore.roles.length > 0) {
+    return true
+  }
+
+  // 判断当前用户是否已拉取完user_info信息
+  try {
+    await userStore.getInfo()
+    const accessRoutes = await permissionStore.generateRoutes()
+    // 根据roles权限生成可访问的路由表
+    accessRoutes.forEach((route) => {
+      if (!isHttp(route.path)) {
+        router.addRoute(route) // 动态添加可访问路由表
+      }
+    })
+    return { ...to, replace: true } // hack方法 确保addRoutes已完成
+  } catch (err) {
+    await userStore.logOut()
+    // ElMessage.error(err != undefined ? err : '登录失败')
+    return { path: '/' }
   }
 })
 
