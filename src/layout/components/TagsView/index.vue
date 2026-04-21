@@ -1,5 +1,5 @@
 <template>
-  <div id="tags-view-container" class="tags-view-container">
+  <div id="tags-view-container" :class="['tags-view-container', { 'tags-view-container--chrome': tagsViewStyle === 'chrome' }]">
     <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper" @scroll="handleScroll">
       <router-link
         v-for="tag in visitedViews"
@@ -8,6 +8,7 @@
         :class="{ active: isActive(tag) }"
         :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }"
         class="tags-view-item"
+        :style="tagActiveStyle(tag)"
         @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''"
         @contextmenu.prevent="openMenu(tag, $event)">
         <svg-icon v-if="settingsStore.tagsShowIcon" :name="tag.meta && tag.meta.icon" />
@@ -54,6 +55,16 @@ const router = useRouter()
 const settingsStore = useSettingsStore()
 const visitedViews = computed(() => useTagsViewStore().visitedViews)
 const routes = computed(() => usePermissionStore().routes)
+const theme = computed(() => settingsStore.theme)
+const tagsViewStyle = computed(() => settingsStore.tagsViewStyle)
+const tagActiveStyle = (tag) => {
+  if (!isActive(tag) || tagsViewStyle.value !== 'card') return {}
+
+  return {
+    'background-color': theme.value,
+    'border-color': theme.value
+  }
+}
 
 watch(route, () => {
   addTags()
@@ -295,16 +306,6 @@ function handleScroll() {
         .close {
           display: inline-block !important;
         }
-        // &::before {
-        //   content: '';
-        //   background: #fff;
-        //   display: inline-block;
-        //   width: 8px;
-        //   height: 8px;
-        //   border-radius: 50%;
-        //   position: relative;
-        //   margin-right: 2px;
-        // }
       }
     }
   }
@@ -329,10 +330,154 @@ function handleScroll() {
       }
     }
   }
+
+  &.tags-view-container--chrome {
+    --chrome-strip-bg: #ffffff;
+    --chrome-strip-border: var(--el-border-color-lighter, #e4e7ed);
+    --chrome-tab-active-bg: var(--el-color-primary-light-9);
+    --chrome-tab-hover-bg: var(--el-fill-color-light, #f5f7fa);
+    --chrome-tab-text: var(--el-text-color-regular, #606266);
+    --chrome-tab-text-active: var(--el-text-color-primary, #303133);
+    --chrome-wing-r: 10px;
+
+    overflow: visible;
+    background: var(--chrome-strip-bg);
+    border-bottom: 1px solid var(--chrome-strip-border);
+    align-items: flex-end;
+    box-shadow: none;
+
+    .tags-nav-btn {
+      align-self: stretch;
+      height: auto;
+      min-height: var(--base-tags-height);
+      border-color: var(--chrome-strip-border);
+    }
+
+    .tags-action-btn {
+      border-color: var(--chrome-strip-border);
+    }
+
+    .tags-view-wrapper {
+      padding-top: 3px;
+
+      .tags-view-item {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+        height: 30px;
+        min-height: 30px;
+        margin: 0 0 -1px;
+        padding: 0 12px;
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.2;
+        border: none !important;
+        border-radius: 0;
+        background: transparent !important;
+        color: var(--chrome-tab-text);
+        padding-top: 0 !important;
+        box-shadow: none !important;
+        white-space: nowrap;
+        max-width: 220px;
+        transition:
+          background 0.12s ease,
+          color 0.12s ease,
+          border-radius 0.12s ease;
+
+        > span:not(.close-wrap) {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .close {
+          opacity: 0;
+          display: inline-block;
+          transition:
+            opacity 0.12s ease,
+            background-color 0.12s ease,
+            color 0.12s ease;
+        }
+
+        &:hover .close,
+        &.active .close {
+          opacity: 1;
+        }
+
+        &::before,
+        &::after {
+          content: '' !important;
+          display: block !important;
+          position: absolute;
+          bottom: 0;
+          width: var(--chrome-wing-r);
+          height: var(--chrome-wing-r);
+          margin: 0 !important;
+          pointer-events: none;
+          background: transparent !important;
+          border-radius: 0 !important;
+          transition: box-shadow 0.12s ease;
+        }
+
+        &::before {
+          left: calc(-1 * var(--chrome-wing-r));
+          border-bottom-right-radius: var(--chrome-wing-r) !important;
+          box-shadow: none;
+        }
+
+        &::after {
+          right: calc(-1 * var(--chrome-wing-r));
+          border-bottom-left-radius: var(--chrome-wing-r) !important;
+          box-shadow: none;
+        }
+
+        &:first-of-type {
+          margin-left: 6px;
+        }
+
+        &:last-of-type {
+          margin-right: 10px;
+        }
+
+        &:not(.active) + .tags-view-item:not(.active) {
+          border-left: 1px solid var(--el-border-color-lighter, #e4e7ed);
+          padding-left: 11px;
+        }
+
+        &:hover:not(.active) {
+          background: var(--chrome-tab-hover-bg) !important;
+          border-radius: 6px 6px 0 0;
+          color: var(--el-text-color-primary, #303133);
+        }
+
+        &.active {
+          height: 31px;
+          min-height: 31px;
+          padding: 0 14px;
+          color: var(--chrome-tab-text-active) !important;
+          font-weight: 500;
+          background: var(--chrome-tab-active-bg) !important;
+          border: none !important;
+          border-radius: var(--chrome-wing-r) var(--chrome-wing-r) 0 0;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+          &::before {
+            box-shadow: calc(var(--chrome-wing-r) * 0.5) calc(var(--chrome-wing-r) * 0.5) 0 calc(var(--chrome-wing-r) * 0.5)
+              var(--chrome-tab-active-bg);
+          }
+
+          &::after {
+            box-shadow: calc(var(--chrome-wing-r) * -0.5) calc(var(--chrome-wing-r) * 0.5) 0 calc(var(--chrome-wing-r) * 0.5)
+              var(--chrome-tab-active-bg);
+          }
+        }
+      }
+    }
+  }
 }
 .close-wrap {
   display: inline-block;
-  widows: 1em;
   width: 1em;
 }
 .svg-icon {

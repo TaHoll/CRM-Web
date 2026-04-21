@@ -16,7 +16,8 @@ const {
   tagsViewPersist,
   codeMode,
   tagsShowIcon,
-  navType
+  navType,
+  tagsViewStyle
 } = defaultSettings
 
 const storageSetting = JSON.parse(localStorage.getItem('layout-setting')) || ''
@@ -35,7 +36,8 @@ const useSettingsStore = defineStore('layout-setting', {
       'tagsViewPersist',
       'codeMode',
       'tagsShowIcon',
-      'navType'
+      'navType',
+      'tagsViewStyle'
     ] //存储指定key
   },
   state: () => ({
@@ -54,7 +56,8 @@ const useSettingsStore = defineStore('layout-setting', {
     tagsViewPersist: storageSetting.tagsViewPersist === undefined ? tagsViewPersist : storageSetting.tagsViewPersist,
     codeMode: storageSetting.codeMode === undefined ? codeMode : storageSetting.codeMode,
     tagsShowIcon: storageSetting.tagsShowIcon === undefined ? tagsShowIcon : storageSetting.tagsShowIcon,
-    navType: storageSetting.navType === undefined ? navType : storageSetting.navType
+    navType: storageSetting.navType === undefined ? navType : storageSetting.navType,
+    tagsViewStyle: storageSetting.tagsViewStyle === undefined ? tagsViewStyle : storageSetting.tagsViewStyle
   }),
   actions: {
     // 修改布局设置

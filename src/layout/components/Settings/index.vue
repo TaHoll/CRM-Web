@@ -107,6 +107,16 @@
         <el-switch v-model="tabsShowIcon" class="drawer-switch" />
       </span>
     </div>
+    <div class="drawer-item">
+      <span>标签栏样式</span>
+      <span class="comp-style">
+        <el-radio-group v-model="settingsStore.tagsViewStyle" :disabled="!settingsStore.tagsView">
+          <el-radio-button label="card">卡片</el-radio-button>
+          <el-radio-button label="chrome">谷歌</el-radio-button>
+        </el-radio-group>
+      </span>
+    </div>
+
     <el-divider />
 
     <!-- <el-button type="primary" plain icon="DocumentAdd" @click="saveSetting">{{ $t('layout.saveConfig') }}</el-button> -->
