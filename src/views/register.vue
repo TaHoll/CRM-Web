@@ -168,7 +168,7 @@ function handleRegister() {
 getCode()
 </script>
 
-<style rel="stylesheet/scss" lang="scss">
+<style rel="stylesheet/scss" scoped lang="scss">
 @use '@/assets/styles/login.scss';
 .register {
   display: flex;
