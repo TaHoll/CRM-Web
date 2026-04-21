@@ -92,13 +92,11 @@
           <el-table v-loading="loading" :data="userList" @selection-change="handleSelectionChange">
             <el-table-column type="selection" width="50" align="center" :selectable="checkSelectable" />
             <el-table-column label="用户编号" align="center" key="userId" prop="userId" v-if="columns.showColumn('userId')" />
-            <el-table-column
-              label="登录名"
-              align="center"
-              key="userName"
-              prop="userName"
-              v-if="columns.showColumn('userName')"
-              :show-overflow-tooltip="true" />
+            <el-table-column label="用户名称" align="center" key="userName" v-if="columns.showColumn('userName')" :show-overflow-tooltip="true">
+              <template #default="scope">
+                <a class="link-type" style="cursor: pointer" @click="handleViewData(scope.row)">{{ scope.row.userName }}</a>
+              </template>
+            </el-table-column>
             <el-table-column
               label="用户昵称"
               align="center"
@@ -300,6 +298,9 @@
         <el-button type="primary" @click="submitFileForm">{{ $t('btn.submit') }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- 用戶詳情 -->
+    <user-view-drawer ref="userViewDrawerRef"></user-view-drawer>
   </div>
 </template>
 
@@ -307,7 +308,7 @@
 import { getToken } from '@/utils/auth'
 import { treeselect } from '@/api/system/dept'
 import { changeUserStatus, listUser, resetUserPwd, delUser, getUser, updateUser, addUser, exportUser } from '@/api/system/user'
-
+import UserViewDrawer from './view.vue'
 const { proxy } = getCurrentInstance()
 
 const statusOptions = ref([])
@@ -523,6 +524,12 @@ function handleSelectionChange(selection) {
   single.value = selection.length != 1
   multiple.value = !selection.length
 }
+
+/** 详情按钮操作 */
+function handleViewData(row) {
+  proxy.$refs['userViewDrawerRef'].open(row.userId)
+}
+
 /** 导入按钮操作 */
 function handleImport() {
   upload.title = '用户导入'
