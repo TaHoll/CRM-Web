@@ -1,15 +1,15 @@
 <template>
   <template v-if="!item.hidden">
-    <!-- ✅ 单个可见子菜单（旧写法逻辑） -->
+    <!-- ✅ 单个可见子菜单 -->
     <el-menu-item
       v-if="hasOneShowingChild(item.children, item) && (!onlyOneChild.children || onlyOneChild.noShowingChildren) && !item.alwaysShow"
       :index="resolvePath(onlyOneChild.path)">
       <app-link v-if="onlyOneChild.meta" :to="resolvePath(onlyOneChild.path, onlyOneChild.query)">
         <svg-icon class="menu-icon" :name="onlyOneChild.meta?.icon || item.meta?.icon" />
 
-        <span v-if="isCollapse && !onlyOneChild.meta?.icon">
+        <template v-if="isCollapse && !onlyOneChild.meta?.icon">
           {{ shortTitle(onlyOneChild.meta?.title) }}
-        </span>
+        </template>
 
         <span v-if="onlyOneChild.meta?.titleKey">
           {{ $t(onlyOneChild.meta.titleKey) }}
