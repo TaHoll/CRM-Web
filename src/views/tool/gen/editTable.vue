@@ -96,7 +96,7 @@
                 </span>
               </template>
               <template #default="scope">
-                <el-select v-model="scope.row.autoFillType">
+                <el-select v-model="scope.row.autoFillType" style="width: 70px">
                   <el-option label=" " :value="0" />
                   <el-option label="插入" :value="1" />
                   <el-option label="编辑" :value="2" />
@@ -117,9 +117,9 @@
                 </el-checkbox>
               </template>
             </el-table-column>
-            <el-table-column label="查询方式" width="90" align="center">
+            <el-table-column label="查询方式" width="100" align="center">
               <template #default="scope">
-                <el-select v-model="scope.row.queryType" :disabled="scope.row.htmlType == 'datetime'" v-if="scope.row.isQuery">
+                <el-select v-model="scope.row.queryType" style="width: 80px" :disabled="scope.row.htmlType == 'datetime'" v-if="scope.row.isQuery">
                   <el-option label="=" value="EQ" />
                   <el-option label="!=" value="NE" />
                   <el-option label=">" value="GT" />
@@ -135,7 +135,7 @@
 
           <el-table-column label="表单显示类型" width="140">
             <template #default="scope">
-              <el-select v-model="scope.row.htmlType">
+              <el-select v-model="scope.row.htmlType" style="width: 120px">
                 <el-option label="文本框" value="input" />
                 <el-option label="数字框" value="inputNumber" />
                 <el-option label="文本域" value="textarea" />
@@ -160,6 +160,7 @@
           <el-table-column label="字典类型" min-width="140">
             <template #default="scope">
               <el-select
+                style="width: 110px"
                 v-model="scope.row.dictType"
                 clearable
                 filterable
@@ -186,9 +187,9 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="备注" align="center" width="200">
+          <el-table-column label="备注" align="center" width="150">
             <template #default="scope">
-              <el-input v-model="scope.row.remark"> </el-input>
+              <el-input type="textarea" v-model="scope.row.remark"> </el-input>
             </template>
           </el-table-column>
         </el-table>

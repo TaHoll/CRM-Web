@@ -41,7 +41,8 @@
   // 隐藏侧边栏样式
   .hideSidebar {
     .el-aside {
-      --el-aside-width: 60px;
+      transition: width 0.3s ease;
+      --el-aside-width: 64px;
     }
     // 隐藏箭头
     .el-sub-menu {
@@ -57,6 +58,7 @@
     // 折叠状态下
     .el-menu--collapse {
       .menu-icon {
+        width: 1.4em;
         margin-right: 0;
       }
 

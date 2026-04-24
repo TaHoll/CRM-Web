@@ -27,14 +27,19 @@
       <template #title>
         <svg-icon class="menu-icon" :name="item.meta?.icon" />
 
-        <span v-if="item.meta?.titleKey">
-          {{ $t(item.meta.titleKey) }}
-        </span>
-        <span v-else>
-          {{ item.meta?.title }}
-        </span>
+        <template v-if="isCollapse && !item.meta?.icon">
+          {{ shortTitle(item.meta?.title) }}
+        </template>
+        <template v-else>
+          <span v-if="item.meta?.titleKey">
+            {{ $t(item.meta.titleKey) }}
+          </span>
+          <span v-else>
+            {{ item.meta?.title }}
+          </span>
 
-        <svg-icon v-if="item.meta?.isNew == 1 && defaultSettings.menuShowNew" name="new" color="#fff" style="width: 50px; height: 25px" />
+          <svg-icon v-if="item.meta?.isNew == 1 && defaultSettings.menuShowNew" name="new" color="#fff" style="width: 50px; height: 25px" />
+        </template>
       </template>
 
       <sidebar-item

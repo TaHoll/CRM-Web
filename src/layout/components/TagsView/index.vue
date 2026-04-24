@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div id="tags-view-container" :class="['tags-view-container', { 'tags-view-container--chrome': tagsViewStyle === 'chrome' }]">
     <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper" @scroll="handleScroll">
       <router-link
@@ -11,7 +11,7 @@
         :style="tagActiveStyle(tag)"
         @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''"
         @contextmenu.prevent="openMenu(tag, $event)">
-        <svg-icon v-if="settingsStore.tagsShowIcon" :name="tag.meta && tag.meta.icon" />
+        <svg-icon v-if="settingsStore.tagsShowIcon && tag.meta?.icon" :name="tag.meta?.icon" />
         <span v-if="tag.meta && tag.meta.titleKey">{{ $t(tag.meta.titleKey) }}</span>
         <span v-else>{{ tag.title }}</span>
         <span v-if="!isAffix(tag)" @click.prevent.stop="closeSelectedTag(tag)" class="close-wrap">
@@ -242,9 +242,9 @@ function handleScroll() {
 .tags-view-container {
   height: var(--base-tags-height);
   width: 100%;
-  // border-bottom: 1px solid #d8dce5;
-  // box-shadow: 0 1px 3px 0 #888, 0 0 3px 0 #888;
   box-shadow: 0 0 1px #888;
+  z-index: 1;
+  position: relative;
 
   .tags-view-wrapper {
     .tags-view-item {
@@ -253,16 +253,13 @@ function handleScroll() {
       cursor: pointer;
       height: 26px;
       line-height: 26px;
-      // border: 1px solid #ccc;
+      border-right: 1px solid #ccc;
       color: var(--el-text-color-regular);
       padding: 0 8px;
       font-size: 12px;
       margin-left: 5px;
       margin-top: 4px;
       .close {
-        // width: 16px;
-        // height: 16px;
-        // vertical-align: 2px;
         width: 1em;
         height: 1em;
         vertical-align: middle;
@@ -270,7 +267,7 @@ function handleScroll() {
         text-align: center;
         transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
         transform-origin: 100% 50%;
-        display: none;
+        // display: none;
         &:before {
           transform: scale(0.6);
           display: inline-block;
@@ -283,9 +280,9 @@ function handleScroll() {
           height: 12px !important;
         }
       }
-      .close {
-        display: none;
-      }
+      // .close {
+      //   display: none;
+      // }
       &:first-of-type {
         margin-left: 15px;
       }
@@ -342,9 +339,9 @@ function handleScroll() {
 
     overflow: visible;
     background: var(--chrome-strip-bg);
-    border-bottom: 1px solid var(--chrome-strip-border);
+    // border-bottom: 1px solid var(--chrome-strip-border);
     align-items: flex-end;
-    box-shadow: none;
+    // box-shadow: none;
 
     .tags-nav-btn {
       align-self: stretch;
@@ -392,7 +389,7 @@ function handleScroll() {
         }
 
         .close {
-          opacity: 0;
+          // opacity: 0;
           display: inline-block;
           transition:
             opacity 0.12s ease,
@@ -400,10 +397,10 @@ function handleScroll() {
             color 0.12s ease;
         }
 
-        &:hover .close,
-        &.active .close {
-          opacity: 1;
-        }
+        // &:hover .close,
+        // &.active .close {
+        //   opacity: 1;
+        // }
 
         &::before,
         &::after {
@@ -454,9 +451,9 @@ function handleScroll() {
         &.active {
           height: 31px;
           min-height: 31px;
-          padding: 0 14px;
+          // padding: 0 14px;
           color: var(--chrome-tab-text-active) !important;
-          font-weight: 500;
+          // font-weight: 500;
           background: var(--chrome-tab-active-bg) !important;
           border: none !important;
           border-radius: var(--chrome-wing-r) var(--chrome-wing-r) 0 0;
@@ -479,6 +476,7 @@ function handleScroll() {
 .close-wrap {
   display: inline-block;
   width: 1em;
+  margin-left: 5px;
 }
 .svg-icon {
   margin-right: 5px;
