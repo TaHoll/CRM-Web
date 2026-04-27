@@ -11,7 +11,10 @@ let chartInstance = null
 
 const chartOptions = {
   title: {
-    text: 'Demo ECharts Data'
+    text: 'Demo ECharts Data', // 文字属性设置
+    textStyle: {
+      color: '#00e4ff'
+    }
   },
   tooltip: {},
   xAxis: {
@@ -57,7 +60,6 @@ onBeforeUnmount(() => {
 .chart {
   width: 100%;
   height: 400px;
-  background-color: #fff;
   border: 1px solid #ddd;
 }
 </style>

@@ -253,7 +253,7 @@ function handleScroll() {
       cursor: pointer;
       height: 26px;
       line-height: 26px;
-      border-right: 1px solid #ccc;
+      // border-right: 1px solid #ccc;
       color: var(--el-text-color-regular);
       padding: 0 8px;
       font-size: 12px;
@@ -275,7 +275,7 @@ function handleScroll() {
         }
         &:hover {
           background-color: #b4bccc;
-          color: #fff;
+          color: #333;
           width: 12px !important;
           height: 12px !important;
         }
@@ -290,19 +290,16 @@ function handleScroll() {
         margin-right: 15px;
       }
       &:hover {
-        background-color: var(--el-color-primary);
-        color: #fff;
-        .close {
-          display: inline-block !important;
-        }
+        // background-color: var(--el-color-primary);
+        color: var(--el-color-primary);
+        // .close {
+        //   display: inline-block !important;
+        // }
       }
       &.active {
         background-color: var(--el-color-primary);
         border-color: var(--el-color-primary);
         color: #fff;
-        .close {
-          display: inline-block !important;
-        }
       }
     }
   }
