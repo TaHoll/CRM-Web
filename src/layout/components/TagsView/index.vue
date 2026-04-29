@@ -214,11 +214,11 @@ function toLastView(visitedViews, view) {
   }
 }
 function openMenu(tag, e) {
-  const menuMinWidth = 105
+  const menuMinWidth = 135
   const offsetLeft = proxy.$el.getBoundingClientRect().left // container margin left
   const offsetWidth = proxy.$el.offsetWidth // container width
   const maxLeft = offsetWidth - menuMinWidth // left boundary
-  const l = e.clientX - offsetLeft + 15 // 15: margin right
+  const l = e.clientX - offsetLeft + 15 // 25: margin right
 
   if (l > maxLeft) {
     left.value = maxLeft
@@ -226,7 +226,7 @@ function openMenu(tag, e) {
     left.value = l
   }
 
-  top.value = e.clientY
+  top.value = e.clientY - 30
   visible.value = true
   selectedTag.value = tag
 }
@@ -243,11 +243,12 @@ function handleScroll() {
   height: var(--base-tags-height);
   width: 100%;
   box-shadow: 0 0 1px #888;
-  z-index: 1;
+
   position: relative;
 
   .tags-view-wrapper {
     .tags-view-item {
+      z-index: 1;
       display: inline-block;
       position: relative;
       cursor: pointer;
