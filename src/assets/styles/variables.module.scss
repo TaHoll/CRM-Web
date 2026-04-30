@@ -27,6 +27,8 @@ $panGreen: #30b08f;
 
   --el-menu-horizontal-height: 50px;
 
+  --el-menu-level-padding: 15px !important;
+
   --vxe-table-column-padding-default: 7px 0 !important;
 
   // 左侧菜单选中背景
@@ -46,7 +48,7 @@ $panGreen: #30b08f;
   --base-color-white: #ffffff;
   --el-menu-text-color: var(--el-text-color-primary);
 
-  --base-menu-active-bg: #324127;
+  --base-menu-active-bg: #3a5070;
 }
 // 黑色主题
 html.dark {

@@ -1,66 +1,69 @@
 <template>
-  <div class="app-container">
-    <el-form :model="form" ref="formRef" :rules="rules" @submit.prevent>
-      <el-row class="mb10" :gutter="10">
-        <el-col :lg="24">
-          <el-form-item label="" prop="title">
-            <el-input v-model="form.title" placeholder="请输入文章标题（必须）" />
-          </el-form-item>
-        </el-col>
-        <el-col :lg="24">
-          <el-form-item prop="content" label="">
-            <MdEditor v-model="form.content" :showToolbarName="true" :theme="settingsStore.codeMode" :onUploadImg="onUploadImg" />
-          </el-form-item>
-        </el-col>
-        <el-col :lg="24">
-          <el-form-item prop="abstractText">
-            <el-input v-model="form.abstractText" type="textarea" show-word-limit maxlength="100" placeholder="请输入文章摘要（必须）" />
-          </el-form-item>
+  <div class="app-container article-publish-page">
+    <el-form :model="form" ref="formRef" :rules="rules" @submit.prevent class="publish-form">
+      <el-row :gutter="16" class="publish-row">
+        <el-col :xl="18" :lg="16" :md="24">
+          <el-card shadow="never" class="editor-card">
+            <el-form-item label="" prop="title" class="title-item">
+              <el-input v-model="form.title" placeholder="请输入文章标题（必须）" size="large" />
+            </el-form-item>
+
+            <el-form-item prop="content" label="" class="editor-item">
+              <MdEditor v-model="form.content" :showToolbarName="true" :theme="settingsStore.codeMode" :onUploadImg="onUploadImg" />
+            </el-form-item>
+          </el-card>
         </el-col>
 
-        <el-col :lg="8">
-          <el-form-item prop="categoryId" label="分类" label-position="top">
-            <el-cascader
-              class="w100"
-              :options="categoryOptions"
-              :props="{ checkStrictly: true, value: 'categoryId', label: 'name', emitPath: false }"
-              placeholder="请选择文章分类"
-              clearable
-              v-model="form.categoryId" />
-          </el-form-item>
-        </el-col>
-        <el-col :lg="16">
-          <el-form-item label="标签" label-position="top">
-            <el-input-tag v-model="form.dynamicTags" :max="5" :maxlength="10" clearable trigger="Enter" placeholder="请输入标签" />
-          </el-form-item>
-        </el-col>
-        <el-col :lg="8">
-          <el-form-item>
-            <template #label>
-              <span>
-                <el-tooltip content="不公开只有自己会看到" placement="top">
-                  <el-icon :size="15">
-                    <questionFilled />
-                  </el-icon>
-                </el-tooltip>
-                是否公开
-              </span>
-            </template>
-            <el-switch v-model="form.isPublic" inline-prompt :active-value="1" :in-active-value="0" active-text="是" inactive-text="否" />
-          </el-form-item>
-        </el-col>
+        <el-col :xl="6" :lg="8" :md="24">
+          <div class="side-column">
+            <el-card shadow="never" class="meta-card" header="发布设置">
+              <el-form-item prop="abstractText" label="文章摘要" label-position="top">
+                <el-input
+                  v-model="form.abstractText"
+                  type="textarea"
+                  :rows="4"
+                  show-word-limit
+                  maxlength="100"
+                  placeholder="请输入文章摘要（必须）" />
+              </el-form-item>
+              <el-form-item prop="categoryId" label="分类" label-position="top">
+                <el-cascader
+                  class="w100"
+                  :options="categoryOptions"
+                  :props="{ checkStrictly: true, value: 'categoryId', label: 'name', emitPath: false }"
+                  placeholder="请选择文章分类"
+                  clearable
+                  v-model="form.categoryId" />
+              </el-form-item>
 
-        <el-col :lg="24">
-          <el-form-item>
-            <UploadImage ref="uploadRef" v-model="form.coverUrl" :limit="1" :fileSize="15" style="width: 90px">
-              <template #icon>
-                <div class="upload-wrap">
-                  <el-icon class="avatar-uploader-icon"><plus /></el-icon>
-                  <div>请选择封面</div>
-                </div>
-              </template>
-            </UploadImage>
-          </el-form-item>
+              <el-form-item label="标签" label-position="top">
+                <el-input-tag v-model="form.dynamicTags" :max="5" :maxlength="10" clearable trigger="Enter" placeholder="请输入标签" />
+              </el-form-item>
+              <el-form-item label="封面" label-position="top">
+                <UploadImage ref="uploadRef" v-model="form.coverUrl" :limit="1" :fileSize="15" style="width: 90px">
+                  <template #icon>
+                    <div class="upload-wrap">
+                      <el-icon class="avatar-uploader-icon"><plus /></el-icon>
+                      <div>请选择封面</div>
+                    </div>
+                  </template>
+                </UploadImage>
+              </el-form-item>
+              <el-form-item>
+                <template #label>
+                  <span>
+                    <el-tooltip content="不公开只有自己会看到" placement="top">
+                      <el-icon :size="15">
+                        <questionFilled />
+                      </el-icon>
+                    </el-tooltip>
+                    是否公开
+                  </span>
+                </template>
+                <el-switch v-model="form.isPublic" inline-prompt :active-value="1" :in-active-value="0" active-text="是" inactive-text="否" />
+              </el-form-item>
+            </el-card>
+          </div>
         </el-col>
       </el-row>
     </el-form>
@@ -217,9 +220,44 @@ getInfo(cid)
 getCategoryTreeselect()
 </script>
 <style scoped>
-.app-container {
+.article-publish-page {
   position: relative;
+  padding-bottom: 74px;
 }
+
+.publish-form {
+  max-width: 1600px;
+}
+
+.publish-row {
+  align-items: flex-start;
+}
+
+.editor-card,
+.meta-card,
+.cover-card {
+  border-radius: 10px;
+}
+
+.title-item {
+  margin-bottom: 14px;
+}
+
+.editor-item :deep(.md-editor) {
+  min-height: 520px;
+}
+
+.summary-item {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .button-new-tag {
   padding-top: 0;
   padding-bottom: 0;
@@ -234,9 +272,30 @@ getCategoryTreeselect()
   flex-direction: column;
   color: #ccc;
 }
+
 .btn-wrap {
   display: flex;
   align-items: center;
-  bottom: var(--base-footer-height);
+  gap: 10px;
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--base-footer-height) + 12px);
+  z-index: 10;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 999px;
+  padding: 8px 12px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 8%);
+}
+
+@media (max-width: 992px) {
+  .editor-item :deep(.md-editor) {
+    min-height: 420px;
+  }
+
+  .btn-wrap {
+    right: 12px;
+    bottom: calc(var(--base-footer-height) + 8px);
+  }
 }
 </style>

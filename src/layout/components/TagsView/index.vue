@@ -35,7 +35,7 @@
     </span>
     <el-divider direction="vertical" />
     <!-- 下拉操作菜单 -->
-    <el-dropdown class="tags-action-dropdown" trigger="click" placement="bottom-end" @command="handleDropdownCommand">
+    <el-dropdown class="tags-action-dropdown" size="large" trigger="click" placement="bottom-end" @command="handleDropdownCommand">
       <span class="tags-action-btn">
         <el-icon><arrow-down /></el-icon>
       </span>
@@ -395,13 +395,6 @@ function handleScroll() {
       color: $btn-disabled-color;
       cursor: not-allowed;
     }
-
-    // &--left {
-    //   border-right: $divider;
-    // }
-    // &--right {
-    //   border-left: $divider;
-    // }
   }
 
   .tags-view-wrapper {
@@ -412,7 +405,6 @@ function handleScroll() {
       cursor: pointer;
       height: 26px;
       line-height: 26px;
-      // border-right: 1px solid #ccc;
       color: var(--el-text-color-regular);
       padding: 0 8px;
       font-size: 12px;
@@ -439,21 +431,12 @@ function handleScroll() {
           height: 12px !important;
         }
       }
-      // .close {
-      //   display: none;
-      // }
-      // &:first-of-type {
-      //   margin-left: 15px;
-      // }
+
       &:last-of-type {
         margin-right: 15px;
       }
       &:hover {
-        // background-color: var(--el-color-primary);
         color: var(--el-color-primary);
-        // .close {
-        //   display: inline-block !important;
-        // }
       }
       &.active {
         background-color: var(--el-color-primary);
@@ -478,7 +461,6 @@ function handleScroll() {
     cursor: pointer;
     color: $btn-color;
     font-size: 13px;
-    //border-left: $divider;
     user-select: none;
     transition:
       background 0.15s,
@@ -489,28 +471,6 @@ function handleScroll() {
       color: $btn-hover-color;
     }
   }
-
-  // .contextmenu {
-  //   margin: 0;
-  //   background: #fff;
-  //   z-index: 3000;
-  //   position: absolute;
-  //   list-style-type: none;
-  //   padding: 5px 0;
-  //   border-radius: 4px;
-  //   font-size: 12px;
-  //   font-weight: 400;
-  //   color: #333;
-  //   box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, 0.3);
-  //   li {
-  //     margin: 0;
-  //     padding: 7px 16px;
-  //     cursor: pointer;
-  //     &:hover {
-  //       background: #eee;
-  //     }
-  //   }
-  // }
 
   &.tags-view-container--chrome {
     --chrome-strip-bg: #ffffff;
@@ -523,9 +483,7 @@ function handleScroll() {
 
     overflow: visible;
     background: var(--chrome-strip-bg);
-    // border-bottom: 1px solid var(--chrome-strip-border);
-    align-items: flex-end;
-    // box-shadow: none;
+    // align-items: flex-end;
 
     .tags-nav-btn {
       align-self: stretch;
@@ -573,18 +531,12 @@ function handleScroll() {
         }
 
         .close {
-          // opacity: 0;
           display: inline-block;
           transition:
             opacity 0.12s ease,
             background-color 0.12s ease,
             color 0.12s ease;
         }
-
-        // &:hover .close,
-        // &.active .close {
-        //   opacity: 1;
-        // }
 
         &::before,
         &::after {
