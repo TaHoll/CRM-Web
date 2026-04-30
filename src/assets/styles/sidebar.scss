@@ -24,18 +24,32 @@
     .el-menu {
       border: none;
     }
-
-    // [class^='el-icon'] {
-    //   width: 1em;
-    //   height: 1em;
-    //   font-size: unset;
-    // }
   }
 
   // 展开sidebar状态设置svg-icon边距
   .openSidebar {
     .sidebar {
       transform: translate(0);
+    }
+
+    // 垂直状态下的侧边栏增加背景
+    .el-menu--vertical .el-menu-item {
+      position: relative;
+
+      &.is-active {
+        background-color: var(--base-menu-active-bg);
+      }
+
+      &.is-active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0px;
+        bottom: 0px;
+        width: 5px;
+        background: linear-gradient(180deg, #409eff, #66b1ff);
+        border-radius: 2px;
+      }
     }
   }
   // 隐藏侧边栏样式

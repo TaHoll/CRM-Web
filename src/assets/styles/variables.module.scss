@@ -28,6 +28,9 @@ $panGreen: #30b08f;
   --el-menu-horizontal-height: 50px;
 
   --vxe-table-column-padding-default: 7px 0 !important;
+
+  // 左侧菜单选中背景
+  --base-menu-active-bg: #f5f7fa;
 }
 
 /***侧边栏深色配置***/
@@ -42,6 +45,8 @@ $panGreen: #30b08f;
   --el-text-color-primary: #e5eaf3;
   --base-color-white: #ffffff;
   --el-menu-text-color: var(--el-text-color-primary);
+
+  --base-menu-active-bg: #324127;
 }
 // 黑色主题
 html.dark {
@@ -63,6 +68,9 @@ html.dark {
   --vxe-table-background-color: #4a5663;
   --vxe-table-border-width: 1px;
   --vxe-table-border-color: #37373a;
+
+  // 左侧菜单选中背景
+  --base-menu-active-bg: #37373a;
 
   .current-row {
     color: #e65d6e;

@@ -181,8 +181,8 @@ onMounted(() => {
 <style lang="scss" scoped>
 // 修改默认样式
 .el-menu--horizontal > .el-menu-item {
-  height: 50px !important;
-  line-height: 50px !important;
+  // height: 50px !important;
+  // line-height: 50px !important;
   padding: 0 5px !important;
   margin: 0 10px !important;
 }
