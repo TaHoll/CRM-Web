@@ -1,6 +1,11 @@
 ﻿<template>
   <div id="tags-view-container" :class="['tags-view-container', { 'tags-view-container--chrome': tagsViewStyle === 'chrome' }]">
-    <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper" @scroll="handleScroll">
+    <!-- 左切换箭头 -->
+    <span class="tags-nav-btn tags-nav-btn--left" :class="{ disabled: !canScrollLeft }" @click="scrollLeft">
+      <el-icon><arrow-left /></el-icon>
+    </span>
+    <el-divider direction="vertical" />
+    <scroll-pane ref="scrollPaneRef" class="tags-view-wrapper" @scroll="handleScroll" @update-arrows="updateArrowState">
       <router-link
         v-for="tag in visitedViews"
         :key="tag.path"
@@ -9,8 +14,7 @@
         :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }"
         class="tags-view-item"
         :style="tagActiveStyle(tag)"
-        @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''"
-        @contextmenu.prevent="openMenu(tag, $event)">
+        @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''">
         <svg-icon v-if="settingsStore.tagsShowIcon && tag.meta?.icon" :name="tag.meta?.icon" />
         <span v-if="tag.meta && tag.meta.titleKey">{{ $t(tag.meta.titleKey) }}</span>
         <span v-else>{{ tag.title }}</span>
@@ -19,19 +23,42 @@
         </span>
       </router-link>
     </scroll-pane>
-    <ul v-show="visible" :style="{ left: left + 'px', top: top + 'px' }" class="contextmenu">
-      <li @click="refreshSelectedTag(selectedTag)" v-if="isActive(selectedTag)">
-        <refresh-right style="width: 1em; height: 1em" />
-        {{ $t('tagsView.refresh') }}
-      </li>
-      <li v-if="!isAffix(selectedTag)" @click="closeSelectedTag(selectedTag)">
-        <close style="width: 1em; height: 1em" /> {{ $t('tagsView.close') }}
-      </li>
-      <li @click="closeOthersTags"><circle-close style="width: 1em; height: 1em" /> {{ $t('tagsView.closeOther') }}</li>
-      <li v-if="!isFirstView()" @click="closeLeftTags"><back style="width: 1em; height: 1em" /> {{ $t('tagsView.closeLeft') }}</li>
-      <li v-if="!isLastView()" @click="closeRightTags"><right style="width: 1em; height: 1em" /> {{ $t('tagsView.closeRight') }}</li>
-      <li @click="closeAllTags(selectedTag)"><circle-close style="width: 1em; height: 1em" /> {{ $t('tagsView.closeAll') }}</li>
-    </ul>
+
+    <!-- 右切换箭头 -->
+    <span class="tags-nav-btn" :class="{ disabled: !canScrollRight }" @click="scrollRight">
+      <el-icon><arrow-right /></el-icon>
+    </span>
+    <el-divider direction="vertical" />
+    <!-- 刷新按钮 -->
+    <span class="tags-nav-btn" title="刷新页面" @click="refreshSelectedTag(selectedDropdownTag)">
+      <el-icon><refresh-right /></el-icon>
+    </span>
+    <el-divider direction="vertical" />
+    <!-- 下拉操作菜单 -->
+    <el-dropdown class="tags-action-dropdown" trigger="click" placement="bottom-end" @command="handleDropdownCommand">
+      <span class="tags-action-btn">
+        <el-icon><arrow-down /></el-icon>
+      </span>
+      <template #dropdown>
+        <el-dropdown-menu class="tags-dropdown-menu">
+          <el-dropdown-item v-if="!isAffix(selectedDropdownTag)" command="close">
+            <close style="width: 1em; height: 1em" />{{ $t('tagsView.close') }}
+          </el-dropdown-item>
+          <el-dropdown-item command="closeOthers"><circle-close style="width: 1em; height: 1em" />{{ $t('tagsView.closeOther') }}</el-dropdown-item>
+          <el-dropdown-item command="closeLeft" :disabled="isFirstView()">
+            <back style="width: 1em; height: 1em" />{{ $t('tagsView.closeLeft') }}
+          </el-dropdown-item>
+          <el-dropdown-item command="closeRight" :disabled="isLastView()">
+            <right style="width: 1em; height: 1em" />{{ $t('tagsView.closeRight') }}
+          </el-dropdown-item>
+          <el-dropdown-item command="closeAll"><circle-close style="width: 1em; height: 1em" />{{ $t('tagsView.closeAll') }}</el-dropdown-item>
+          <el-dropdown-item command="fullscreen" divided>
+            <template v-if="!isFullscreen"><full-screen style="width: 1em; height: 1em" />{{ $t('tagsView.fullscreen') }}</template>
+            <template v-else><close style="width: 1em; height: 1em" />{{ $t('tagsView.exitFullscreen') }}</template>
+          </el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
   </div>
 </template>
 
@@ -43,11 +70,13 @@ import usePermissionStore from '@/store/modules/permission'
 import useSettingsStore from '@/store/modules/settings'
 import { isHttp } from '@/utils/validate'
 const visible = ref(false)
-const top = ref(0)
-const left = ref(0)
 const selectedTag = ref({})
 const affixTags = ref([])
 const scrollPaneRef = ref(null)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+const isFullscreen = ref(false)
+const hiddenElements = ref([])
 
 const { proxy } = getCurrentInstance()
 const route = useRoute()
@@ -65,6 +94,8 @@ const tagActiveStyle = (tag) => {
     'border-color': theme.value
   }
 }
+// 下拉菜单针对当前激活的 tag
+const selectedDropdownTag = computed(() => visitedViews.value.find((v) => isActive(v)) || {})
 
 watch(route, () => {
   addTags()
@@ -77,11 +108,28 @@ watch(visible, (value) => {
     document.body.removeEventListener('click', closeMenu)
   }
 })
+
+watch(visitedViews, () => {
+  nextTick(() => updateArrowState())
+})
+
 onMounted(() => {
   initTags()
   addTags()
+  window.addEventListener('resize', updateArrowState)
+  window.addEventListener('keydown', handleKeyDown)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateArrowState)
+  window.removeEventListener('keydown', handleKeyDown)
 })
 
+function handleKeyDown(event) {
+  // 当按下Esc键且处于全屏状态时，退出全屏
+  if (event.key === 'Escape' && isFullscreen.value) {
+    toggleFullscreen()
+  }
+}
 function isActive(r) {
   return r.path === route.path
 }
@@ -90,14 +138,16 @@ function isAffix(tag) {
 }
 function isFirstView() {
   try {
-    return selectedTag.value.fullPath === visitedViews.value[1].fullPath || selectedTag.value.fullPath === '/index'
+    const tag = selectedTag.value && selectedTag.value.fullPath ? selectedTag.value : selectedDropdownTag.value
+    return tag.fullPath === '/index' || tag.fullPath === visitedViews.value[1].fullPath
   } catch (err) {
     return false
   }
 }
 function isLastView() {
   try {
-    return selectedTag.value.fullPath === visitedViews.value[visitedViews.value.length - 1].fullPath
+    const tag = selectedTag.value && selectedTag.value.fullPath ? selectedTag.value : selectedDropdownTag.value
+    return tag.fullPath === visitedViews.value[visitedViews.value.length - 1].fullPath
   } catch (err) {
     return false
   }
@@ -157,6 +207,90 @@ function moveToCurrentTag() {
     }
   })
 }
+
+function scrollLeft() {
+  if (!canScrollLeft.value) return
+  scrollPaneRef.value.scrollToStart()
+}
+
+function scrollRight() {
+  if (!canScrollRight.value) return
+  scrollPaneRef.value.scrollToEnd()
+}
+
+function updateArrowState() {
+  nextTick(() => {
+    if (scrollPaneRef.value) {
+      const state = scrollPaneRef.value.getScrollState()
+      canScrollLeft.value = state.canLeft
+      canScrollRight.value = state.canRight
+    }
+  })
+}
+
+function toggleFullscreen() {
+  const mainContainer = document.querySelector('.main-container')
+  const navbar = document.querySelector('.navbar')
+  const sidebar = document.querySelector('.sidebar-container')
+  if (!mainContainer) return
+
+  if (!isFullscreen.value) {
+    mainContainer.classList.add('fullscreen-mode')
+    document.body.style.overflow = 'hidden'
+    const elementsToHide = [
+      { el: navbar, originalDisplay: navbar?.style.display || '' },
+      { el: sidebar, originalDisplay: sidebar?.style.display || '' }
+    ]
+    elementsToHide.forEach((item) => {
+      if (item.el && item.el.style.display !== 'none') {
+        item.originalDisplay = item.el.style.display
+        item.el.style.display = 'none'
+        hiddenElements.value.push(item)
+      }
+    })
+    isFullscreen.value = true
+  } else {
+    mainContainer.classList.remove('fullscreen-mode')
+    document.body.style.overflow = ''
+    hiddenElements.value.forEach((item) => {
+      if (item.el) {
+        item.el.style.display = item.originalDisplay
+      }
+    })
+    hiddenElements.value = []
+    document.querySelector('.tags-action-btn').blur()
+    isFullscreen.value = false
+  }
+}
+
+function handleDropdownCommand(command) {
+  const tag = selectedDropdownTag.value
+  selectedTag.value = tag
+  switch (command) {
+    case 'refresh':
+      refreshSelectedTag(tag)
+      break
+    case 'fullscreen':
+      toggleFullscreen()
+      break
+    case 'close':
+      closeSelectedTag(tag)
+      break
+    case 'closeOthers':
+      closeOthersTags()
+      break
+    case 'closeLeft':
+      closeLeftTags()
+      break
+    case 'closeRight':
+      closeRightTags()
+      break
+    case 'closeAll':
+      closeAllTags(tag)
+      break
+  }
+}
+
 function refreshSelectedTag(view) {
   proxy.$tab.refreshPage(view)
   if (route.meta.link) {
@@ -203,38 +337,20 @@ function toLastView(visitedViews, view) {
   if (latestView) {
     router.push(latestView.fullPath)
   } else {
-    // now the default is to redirect to the home page if there is no tags-view,
-    // you can adjust it according to your needs.
     if (view.name === 'Dashboard') {
-      // to reload home page
       router.replace({ path: '/redirect' + view.fullPath })
     } else {
       router.push('/')
     }
   }
 }
-function openMenu(tag, e) {
-  const menuMinWidth = 135
-  const offsetLeft = proxy.$el.getBoundingClientRect().left // container margin left
-  const offsetWidth = proxy.$el.offsetWidth // container width
-  const maxLeft = offsetWidth - menuMinWidth // left boundary
-  const l = e.clientX - offsetLeft + 15 // 25: margin right
 
-  if (l > maxLeft) {
-    left.value = maxLeft
-  } else {
-    left.value = l
-  }
-
-  top.value = e.clientY - 30
-  visible.value = true
-  selectedTag.value = tag
-}
 function closeMenu() {
   visible.value = false
 }
 function handleScroll() {
   closeMenu()
+  updateArrowState()
 }
 </script>
 
@@ -243,8 +359,50 @@ function handleScroll() {
   height: var(--base-tags-height);
   width: 100%;
   box-shadow: 0 0 1px #888;
-
   position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+
+  $btn-width: 28px;
+  $btn-color: #71717a;
+  $btn-hover-bg: #f0f2f5;
+  $btn-hover-color: #303133;
+  $btn-disabled-color: #c0c4cc;
+  $divider: 1px solid var(--tags-item-border, #d8dce5);
+
+  .tags-nav-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: $btn-width;
+    height: 34px;
+    cursor: pointer;
+    color: $btn-color;
+    font-size: 13px;
+    user-select: none;
+    transition:
+      background 0.15s,
+      color 0.15s;
+
+    &:hover:not(.disabled) {
+      background: $btn-hover-bg;
+      color: $btn-hover-color;
+    }
+
+    &.disabled {
+      color: $btn-disabled-color;
+      cursor: not-allowed;
+    }
+
+    // &--left {
+    //   border-right: $divider;
+    // }
+    // &--right {
+    //   border-left: $divider;
+    // }
+  }
 
   .tags-view-wrapper {
     .tags-view-item {
@@ -284,9 +442,9 @@ function handleScroll() {
       // .close {
       //   display: none;
       // }
-      &:first-of-type {
-        margin-left: 15px;
-      }
+      // &:first-of-type {
+      //   margin-left: 15px;
+      // }
       &:last-of-type {
         margin-right: 15px;
       }
@@ -304,27 +462,55 @@ function handleScroll() {
       }
     }
   }
-  .contextmenu {
-    margin: 0;
-    background: #fff;
-    z-index: 3000;
-    position: absolute;
-    list-style-type: none;
-    padding: 5px 0;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 400;
-    color: #333;
-    box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, 0.3);
-    li {
-      margin: 0;
-      padding: 7px 16px;
-      cursor: pointer;
-      &:hover {
-        background: #eee;
-      }
+
+  .tags-action-dropdown {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .tags-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: $btn-width;
+    height: 34px;
+    cursor: pointer;
+    color: $btn-color;
+    font-size: 13px;
+    //border-left: $divider;
+    user-select: none;
+    transition:
+      background 0.15s,
+      color 0.15s;
+
+    &:hover {
+      background: $btn-hover-bg;
+      color: $btn-hover-color;
     }
   }
+
+  // .contextmenu {
+  //   margin: 0;
+  //   background: #fff;
+  //   z-index: 3000;
+  //   position: absolute;
+  //   list-style-type: none;
+  //   padding: 5px 0;
+  //   border-radius: 4px;
+  //   font-size: 12px;
+  //   font-weight: 400;
+  //   color: #333;
+  //   box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, 0.3);
+  //   li {
+  //     margin: 0;
+  //     padding: 7px 16px;
+  //     cursor: pointer;
+  //     &:hover {
+  //       background: #eee;
+  //     }
+  //   }
+  // }
 
   &.tags-view-container--chrome {
     --chrome-strip-bg: #ffffff;
@@ -478,5 +664,42 @@ function handleScroll() {
 }
 .svg-icon {
   margin-right: 5px;
+}
+
+/* 页签全屏模式样式 */
+.main-container.fullscreen-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-container.fullscreen-mode .fixed-header {
+  display: block !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100% !important;
+  z-index: 1000;
+}
+
+.main-container.fullscreen-mode .fixed-header .navbar {
+  display: none !important;
+}
+
+.main-container.fullscreen-mode .app-main {
+  position: fixed;
+  top: 34px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: calc(100vh - 34px) !important;
+  min-height: calc(100vh - 34px) !important;
+  overflow: auto;
 }
 </style>

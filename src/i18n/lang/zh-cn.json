@@ -51,7 +51,8 @@
     "closeRight": "关闭右侧",
     "closeAll": "全部关闭",
     "fullscreen": "当前页全屏",
-    "closeFullscreen": "关闭全屏"
+    "closeFullscreen": "关闭全屏",
+    "exitFullscreen": "退出全屏"
   },
   "layout": {
     "tip1": "如果觉得不错欢迎给个⭐Star⭐收藏一下，这样作者才有继续免费下去的动力，谢谢！",
