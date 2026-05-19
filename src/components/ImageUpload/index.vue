@@ -230,10 +230,10 @@ function copySuccess() {
 </script>
 <style>
 .el-upload--picture-card {
-  --el-upload-picture-card-size: unset;
+  --el-upload-picture-card-size: 120px;
 }
 .el-upload-list--picture-card {
-  --el-upload-list-picture-card-size: unset;
+  --el-upload-list-picture-card-size: 120px;
 }
 .el-upload__tip {
   font-size: 8px;

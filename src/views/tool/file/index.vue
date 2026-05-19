@@ -32,14 +32,14 @@
                 </el-radio-button>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="存储分类" prop="classifyType">
+            <!-- <el-form-item label="存储分类" prop="classifyType">
               <el-select clearable v-model="queryParams.classifyType" placeholder="请选择存储分类">
                 <el-option v-for="item in classifyTypeOptions" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue">
                   <span class="fl">{{ item.dictLabel }}</span>
                   <span class="fr" style="color: var(--el-text-color-secondary)">{{ item.dictValue }}</span>
                 </el-option>
               </el-select>
-            </el-form-item>
+            </el-form-item> -->
             <el-form-item label="" prop="fileId">
               <el-input v-model="queryParams.fileId" placeholder="请输入文件id" clearable />
             </el-form-item>
@@ -113,7 +113,7 @@
             <el-table-column prop="fileSize" label="文件大小" align="center" :show-overflow-tooltip="true" />
             <el-table-column prop="fileExt" label="扩展名" align="center" :show-overflow-tooltip="true" width="80px" />
 
-            <el-table-column prop="classifyType" label="存储分类" align="center" width="100px">
+            <!-- <el-table-column prop="classifyType" label="存储分类" align="center" width="100px">
               <template #default="scope">
                 <el-select
                   v-model="scope.row.classifyType"
@@ -125,7 +125,7 @@
                   <el-option v-for="item in classifyTypeOptions" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue"></el-option>
                 </el-select>
               </template>
-            </el-table-column>
+            </el-table-column> -->
             <el-table-column prop="storePath" label="存储目录"></el-table-column>
             <el-table-column prop="groupName" label="分组名" align="center"></el-table-column>
             <el-table-column prop="create_by" label="操作人" align="center" />
@@ -234,11 +234,11 @@
     <el-dialog :lock-scroll="false" v-model="openView" draggable="">
       <el-form ref="form" :model="formView" :rules="rules" label-width="90px" label-position="left">
         <el-row>
-          <el-col :lg="12">
+          <!-- <el-col :lg="12">
             <el-form-item label="存储分类">
               <dict-tag :options="classifyTypeOptions" :value="formView.classifyType" />
             </el-form-item>
-          </el-col>
+          </el-col> -->
           <el-col :lg="12">
             <el-form-item label="源文件名">{{ formView.realName }}</el-form-item>
           </el-col>
@@ -397,9 +397,9 @@ function getList() {
     }
   })
 }
-proxy.getDicts('sys_classify_type').then((response) => {
-  classifyTypeOptions.value = response.data
-})
+// proxy.getDicts('sys_classify_type').then((response) => {
+//   classifyTypeOptions.value = response.data
+// })
 // 取消按钮
 function cancel() {
   open.value = false
@@ -524,7 +524,6 @@ function handleClassifyChange(row) {
   })
 }
 
-const moveFileGroupRef = ref()
 const handleAddGroup = () => {
   nextTick(() => {
     proxy.$refs.moveFileGroupRef.handleAdd()
@@ -540,7 +539,7 @@ const fileGroupTreeList = ref([])
 treelistFileGroup().then((res) => {
   const { code, data } = res
   if (code == 200) {
-    fileGroupTreeList.value = [{ groupId: 0, groupName: '全部', children: [] }, ...data]
+    fileGroupTreeList.value = [{ groupId: 0, groupName: '全部', children: [] }, { groupId: -1, groupName: '未分类', children: [] }, ...data]
   }
 })
 
