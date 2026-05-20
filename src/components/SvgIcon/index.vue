@@ -24,18 +24,17 @@ export default defineComponent({
     }
   },
   setup(props) {
-    if (isHttp(props.name)) {
-      return () =>
-        h('img', {
+    return () => {
+      if (isHttp(props.name)) {
+        return h('img', {
           src: props.name,
           style: {
             width: props.size
           },
           class: props.className
         })
-    } else if (props.name?.startsWith('ele')) {
-      return () =>
-        h(
+      } else if (props.name?.startsWith('ele')) {
+        return h(
           'i',
           {
             class: 'el-icon',
@@ -45,9 +44,8 @@ export default defineComponent({
           },
           [h(resolveComponent(props.name.replace('ele-', '')))]
         )
-    } else if (props.name != undefined && props.name != '') {
-      return () =>
-        h(
+      } else if (props.name != undefined && props.name != '') {
+        return h(
           'svg',
           {
             name: props.name,
@@ -61,8 +59,9 @@ export default defineComponent({
             fill: `${props.color}`
           })
         )
-    } else {
-      return () => h('i')
+      } else {
+        return h('i')
+      }
     }
   }
 })
