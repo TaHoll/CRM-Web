@@ -49,6 +49,7 @@
       <!-- <el-table-column type="index" :index="handleIndexCalc" label="#" align="center" /> -->
       <el-table-column prop="id" label="id" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('id')" />
       <el-table-column prop="name" label="任务名称" width="100" />
+      <el-table-column prop="remark" align="center" label="描述" v-if="columns.showColumn('remark')" :show-overflow-tooltip="true" />
       <el-table-column prop="taskType" label="任务类型" align="center" v-if="columns.showColumn('taskType')">
         <template #default="scope">
           <dict-tag :options="options.taskTypeOptions" :value="scope.row.taskType" />
@@ -76,7 +77,6 @@
       <el-table-column prop="runTimes" align="center" label="运行次数" width="80" />
       <el-table-column prop="intervalSecond" align="center" label="执行间隔(s)" v-if="columns.showColumn('intervalSecond')" width="90" />
       <el-table-column prop="cron" align="center" label="运行表达式" v-if="columns.showColumn('cron')" :show-overflow-tooltip="true" />
-      <el-table-column prop="remark" align="center" label="备注" v-if="columns.showColumn('remark')" :show-overflow-tooltip="true" />
       <el-table-column prop="jobParams" label="任务参数" align="center" :show-overflow-tooltip="true" v-if="columns.showColumn('jobParams')" />
       <el-table-column
         prop="lastRunTime"
@@ -104,7 +104,7 @@
 
             <template #dropdown>
               <el-dropdown-menu>
-                <div v-hasPermi="['monitor:job:run']" v-if="scope.row.isStart">
+                <div v-hasPermi="['monitor:job:run']">
                   <el-dropdown-item command="run">
                     <el-button icon="remove" title="运行一次"> {{ $t('btn.run') }}一次 </el-button>
                   </el-dropdown-item>
@@ -144,10 +144,10 @@
       </el-table-column>
     </el-table>
 
-    <el-row :gutter="20" v-if="viewSwitch == 2">
-      <el-col v-for="item in dataTasks" :lg="8" :span="24">
-        <el-card :body-style="{ padding: '15px 15px 0' }">
-          <el-descriptions :column="1" :title="item.name" size="small" border>
+    <el-row :gutter="20" v-if="viewSwitch == 2" class="job-card-list">
+      <el-col v-for="item in dataTasks" :key="item.id" :xs="24" :sm="12" :lg="8" :xl="6" class="job-card-col">
+        <el-card :body-style="{ padding: '15px 15px 0', height: '100%' }" class="job-card-item">
+          <el-descriptions :column="1" :title="item.name" size="small" border class="job-card-desc">
             <el-descriptions-item label="任务类型">
               <dict-tag :options="options.taskTypeOptions" :value="item.taskType" />
             </el-descriptions-item>
@@ -164,19 +164,31 @@
               {{ item.assemblyName }}
             </el-descriptions-item>
             <el-descriptions-item label="最后运行时间" width="90px">
-              {{ item.lastRunTime }}
+              <span class="text-ellipsis" :title="item.lastRunTime">{{ item.lastRunTime || '--' }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="最后运行状态" width="90px">
+              <span class="text-ellipsis" :title="item.lastRunStatus">{{ item.lastRunStatus || '--' }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="最后错误信息" width="90px">
+              <span class="text-ellipsis" :title="item.lastErrorMsg">{{ item.lastErrorMsg || '--' }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="最后失败时间" width="90px">
+              <span class="text-ellipsis" :title="item.lastFailTime">{{ item.lastFailTime || '--' }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="最后成功时间" width="90px">
+              <span class="text-ellipsis" :title="item.lastSuccessTime">{{ item.lastSuccessTime || '--' }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="运行表达式" width="90px">
-              {{ item.cron }}
+              <span class="text-ellipsis" :title="item.cron">{{ item.cron || '--' }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="运行次数" width="90px">
               {{ item.runTimes }}
             </el-descriptions-item>
             <el-descriptions-item label="apiUrl" width="90px">
-              {{ item.apiUrl }}
+              <span class="text-ellipsis" :title="item.apiUrl">{{ item.apiUrl || '--' }}</span>
             </el-descriptions-item>
           </el-descriptions>
-          <div>
+          <div class="job-card-actions">
             <el-button text icon="view" v-hasPermi="['monitor:job:query']" @click="handleDetails(item)">
               {{ $t('btn.details') }}
             </el-button>
@@ -318,7 +330,7 @@
             </el-form-item>
           </el-col>
           <el-col :lg="24">
-            <el-form-item label="备注" prop="remark">
+            <el-form-item label="描述" prop="remark">
               <el-input type="textarea" v-model="form.remark" />
             </el-form-item>
           </el-col>
@@ -402,7 +414,7 @@ const columns = ref([
   { visible: true, prop: 'assemblyName', label: '程序集名称' },
   { visible: true, prop: 'className', label: '类名' },
   { visible: true, prop: 'lastRunTime', label: '最后运行时间' },
-  { visible: false, prop: 'remark', label: '备注' },
+  { visible: true, prop: 'remark', label: '备注' },
   { visible: false, prop: 'id', label: '任务id' },
   { visible: false, prop: 'cron', label: 'cron表达式' },
   // { visible: true, prop: 'runTimes', label: '运行次数' },
@@ -419,8 +431,6 @@ const dataTasks = ref([])
 // 任务日志列表
 const jobLogList = ref([])
 const logTitle = ref('')
-const formRef = ref(null)
-const queryRef = ref(null)
 const viewSwitch = ref(1)
 const state = reactive({
   form: {},
@@ -558,7 +568,7 @@ function handleRun(row) {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    .then((res) => {
+    .then(() => {
       runTasks(jobInfo.id).then((res) => {
         if (res.code === 200) {
           proxy.$modal.msgSuccess('执行成功')
@@ -567,6 +577,7 @@ function handleRun(row) {
       })
     })
 }
+
 /** 提交按钮 */
 function submitForm() {
   proxy.$refs['formRef'].validate((valid) => {
@@ -718,3 +729,37 @@ function handleCommand(command, row) {
   }
 }
 </script>
+
+<style scoped>
+.job-card-list {
+  align-items: stretch;
+}
+
+.job-card-col {
+  margin-bottom: 16px;
+}
+
+.job-card-item {
+  height: 100%;
+}
+
+.job-card-desc {
+  min-height: 360px;
+}
+
+.job-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-bottom: 8px;
+}
+
+.text-ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+</style>

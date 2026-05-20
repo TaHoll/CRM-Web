@@ -111,4 +111,16 @@ export function exportTasks() {
   })
 }
 
-export default { queryTasks, getTasks, getAllTasks, createTasks, updateTasks, deleteTasks, startTasks, stopTasks, runTasks, exportTasks }
+/**
+ * 执行一次
+ * @param {*} id
+ * @returns
+ */
+export function runManual(id) {
+  return request({
+    url: '/system/tasks/runManual?id=' + id,
+    method: 'get'
+  })
+}
+
+export default { queryTasks, getTasks, getAllTasks, createTasks, updateTasks, deleteTasks, startTasks, stopTasks, runTasks, exportTasks, runManual }

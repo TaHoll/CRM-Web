@@ -52,6 +52,13 @@
       <el-table-column label="任务组名" align="center" prop="jobGroup" :formatter="jobGroupFormat" :show-overflow-tooltip="true" />
       <el-table-column label="调用目标字符串" align="center" prop="invokeTarget" :show-overflow-tooltip="true" />
       <el-table-column label="日志信息" align="center" prop="jobMessage" :show-overflow-tooltip="true" />
+      <el-table-column label="运行机器" align="center" prop="serverName" :show-overflow-tooltip="true" />
+      <el-table-column label="操作人" align="center" prop="operator" :show-overflow-tooltip="true" />
+      <el-table-column label="是否手动" align="center" prop="isManual" :show-overflow-tooltip="true">
+        <template #default="scope">
+          <dict-tag :options="options.isManual" :value="scope.row.isManual" />
+        </template>
+      </el-table-column>
       <el-table-column label="执行状态" align="center" prop="status">
         <template #default="scope">
           <dict-tag :options="statusOptions" :value="scope.row.status" />
@@ -90,17 +97,33 @@
             <el-form-item label="任务分组：">{{ form.jobGroup }}</el-form-item>
             <el-form-item label="执行时间：">{{ form.createTime }}</el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="运行机器：">{{ form.serverName }}</el-form-item>
+          </el-col>
           <el-col :span="24">
             <el-form-item label="调用方法：">{{ form.invokeTarget }}</el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item label="日志信息：">{{ form.jobMessage }}</el-form-item>
           </el-col>
-          <el-col :span="24">
+          <el-col :span="12">
             <el-form-item label="执行状态：">
-              <div v-if="form.status == 0">正常</div>
-              <div v-else-if="form.status == 1">失败</div>
+              <dict-tag :options="statusOptions" :value="form.status" />
             </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="是否手动：">
+              <dict-tag :options="options.isManual" :value="form.isManual" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="出发来源：">{{ form.triggerSource }}</el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="操作人：">{{ form.operator }}</el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="TraceId：">{{ form.traceId }}</el-form-item>
           </el-col>
           <el-col :span="24" v-if="form.status == 1">
             <el-form-item label="异常信息：">{{ form.exception }}</el-form-item>
@@ -131,7 +154,6 @@ const open = ref(false)
 const dateRange = ref([])
 const statusOptions = ref([])
 const jobGroupOptions = ref([])
-const formRef = ref()
 
 const data = reactive({
   form: {},
@@ -142,10 +164,16 @@ const data = reactive({
     jobGroup: undefined,
     status: undefined,
     jobId: undefined
+  },
+  options: {
+    isManual: [
+      { dictValue: '0', dictLabel: '否' },
+      { dictValue: '1', dictLabel: '是', listClass: 'primary' }
+    ]
   }
 })
 
-const { form, queryParams } = toRefs(data)
+const { form, queryParams, options } = toRefs(data)
 queryParams.value.jobId = route.query.jobId
 
 proxy.getDicts('sys_job_status').then((response) => {
