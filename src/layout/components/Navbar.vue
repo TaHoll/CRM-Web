@@ -10,9 +10,7 @@
     <div class="right-menu">
       <header-search class="right-menu-item" />
       <Notice title="通知" class="right-menu-item" />
-      <template v-if="appStore.device == 'desktop'">
-        <zr-git title="源码地址" class="right-menu-item" />
-        <zr-doc title="文档地址" class="right-menu-item" />
+      <template v-if="appStore.device == 'desktop'"> 
         <screenfull title="全屏" class="right-menu-item" />
       </template>
       <size-select title="布局大小" class="right-menu-item" />

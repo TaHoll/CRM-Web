@@ -81,6 +81,9 @@ const initChart = () => {
 
 const handleResize = () => {
   if (!chartsRef.value) return
+  const { clientWidth, clientHeight } = chartsRef.value
+  if (!clientWidth || !clientHeight) return
+
   if (!chart) {
     initChart()
   } else {

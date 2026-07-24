@@ -160,14 +160,7 @@ function handleLogin() {
         .login(loginForm.value)
         .then(() => {
           proxy.$modal.msgSuccess(proxy.$t('login.loginSuccess'))
-          const query = route.query
-          const otherQueryParams = Object.keys(query).reduce((acc, cur) => {
-            if (cur !== 'redirect') {
-              acc[cur] = query[cur]
-            }
-            return acc
-          }, {})
-          router.push({ path: redirect.value || '/', query: otherQueryParams })
+          router.push({ path: redirect.value || '/dashboard' })
         })
         .catch((error) => {
           console.error(error)

@@ -112,7 +112,7 @@ function handleLogin() {
         .phoneNumLogin(loginForm.value)
         .then(() => {
           proxy.$modal.msgSuccess(proxy.$t('login.loginSuccess'))
-          router.push({ path: redirect.value || '/' })
+          router.push({ path: redirect.value || '/dashboard' })
         })
         .catch((error) => {
           console.error(error)

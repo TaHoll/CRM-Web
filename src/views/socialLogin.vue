@@ -44,7 +44,7 @@ if (callbackQuery.value && callbackQuery.value.state != null) {
     .then(() => {
       errorMsg.value = proxy.$t('login.loginSuccess')
 
-      router.push({ path: redirect.value || '/' })
+      router.push({ path: redirect.value || '/dashboard' })
     })
     .catch((error) => {
       console.error('login-error', error)

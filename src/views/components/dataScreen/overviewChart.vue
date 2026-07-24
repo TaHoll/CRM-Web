@@ -119,13 +119,18 @@ const options = {
 }
 
 const initChart = () => {
-  if (!chartsRef.value) return
+  if (!chartsRef.value || !chartsRef.value.clientWidth || !chartsRef.value.clientHeight) return
   chart = echarts.init(chartsRef.value)
   chart.setOption(options)
 }
 
 const resizeHandler = () => {
-  chart && chart.resize()
+  if (!chartsRef.value || !chartsRef.value.clientWidth || !chartsRef.value.clientHeight) return
+  if (!chart) {
+    initChart()
+  } else {
+    chart.resize()
+  }
 }
 
 onMounted(() => {

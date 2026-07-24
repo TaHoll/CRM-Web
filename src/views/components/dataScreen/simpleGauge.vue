@@ -39,15 +39,27 @@ const options = {
 
 let chart = null
 const initChart = () => {
-  const chart = echarts.init(chartsRef.value)
-  chart.setOption(options)
-  return chart
+  if (!chartsRef.value || !chartsRef.value.clientWidth || !chartsRef.value.clientHeight) return
+  const instance = echarts.init(chartsRef.value)
+  instance.setOption(options)
+  return instance
+}
+const resizeHandler = () => {
+  if (!chartsRef.value || !chartsRef.value.clientWidth || !chartsRef.value.clientHeight) return
+  if (!chart) {
+    chart = initChart()
+  } else {
+    chart.resize()
+  }
 }
 onMounted(() => {
   chart = initChart()
-  window.addEventListener('resize', function () {
-    chart && chart.resize()
-  })
+  window.addEventListener('resize', resizeHandler)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizeHandler)
+  chart?.dispose()
+  chart = null
 })
 </script>
 <style lang="scss" scoped>
