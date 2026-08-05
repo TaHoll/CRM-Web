@@ -21,7 +21,11 @@
       <el-col :span="1.5">
         <el-button type="primary" plain icon="Refresh" @click="getList">刷新</el-button>
       </el-col>
-      <right-toolbar v-model:show-search="showSearch" :columns="columns" @query-table="getList" />
+      <right-toolbar v-model:show-search="showSearch" @query-table="getList">
+        <el-tooltip content="列设置" placement="top">
+          <el-button circle icon="Menu" @click="columnSettingVisible = true" />
+        </el-tooltip>
+      </right-toolbar>
     </el-row>
 
     <el-table
@@ -54,6 +58,23 @@
       v-model:limit="queryParams.pager.pageSize"
       :total="total"
       @pagination="getList" />
+
+    <el-dialog v-model="columnSettingVisible" title="列设置" width="420px" append-to-body>
+      <el-alert title="拖拽字段可调整展示顺序，勾选控制是否显示。" type="info" :closable="false" class="mb10" />
+      <div class="column-setting-list">
+        <div
+          v-for="column in columns"
+          :key="column.prop"
+          class="column-setting-item"
+          draggable="true"
+          @dragstart="handleColumnDragStart(column.prop)"
+          @dragover.prevent
+          @drop="handleColumnDrop(column.prop)">
+          <span class="drag-handle">⠿</span>
+          <el-checkbox v-model="column.visible">{{ column.label }}</el-checkbox>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -100,11 +121,15 @@ const defaultColumns = [
 function loadColumns() {
   try {
     const saved = JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY) || '[]')
-    const savedMap = new Map(saved.map((item) => [item.prop, item.visible]))
-    return defaultColumns.map((item) => ({
-      ...item,
-      visible: savedMap.has(item.prop) ? savedMap.get(item.prop) : item.visible
-    }))
+    const defaultMap = new Map(defaultColumns.map((item) => [item.prop, item]))
+    const savedColumns = saved
+      .filter((item) => defaultMap.has(item.prop))
+      .map((item) => ({ ...defaultMap.get(item.prop), visible: item.visible }))
+    const newColumns = defaultColumns
+      .filter((item) => !saved.some((savedItem) => savedItem.prop === item.prop))
+      .map((item) => ({ ...item }))
+
+    return [...savedColumns, ...newColumns]
   } catch {
     return defaultColumns.map((item) => ({ ...item }))
   }
@@ -116,6 +141,8 @@ const total = ref(0)
 const dataList = ref([])
 const selectedLeads = ref([])
 const columns = ref(loadColumns())
+const columnSettingVisible = ref(false)
+const draggedColumnProp = ref('')
 const dateRange = ref([])
 const queryParams = reactive({
   beginTime: undefined,
@@ -175,5 +202,44 @@ function handleSelectionChange(selection) {
   selectedLeads.value = selection
 }
 
+function handleColumnDragStart(prop) {
+  draggedColumnProp.value = prop
+}
+
+function handleColumnDrop(targetProp) {
+  const fromIndex = columns.value.findIndex((item) => item.prop === draggedColumnProp.value)
+  const toIndex = columns.value.findIndex((item) => item.prop === targetProp)
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
+
+  const [draggedColumn] = columns.value.splice(fromIndex, 1)
+  columns.value.splice(toIndex, 0, draggedColumn)
+}
+
 getList()
 </script>
+
+<style scoped>
+.column-setting-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.column-setting-item {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  cursor: move;
+}
+
+.column-setting-item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.drag-handle {
+  margin-right: 10px;
+  color: var(--el-text-color-secondary);
+  font-size: 18px;
+}
+</style>
