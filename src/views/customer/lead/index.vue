@@ -19,6 +19,9 @@
 
     <el-row :gutter="15" class="mb10">
       <el-col :span="1.5">
+        <el-button type="success" plain icon="User" @click="handleAssign">分配</el-button>
+      </el-col>
+      <el-col :span="1.5">
         <el-button type="primary" plain icon="Refresh" @click="getList">刷新</el-button>
       </el-col>
       <right-toolbar v-model:show-search="showSearch" @query-table="getList">
@@ -75,11 +78,18 @@
         </div>
       </div>
     </el-dialog>
+
+    <UserSelectDialog
+      v-model="assignUserDialogOpen"
+      v-model:selected-ids="assignUserId"
+      :multiple="false"
+      @confirm="handleAssignUserConfirm" />
   </div>
 </template>
 
 <script setup name="LeadPool">
 import { listLead } from '@/api/public/lead'
+import UserSelectDialog from '@/components/UserSelectDialog/index.vue'
 
 const COLUMN_STORAGE_KEY = 'lead-pool-columns'
 
@@ -140,6 +150,9 @@ const showSearch = ref(true)
 const total = ref(0)
 const dataList = ref([])
 const selectedLeads = ref([])
+const assignUserDialogOpen = ref(false)
+const assignUserId = ref(undefined)
+const assignUser = ref()
 const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
@@ -200,6 +213,14 @@ function formatValue(value, type) {
 
 function handleSelectionChange(selection) {
   selectedLeads.value = selection
+}
+
+function handleAssign() {
+  assignUserDialogOpen.value = true
+}
+
+function handleAssignUserConfirm(user) {
+  assignUser.value = user
 }
 
 function handleColumnDragStart(prop) {
