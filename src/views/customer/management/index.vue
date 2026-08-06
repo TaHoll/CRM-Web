@@ -21,7 +21,7 @@
       </el-table-column>
       <el-table-column label="操作" width="90" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" icon="Edit" @click="handleEdit(row)">编辑</el-button>
+          <el-button  v-hasPermi="['customer:management:edit']" link type="primary" icon="Edit" @click="handleEdit(row)">编辑</el-button>
         </template>
       </el-table-column>
     </el-table>
