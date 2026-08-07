@@ -11,6 +11,15 @@
           range-separator="至"
           clearable />
       </el-form-item>
+      <el-form-item label="线索阶段">
+        <el-select v-model="queryParams.deptStage" placeholder="请选择线索阶段" clearable>
+          <el-option
+            v-for="item in deptStageOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value" />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -50,7 +59,7 @@
         :align="column.align || 'center'"
         :show-overflow-tooltip="true">
         <template #default="{ row }">
-          {{ formatValue(row[column.prop], column.type) }}
+          {{ column.prop === 'stageUserName' ? formatStageUser(row) : formatValue(row[column.prop], column.type) }}
         </template>
       </el-table-column>
     </el-table>
@@ -93,16 +102,22 @@ import UserSelectDialog from '@/components/UserSelectDialog/index.vue'
 
 const COLUMN_STORAGE_KEY = 'lead-pool-columns'
 
+const deptStageOptions = [
+  { label: '一销', value: 0 },
+  { label: '二销', value: 100 },
+  { label: '三销', value: 200 },
+  { label: '售后', value: 300 }
+]
+
 const defaultColumns = [ 
   { prop: 'name', label: '姓名', visible: true, minWidth: 100 },
   { prop: 'telephone', label: '手机号', visible: true, minWidth: 130 },
   { prop: 'advertiserName', label: '来源广告账号', visible: true, minWidth: 150 },
   { prop: 'autoCityName', label: '线索所属城市', visible: true, minWidth: 130 }, 
   { prop: 'autoProvinceName', label: '线索所属省份', visible: true, minWidth: 130 }, 
-  { prop: 'allocationStatusStr', label: '分配状态', visible: true },
   { prop: 'effectiveStateStr', label: '阶段', visible: true },
-  { prop: 'clueTypeStr', label: '来源类型', visible: true },
-  { prop: 'clueOwnerName', label: '分配所属人', visible: true }, 
+  { prop: 'stageUserName', label: '分配对象', visible: true, minWidth: 120 },
+  { prop: 'clueTypeStr', label: '来源类型', visible: true }, 
   { prop: 'createTimeDetail', label: '创建时间', visible: true, type: 'datetime', minWidth: 170 },
   { prop: 'modifyTime', label: '修改时间', visible: false, type: 'datetime', minWidth: 170 },
   { prop: 'promotionName', label: '营销名称', visible: false, minWidth: 150 },
@@ -112,6 +127,8 @@ const defaultColumns = [
   { prop: 'genderStr', label: '性别', visible: false, width: 80 },
   { prop: 'age', label: '年龄', visible: false, width: 80 },
   { prop: 'provinceName', label: '填写省份', visible: false },
+  { prop: 'allocationStatusStr', label: '来客分配状态', visible: false },
+  { prop: 'clueOwnerName', label: '来客分配所属人', visible: false }, 
   { prop: 'cityName', label: '填写城市', visible: false },
   { prop: 'countyName', label: '填写区县', visible: false },
   { prop: 'address', label: '地址', visible: false, minWidth: 180 },
@@ -158,6 +175,7 @@ const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
 const dateRange = ref([])
 const queryParams = reactive({
+  deptStage: undefined,
   beginTime: undefined,
   endTime: undefined,
   pager: {
@@ -200,6 +218,7 @@ function handleQuery() {
 
 function resetQuery() {
   dateRange.value = []
+  queryParams.deptStage = undefined
   queryParams.beginTime = undefined
   queryParams.endTime = undefined
   handleQuery()
@@ -209,6 +228,12 @@ function formatValue(value, type) {
   if (value === null || value === undefined || value === '') return '-'
   if (type === 'datetime') return new Date(value).toLocaleString('zh-CN', { hour12: false })
   return value
+}
+
+function formatStageUser(row) {
+  return row.stageUserId === null || row.stageUserId === undefined
+    ? '未分配'
+    : row.stageUserName || '-'
 }
 
 function handleSelectionChange(selection) {
