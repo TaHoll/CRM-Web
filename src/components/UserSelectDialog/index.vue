@@ -45,7 +45,11 @@
           </el-table-column>
           <el-table-column prop="userId" label="用户ID" width="100" align="center" />
           <el-table-column prop="userName" label="用户账号" min-width="130" show-overflow-tooltip />
-          <el-table-column prop="nickName" label="用户昵称" min-width="130" show-overflow-tooltip />
+          <el-table-column label="用户昵称" min-width="130" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ getUserNickname(row) }}
+            </template>
+          </el-table-column>
           <el-table-column prop="deptName" label="所属部门" min-width="160" show-overflow-tooltip />
         </el-table>
       </div>
@@ -121,7 +125,7 @@ const filteredUsers = computed(() => {
     return users
   }
   return users.filter((user) => {
-    return [user.userName, user.nickName, user.deptName].filter(Boolean).some((text) => String(text).toLowerCase().includes(keyword))
+    return [user.userName, getUserNickname(user), user.deptName].filter(Boolean).some((text) => String(text).toLowerCase().includes(keyword))
   })
 })
 
@@ -196,6 +200,10 @@ function filterDeptNode(value, data) {
     return true
   }
   return String(data.label || '').includes(value)
+}
+
+function getUserNickname(user) {
+  return user?.nickName || user?.nickname || '-'
 }
 
 function handleDeptClick(data) {

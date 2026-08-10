@@ -41,6 +41,7 @@
     </el-row>
 
     <el-table
+      ref="leadTableRef"
       v-loading="loading"
       :data="dataList"
       border
@@ -97,7 +98,7 @@
 </template>
 
 <script setup name="LeadPool">
-import { listLead } from '@/api/public/lead'
+import { assignLead, listLead } from '@/api/public/lead'
 import UserSelectDialog from '@/components/UserSelectDialog/index.vue'
 
 const COLUMN_STORAGE_KEY = 'lead-pool-columns'
@@ -166,6 +167,7 @@ const loading = ref(false)
 const showSearch = ref(true)
 const total = ref(0)
 const dataList = ref([])
+const leadTableRef = ref()
 const selectedLeads = ref([])
 const assignUserDialogOpen = ref(false)
 const assignUserId = ref(undefined)
@@ -183,6 +185,7 @@ const queryParams = reactive({
     pageSize: 10
   }
 })
+const { proxy } = getCurrentInstance()
 
 const visibleColumns = computed(() => columns.value.filter((column) => column.visible))
 
@@ -241,11 +244,37 @@ function handleSelectionChange(selection) {
 }
 
 function handleAssign() {
+  if (selectedLeads.value.length === 0) {
+    proxy.$modal.msgWarning('请先勾选需要分配的线索')
+    return
+  }
+
   assignUserDialogOpen.value = true
 }
 
-function handleAssignUserConfirm(user) {
+async function handleAssignUserConfirm(user) {
+  if (!user?.userId) {
+    proxy.$modal.msgWarning('请选择分配用户')
+    return
+  }
+
   assignUser.value = user
+  const res = await assignLead({
+    leadIds: selectedLeads.value.map((item) => item.clueId),
+    userId: user.userId,
+    userName: user.userName,
+    userNickName: user.nickName || user.nickname || user.userName,
+    deptId: user.deptId,
+    deptName: user.deptName
+  })
+
+  if (res.code === 200) {
+    proxy.$modal.msgSuccess('分配成功')
+    assignUserId.value = undefined
+    selectedLeads.value = []
+    leadTableRef.value?.clearSelection()
+    getList()
+  }
 }
 
 function handleColumnDragStart(prop) {

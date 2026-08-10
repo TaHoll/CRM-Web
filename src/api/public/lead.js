@@ -11,3 +11,43 @@ export function listLead(data) {
     data
   })
 }
+
+export function assignLead(data) {
+  return request({
+    url: '/crm/lead/assign',
+    method: 'post',
+    data
+  })
+}
+
+export function customerList(data) {
+  return request({
+    url: '/crm/lead/customerList',
+    method: 'post',
+    data
+  })
+}
+
+export function getTelephone(clueId) {
+  return request({
+    url: '/crm/lead/telephone',
+    method: 'get',
+    params: { clueId }
+  })
+}
+
+export function userQuotaList(query) {
+  return request({
+    url: '/crm/lead/UserQuotaList',
+    method: 'get',
+    params: query
+  })
+}
+
+export function userQuotaSave(data) {
+  return request({
+    url: '/crm/lead/UserQuotaSave',
+    method: 'post',
+    data
+  })
+}
