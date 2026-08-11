@@ -15,7 +15,7 @@
                     <el-button type="success" @click="handleBusinessAction('收款')">收款</el-button>
                     <el-button type="primary" plain @click="handleBusinessAction('合同')">合同</el-button>
                     <el-button type="warning" plain @click="handleBusinessAction('补录订单')">补录订单</el-button>
-                    <el-button type="primary" @click="handleSave">保存客户信息</el-button>
+                    <el-button type="primary" :loading="saveLoading" @click="handleSave">保存客户信息</el-button>
                   </div>
                 </div>
 
@@ -33,8 +33,8 @@
 
                   <el-form-item label="性别" class="info-item">
                     <el-radio-group v-model="form.gender">
-                      <el-radio value="男">男</el-radio>
-                      <el-radio value="女">女</el-radio>
+                      <el-radio value="MALE">男</el-radio>
+                      <el-radio value="FEMALE">女</el-radio>
                     </el-radio-group>
                   </el-form-item>
 
@@ -60,8 +60,15 @@
 
                   <el-form-item label="客户标签" class="info-item tag-info-item">
                     <div class="tag-editor">
-                      <el-tag v-for="tag in form.tags" :key="tag" closable @close="removeTag(tag)">
-                        {{ tag }}
+                      <el-tag
+                        v-for="tag in form.tags"
+                        :key="tag.id || tag.name"
+                        :color="tag.color || tagColorMap[tag.name] || '#909399'"
+                        effect="dark"
+                        closable
+                        class="customer-tag"
+                        @close="removeTag(tag)">
+                        {{ tag.name }}
                       </el-tag>
                       <span v-if="form.tags.length === 0" class="empty-tags">暂无标签</span>
                       <el-button plain size="small" @click="openTagPicker">新增标签</el-button>
@@ -222,11 +229,21 @@
     </el-card>
 
     <el-dialog v-model="tagPickerVisible" title="选择客户标签" width="480px" append-to-body>
-      <el-checkbox-group v-model="selectedTags" class="tag-picker">
-        <el-checkbox v-for="tag in tagOptions" :key="tag" :value="tag" border>
-          {{ tag }}
-        </el-checkbox>
-      </el-checkbox-group>
+      <div class="tag-picker">
+        <div v-for="category in tagOptions" :key="category.id" class="tag-category-group">
+          <div class="tag-category-name">
+            {{ category.categoryName || category.name || '未分类' }}
+          </div>
+          <el-checkbox-group v-model="selectedTags" class="tag-category-options">
+            <el-checkbox v-for="tag in category.tags" :key="tag.id" :value="tag.id" class="tag-option">
+              <el-tag :color="tag.color || '#409eff'" effect="dark" class="tag-option-preview">
+                {{ tag.name }}
+              </el-tag>
+            </el-checkbox>
+          </el-checkbox-group>
+        </div>
+        <el-empty v-if="tagOptions.length === 0" description="暂无可用标签" :image-size="70" />
+      </div>
       <template #footer>
         <el-button @click="tagPickerVisible = false">取消</el-button>
         <el-button type="primary" @click="confirmTags">确认添加</el-button>
@@ -238,7 +255,8 @@
 <script setup name="CustomerManagementEdit">
 import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
-import { getTelephone } from '@/api/public/lead'
+import { getTelephone, updateCustomer } from '@/api/public/lead'
+import { listEnabledTagOptions } from '@/api/system/tagCategory'
 
 const route = useRoute()
 const form = reactive({
@@ -247,8 +265,9 @@ const form = reactive({
   province: '',
   city: '',
   stage: '',
+  deptStage: undefined,
   sourceTime: '',
-  gender: '男',
+  gender: 'MALE',
   age: 0,
   tags: []
 })
@@ -256,6 +275,7 @@ const form = reactive({
 const fullPhone = ref('')
 const phoneVisible = ref(false)
 const phoneLoading = ref(false)
+const saveLoading = ref(false)
 const tagPickerVisible = ref(false)
 const selectedTags = ref([])
 const pageTab = ref('base')
@@ -263,7 +283,8 @@ const logQuery = reactive({
   type: '',
   dateRange: []
 })
-const tagOptions = ['高意向', '待跟进', '已联系', '重点客户', '到店客户', '老客户', '活动来源', '转介绍']
+const tagOptions = ref([])
+const tagColorMap = ref({})
 const followRecords = ref([
   {
     id: 1,
@@ -343,17 +364,18 @@ function syncCustomerFromRoute() {
     province: route.query.province || '',
     city: route.query.city || '',
     stage: route.query.stage || '',
+    deptStage: route.query.deptStage === undefined ? undefined : Number(route.query.deptStage),
     sourceTime: route.query.sourceTime || '',
-    gender: route.query.gender || '男',
+    gender: route.query.gender || 'MALE',
     age: Number(route.query.age) || 0,
-    tags: route.query.tags ? String(route.query.tags).split(',').filter(Boolean) : []
+    tags: parseCustomerTags()
   })
 
   fullPhone.value = route.query.phone || ''
   phoneVisible.value = false
   phoneLoading.value = false
   tagPickerVisible.value = false
-  selectedTags.value = []
+  syncSelectedTags()
 }
 
 watch(() => route.fullPath, syncCustomerFromRoute, { immediate: true })
@@ -377,22 +399,96 @@ async function getPhone() {
   }
 }
 
-function openTagPicker() {
-  selectedTags.value = [...form.tags]
+async function openTagPicker() {
+  await loadTagOptions()
+  syncSelectedTags()
   tagPickerVisible.value = true
 }
 
+async function loadTagOptions() {
+  const res = await listEnabledTagOptions()
+  if (res.code === 200) {
+    const options = Array.isArray(res.data) ? res.data : res.data?.result || []
+    tagOptions.value = options.map((item) => ({
+      ...item,
+      categoryName: item.categoryName || item.name || '未分类',
+      tags: item.tags || []
+    }))
+    tagColorMap.value = Object.fromEntries(
+      tagOptions.value.flatMap((category) =>
+        category.tags.map((tag) => [tag.name, tag.color || '#909399'])
+      )
+    )
+    syncSelectedTags()
+  }
+}
+
+loadTagOptions()
+
 function confirmTags() {
-  form.tags = [...selectedTags.value]
+  const selectedTagIds = new Set(selectedTags.value)
+  form.tags = tagOptions.value
+    .flatMap((category) => category.tags)
+    .filter((tag) => selectedTagIds.has(tag.id))
+    .map((tag) => ({ id: tag.id, name: tag.name, color: tag.color }))
   tagPickerVisible.value = false
 }
 
 function removeTag(tag) {
-  form.tags = form.tags.filter((item) => item !== tag)
+  form.tags = form.tags.filter((item) => item.id !== tag.id)
+  syncSelectedTags()
 }
 
-function handleSave() {
-  ElMessage.success('基础资料已保存（演示操作）')
+function syncSelectedTags() {
+  const selectedIds = new Set(form.tags.map((tag) => tag.id).filter(Boolean))
+  selectedTags.value = tagOptions.value
+    .flatMap((category) => category.tags)
+    .filter((tag) => selectedIds.has(tag.id))
+    .map((tag) => tag.id)
+}
+
+function parseCustomerTags() {
+  try {
+    const source = Array.isArray(route.query.customerTags)
+      ? route.query.customerTags[0]
+      : route.query.customerTags
+    const tags = JSON.parse(source || '[]')
+    if (Array.isArray(tags)) {
+      return tags
+        .filter((tag) => tag?.name)
+        .map((tag) => ({ id: tag.id, name: tag.name, color: tag.color }))
+    }
+  } catch {
+    // 兼容旧页面跳转参数。
+  }
+
+  return route.query.tags
+    ? String(route.query.tags).split(',').filter(Boolean).map((name) => ({ name }))
+    : []
+}
+
+async function handleSave() {
+  if (!form.id) {
+    ElMessage.warning('线索ID不能为空')
+    return
+  }
+
+  saveLoading.value = true
+  try {
+    const res = await updateCustomer({
+      clueId: form.id,
+      name: form.name,
+      age: form.age,
+      gender: form.gender,
+      stage: form.deptStage,
+      tagIds: selectedTags.value
+    })
+    if (res.code === 200) {
+      ElMessage.success('客户信息已保存')
+    }
+  } finally {
+    saveLoading.value = false
+  }
 }
 
 function handleBusinessAction(action) {
@@ -553,13 +649,45 @@ function handleBusinessAction(action) {
 }
 
 .tag-picker {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+.customer-tag {
+  color: #fff;
+  border: none;
+}
+
+.customer-tag :deep(.el-tag__close) {
+  color: #fff;
+}
+
+.tag-category-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.tag-category-options {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
 
-.tag-picker :deep(.el-checkbox) {
+.tag-category-options :deep(.el-checkbox) {
   margin-right: 0;
+}
+
+.tag-option :deep(.el-checkbox__label) {
+  padding-left: 6px;
+}
+
+.tag-option-preview {
+  border: none;
 }
 
 .header-actions {

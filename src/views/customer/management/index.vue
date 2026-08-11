@@ -4,7 +4,7 @@
       <right-toolbar @query-table="getList" />
     </el-row>
 
-    <el-table v-loading="loading" :data="dataList" border highlight-current-row row-key="clueId">
+    <el-table v-loading="loading" :data="dataList" min-height="520" border highlight-current-row row-key="clueId">
       <el-table-column type="index" label="序号" width="60" align="center" />
       <el-table-column prop="name" label="姓名" min-width="100" align="center" show-overflow-tooltip />
       <el-table-column prop="telephone" label="手机号" min-width="130" align="center" show-overflow-tooltip />
@@ -40,10 +40,17 @@
           {{ formatValue(row.age) }}
         </template>
       </el-table-column>
-      <el-table-column prop="tagsArrary" label="标签" min-width="180" align="center">
+      <el-table-column prop="customerTags" label="客户标签" min-width="180" align="center">
         <template #default="{ row }">
-          <el-tag v-for="tag in row.tagsArrary || []" :key="tag" class="tag-item" effect="plain">{{ tag }}</el-tag>
-          <span v-if="!row.tagsArrary || row.tagsArrary.length === 0">-</span>
+          <el-tag
+            v-for="tag in row.customerTags || []"
+            :key="tag.id"
+            :color="tag.color || '#909399'"
+            class="tag-item"
+            effect="dark">
+            {{ tag.name }}
+          </el-tag>
+          <span v-if="!row.customerTags || row.customerTags.length === 0">-</span>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="90" align="center" fixed="right">
@@ -118,10 +125,11 @@ function handleEdit(row) {
       city: row.autoCityName,
       province: row.autoProvinceName,
       stage: row.effectiveStateNameStr,
+      deptStage: row.stage,
       sourceTime: row.createTimeDetail,
-      gender: row.genderStr,
+      gender: row.gender,
       age: row.age,
-      tags: (row.tagsArrary || []).join(',')
+      customerTags: JSON.stringify(row.customerTags || [])
     }
   })
 }
@@ -132,5 +140,10 @@ getList()
 <style scoped>
 .tag-item + .tag-item {
   margin-left: 6px;
+}
+
+.tag-item {
+  border-color: transparent;
+  color: #fff;
 }
 </style>

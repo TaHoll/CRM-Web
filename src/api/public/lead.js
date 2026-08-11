@@ -36,6 +36,14 @@ export function getTelephone(clueId) {
   })
 }
 
+export function updateCustomer(data) {
+  return request({
+    url: '/crm/lead/customer',
+    method: 'put',
+    data
+  })
+}
+
 export function userQuotaList(query) {
   return request({
     url: '/crm/lead/UserQuotaList',

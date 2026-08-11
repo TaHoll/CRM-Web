@@ -60,7 +60,23 @@
         :align="column.align || 'center'"
         :show-overflow-tooltip="true">
         <template #default="{ row }">
-          {{ column.prop === 'stageUserName' ? formatStageUser(row) : formatValue(row[column.prop], column.type) }}
+          <template v-if="column.prop === 'customerTags'">
+            <div v-if="row.customerTags?.length" class="customer-tags-cell">
+              <el-tag
+                v-for="tag in row.customerTags"
+                :key="tag.id"
+                :color="tag.color || '#909399'"
+                class="customer-tag-item"
+                effect="dark"
+                size="small">
+                {{ tag.name }}
+              </el-tag>
+            </div>
+            <span v-else>-</span>
+          </template>
+          <template v-else>
+            {{ column.prop === 'stageUserName' ? formatStageUser(row) : formatValue(row[column.prop], column.type) }}
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -111,6 +127,7 @@ const deptStageOptions = [
 ]
 
 const defaultColumns = [ 
+  { prop: 'customerTags', label: '客户标签', visible: true, minWidth: 160 },
   { prop: 'name', label: '姓名', visible: true, minWidth: 100 },
   { prop: 'telephone', label: '手机号', visible: true, minWidth: 130 },
   { prop: 'advertiserName', label: '来源广告账号', visible: true, minWidth: 150 },
@@ -135,7 +152,7 @@ const defaultColumns = [
   { prop: 'address', label: '地址', visible: false, minWidth: 180 },
   { prop: 'followLifeAccountName', label: '跟进广告账户', visible: false, minWidth: 180 },
   { prop: 'weixin', label: '微信', visible: false, minWidth: 130 },
-  { prop: 'tags', label: '标签', visible: false, minWidth: 150 },
+  { prop: 'tags', label: '来客系统标签', visible: false, minWidth: 150 },
   { prop: 'componentEventTypeTagsStr', label: '营销事件', visible: false, minWidth: 150 },
   { prop: 'authorNickname', label: '内容创作者', visible: false, minWidth: 150 }, 
   { prop: 'clueReturnStatus', label: '投放账号状态', visible: false, minWidth: 150 }, 
@@ -316,5 +333,17 @@ getList()
   margin-right: 10px;
   color: var(--el-text-color-secondary);
   font-size: 18px;
+}
+
+.customer-tags-cell {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.customer-tag-item {
+  border-color: transparent;
+  color: #fff;
 }
 </style>
