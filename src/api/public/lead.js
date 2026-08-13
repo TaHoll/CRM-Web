@@ -44,6 +44,22 @@ export function updateCustomer(data) {
   })
 }
 
+export function followLogList(clueId) {
+  return request({
+    url: '/crm/lead/loglist',
+    method: 'get',
+    params: { clueId }
+  })
+}
+
+export function addFollowLog(data) {
+  return request({
+    url: '/crm/lead/addlog',
+    method: 'post',
+    data
+  })
+}
+
 export function userQuotaList(query) {
   return request({
     url: '/crm/lead/UserQuotaList',

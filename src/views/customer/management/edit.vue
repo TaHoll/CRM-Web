@@ -1,7 +1,7 @@
 <template>
   <div class="app-container customer-edit-page">
     <el-card class="page-card main-tabs-card" shadow="never">
-      <el-tabs v-model="pageTab" class="customer-page-tabs">
+      <el-tabs v-model="pageTab" class="customer-page-tabs" @tab-change="handleTabChange">
         <el-tab-pane label="基本信息" name="base">
           <el-card class="inner-card customer-info-card" shadow="never">
             <el-form :model="form" label-position="top" class="customer-form">
@@ -85,96 +85,50 @@
 
         <el-tab-pane label="跟进记录" name="records">
           <div class="follow-records-page">
-            <div class="section-header">
-              <div>
-                <div class="section-title">跟进记录</div>
-                <div class="section-desc">查看客户历史沟通记录，列表固定高度滚动展示</div>
-              </div>
-            </div>
-
-            <div class="follow-record-scroll">
-              <el-timeline>
+            <div v-loading="followLogLoading" class="follow-record-scroll">
+              <el-timeline v-if="followRecords.length > 0">
                 <el-timeline-item
                   v-for="item in followRecords"
                   :key="item.id"
-                  :timestamp="item.time"
+                  :timestamp="formatFollowTime(item.createTime || item.CreateTime)"
                   placement="top"
-                  :type="item.type"
                 >
                   <div class="follow-record">
                     <div class="follow-record-header">
-                      <span class="follow-user">{{ item.userName }}</span>
-                      <el-tag size="small" :type="item.tagType">{{ item.method }}</el-tag>
-                      <el-tag size="small" effect="plain">{{ item.result }}</el-tag>
+                      <span class="follow-user">{{ item.followUserNickName || item.FollowUserNickName || '-' }}</span>
+                      <el-tag
+                        v-for="tag in item.customerTags || item.CustomerTags || []"
+                        :key="tag.id"
+                        :color="tag.color || '#909399'"
+                        class="follow-tag"
+                        effect="dark"
+                        size="small">
+                        {{ tag.name }}
+                      </el-tag>
                     </div>
-                    <div class="follow-content">{{ item.content }}</div>
+                    <div class="follow-content">{{ item.remark || item.Remark || '-' }}</div>
                     <div class="follow-meta">
-                      <span>下次跟进：{{ item.nextTime }}</span>
-                      <span>阶段变更：{{ item.stageChange }}</span>
+                      <span>跟进阶段：{{ formatFollowStage(item.stage ?? item.Stage) }}</span>
                     </div>
                   </div>
                 </el-timeline-item>
               </el-timeline>
+              <el-empty v-else-if="!followLogLoading" description="暂无跟进记录" :image-size="70" />
             </div>
 
             <el-card class="follow-add-card" shadow="never">
               <div class="follow-panel-title">新增跟进记录</div>
               <el-form label-position="top">
-                <el-row :gutter="14">
-                  <el-col :span="12">
-                    <el-form-item label="跟进方式">
-                      <el-select model-value="电话" placeholder="请选择跟进方式">
-                        <el-option label="电话" value="电话" />
-                        <el-option label="微信" value="微信" />
-                        <el-option label="到店" value="到店" />
-                        <el-option label="短信" value="短信" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="跟进结果">
-                      <el-select model-value="有意向" placeholder="请选择跟进结果">
-                        <el-option label="已接通" value="已接通" />
-                        <el-option label="未接通" value="未接通" />
-                        <el-option label="有意向" value="有意向" />
-                        <el-option label="待考虑" value="待考虑" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
                 <el-form-item label="跟进内容">
                   <el-input
+                    v-model="followRemark"
                     type="textarea"
                     :rows="4"
-                    model-value="客户咨询课程价格和上课时间，预算明确，约定明天下午再次沟通。"
                     placeholder="请输入本次跟进内容"
                   />
                 </el-form-item>
-                <el-row :gutter="14">
-                  <el-col :span="12">
-                    <el-form-item label="下次跟进时间">
-                      <el-date-picker
-                        model-value="2026-08-11 14:00:00"
-                        type="datetime"
-                        placeholder="请选择下次跟进时间"
-                        value-format="YYYY-MM-DD HH:mm:ss"
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="客户阶段">
-                      <el-select model-value="一销跟进中" placeholder="请选择客户阶段">
-                        <el-option label="一销跟进中" value="一销跟进中" />
-                        <el-option label="二销待分配" value="二销待分配" />
-                        <el-option label="已成交" value="已成交" />
-                        <el-option label="无效线索" value="无效线索" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
                 <div class="follow-form-actions">
-                  <el-button>重置</el-button>
-                  <el-button type="primary">保存跟进</el-button>
+                  <el-button type="primary" :loading="followSaveLoading" @click="handleSaveFollowLog">保存</el-button>
                 </div>
               </el-form>
             </el-card>
@@ -255,7 +209,7 @@
 <script setup name="CustomerManagementEdit">
 import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
-import { getTelephone, updateCustomer } from '@/api/public/lead'
+import { addFollowLog, followLogList, getTelephone, updateCustomer } from '@/api/public/lead'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
 
 const route = useRoute()
@@ -276,6 +230,9 @@ const fullPhone = ref('')
 const phoneVisible = ref(false)
 const phoneLoading = ref(false)
 const saveLoading = ref(false)
+const followLogLoading = ref(false)
+const followSaveLoading = ref(false)
+let followLogRequestId = 0
 const tagPickerVisible = ref(false)
 const selectedTags = ref([])
 const pageTab = ref('base')
@@ -285,32 +242,8 @@ const logQuery = reactive({
 })
 const tagOptions = ref([])
 const tagColorMap = ref({})
-const followRecords = ref([
-  {
-    id: 1,
-    time: '2026-08-10 15:30',
-    userName: '张三',
-    method: '电话跟进',
-    result: '有意向',
-    content: '客户咨询课程价格，预算在 8000 左右，重点关注上课时间和老师资质。',
-    nextTime: '2026-08-11 14:00',
-    stageChange: '一销跟进中 -> 二销待分配',
-    type: 'primary',
-    tagType: 'primary'
-  },
-  {
-    id: 2,
-    time: '2026-08-09 10:12',
-    userName: '李四',
-    method: '微信沟通',
-    result: '待考虑',
-    content: '已发送课程资料和校区位置，客户表示需要和家人商量后再确认。',
-    nextTime: '2026-08-10 16:00',
-    stageChange: '新线索 -> 一销跟进中',
-    type: 'success',
-    tagType: 'success'
-  }
-])
+const followRecords = ref([])
+const followRemark = ref('')
 const operLogs = ref([
   {
     id: 1,
@@ -357,6 +290,22 @@ const displayPhone = computed(() => {
   return `${fullPhone.value.slice(0, 3)}****${fullPhone.value.slice(-4)}`
 })
 
+function formatFollowTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+function formatFollowStage(stage) {
+  const stageMap = {
+    0: '一销',
+    100: '二销',
+    200: '三销',
+    300: '售后'
+  }
+  return stage === null || stage === undefined ? '-' : stageMap[stage] || String(stage)
+}
+
 function syncCustomerFromRoute() {
   Object.assign(form, {
     id: route.query.id || '',
@@ -379,6 +328,64 @@ function syncCustomerFromRoute() {
 }
 
 watch(() => route.fullPath, syncCustomerFromRoute, { immediate: true })
+
+async function handleTabChange(tabName) {
+  if (tabName === 'records') {
+    await getFollowRecords()
+  }
+}
+
+async function getFollowRecords() {
+  if (!form.id || followLogLoading.value) return
+
+  const requestId = ++followLogRequestId
+  followLogLoading.value = true
+  try {
+    const res = await followLogList(form.id)
+    if (requestId === followLogRequestId && res.code === 200) {
+      followRecords.value = Array.isArray(res.data) ? res.data : res.data?.result || []
+    }
+  } catch {
+    if (requestId === followLogRequestId) {
+      followRecords.value = []
+    }
+  } finally {
+    if (requestId === followLogRequestId) {
+      followLogLoading.value = false
+    }
+  }
+}
+
+async function handleSaveFollowLog() {
+  if (!form.id) {
+    ElMessage.warning('线索ID不能为空')
+    return
+  }
+  if (!followRemark.value.trim()) {
+    ElMessage.warning('请输入跟进内容')
+    return
+  }
+  if (form.deptStage === undefined || form.deptStage === null || Number.isNaN(form.deptStage)) {
+    ElMessage.warning('跟进阶段不能为空')
+    return
+  }
+
+  followSaveLoading.value = true
+  try {
+    const res = await addFollowLog({
+      clueId: form.id,
+      remark: followRemark.value.trim(),
+      stage: form.deptStage
+    })
+    if (res.code === 200) {
+      ElMessage.success('跟进记录已保存')
+      followRemark.value = ''
+      await getFollowRecords()
+    }
+  } finally {
+    followSaveLoading.value = false
+  }
+}
 
 async function getPhone() {
   if (!form.id) {
@@ -762,6 +769,11 @@ function handleBusinessAction(action) {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.follow-tag {
+  border-color: transparent;
+  color: #fff;
 }
 
 .follow-user {
