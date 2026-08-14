@@ -78,6 +78,11 @@
                 <el-input-number v-model="row.quotaCount" :min="0" :max="999" :disabled="isPastQuotaDate(row.quotaDate)" controls-position="right" style="width: 120px" />
               </template>
             </el-table-column>
+            <el-table-column prop="assignCount" label="已分配量" align="center" width="110">
+              <template #default="{ row }">
+                {{ row.assignCount ?? row.assignedCount ?? 0 }}
+              </template>
+            </el-table-column>
             <el-table-column prop="quotaDate" label="配额日期" align="center" width="140" />
             <el-table-column label="启用" align="center" width="100">
               <template #default="{ row }">
@@ -186,7 +191,9 @@ async function handleQuery() {
         ...item,
         employeeId: item.userId,
         userName: item.userNickName,
-        enabled: item.status === 1
+        enabled: item.status === 1,
+        originalQuotaCount: Number(item.quotaCount || 0),
+        originalStatus: Number(item.status || 0)
       }))
     }
   } finally {
@@ -229,18 +236,32 @@ async function handleSave() {
   }
 
   const configs = userList.value
-    .filter((user) => Number(user.quotaCount) > 0)
+    .filter((user) => {
+      const quotaCount = Number(user.quotaCount || 0)
+      const status = user.enabled ? 1 : 0
+      const hasConfig = user.id !== null && user.id !== undefined
+
+      // 未配置用户仅在设置了正配额时新增；已有配置仅在配额或状态变化时提交。
+      return !hasConfig
+        ? quotaCount > 0
+        : quotaCount !== user.originalQuotaCount || status !== user.originalStatus
+    })
     .map((user) => ({
-      id: user.id || 0,
+      id: user.id ?? null,
       userId: user.userId,
       userNickName: user.userNickName || user.userName,
       deptId: user.deptId,
       deptName: user.deptName,
       quotaDate: queryParams.quotaDate,
       quotaCount: Number(user.quotaCount),
-      assignedCount: Number(user.assignedCount || 0),
+      assignCount: Number(user.assignCount ?? user.assignedCount ?? 0),
       status: user.enabled ? 1 : 0
     }))
+
+  if (configs.length === 0) {
+    proxy.$modal.msgInfo('配额和启用状态未发生变化')
+    return
+  }
 
   const res = await userQuotaSave({
     quotaDate: queryParams.quotaDate,

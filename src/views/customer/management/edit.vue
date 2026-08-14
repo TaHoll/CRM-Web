@@ -12,7 +12,7 @@
                     <div class="section-desc">维护客户基础资料、手机号和标签信息</div>
                   </div>
                   <div class="header-actions">
-                    <el-button type="success" @click="handleBusinessAction('收款')">收款</el-button>
+                    <el-button type="success" @click="openPaymentDialog">收款</el-button>
                     <el-button type="primary" plain @click="handleBusinessAction('合同')">合同</el-button>
                     <el-button type="warning" plain @click="handleBusinessAction('补录订单')">补录订单</el-button>
                     <el-button type="primary" :loading="saveLoading" @click="handleSave">保存客户信息</el-button>
@@ -203,6 +203,27 @@
         <el-button type="primary" @click="confirmTags">确认添加</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="paymentDialogVisible" title="收款" width="420px" append-to-body>
+      <el-tabs v-model="paymentTab" stretch>
+        <el-tab-pane label="收款码" name="qrcode">
+          <div class="payment-qrcode-panel">
+            <img :src="paymentQrCode" alt="收款二维码" class="payment-qrcode" />
+            <p>请使用微信扫码完成付款</p>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="企微收款" name="wecom">
+          <el-form label-position="top">
+            <el-form-item label="付款单号">
+              <el-input v-model="paymentOrderNo" placeholder="请输入付款单号" clearable />
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
+      <template #footer>
+        <el-button @click="paymentDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -211,6 +232,7 @@ import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { addFollowLog, followLogList, getTelephone, updateCustomer } from '@/api/public/lead'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
+import paymentQrCode from '@/assets/images/qrcode.jpg'
 
 const route = useRoute()
 const form = reactive({
@@ -234,6 +256,9 @@ const followLogLoading = ref(false)
 const followSaveLoading = ref(false)
 let followLogRequestId = 0
 const tagPickerVisible = ref(false)
+const paymentDialogVisible = ref(false)
+const paymentTab = ref('qrcode')
+const paymentOrderNo = ref('')
 const selectedTags = ref([])
 const pageTab = ref('base')
 const logQuery = reactive({
@@ -500,6 +525,12 @@ async function handleSave() {
 
 function handleBusinessAction(action) {
   ElMessage.info(`${action}功能暂未对接`)
+}
+
+function openPaymentDialog() {
+  paymentTab.value = 'qrcode'
+  paymentOrderNo.value = ''
+  paymentDialogVisible.value = true
 }
 </script>
 
@@ -774,6 +805,24 @@ function handleBusinessAction(action) {
 .follow-tag {
   border-color: transparent;
   color: #fff;
+}
+
+.payment-qrcode-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0 4px;
+  color: var(--el-text-color-secondary);
+}
+
+.payment-qrcode {
+  width: 220px;
+  height: 220px;
+  padding: 8px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
 }
 
 .follow-user {
