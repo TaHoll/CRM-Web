@@ -275,6 +275,17 @@ async function handleAssignUserConfirm(user) {
     return
   }
 
+  const hasAssignedToSelectedUser = selectedLeads.value.some((lead) =>
+    lead.stageUserId !== null &&
+    lead.stageUserId !== undefined &&
+    String(lead.stageUserId) === String(user.userId)
+  )
+
+  if (hasAssignedToSelectedUser) {
+    proxy.$modal.msgWarning('勾选线索存在此人已有线索')
+    return
+  }
+
   assignUser.value = user
   const res = await assignLead({
     leadIds: selectedLeads.value.map((item) => item.clueId),
