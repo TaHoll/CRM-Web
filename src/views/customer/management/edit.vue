@@ -20,8 +20,16 @@
                 </div>
 
                 <div class="info-grid">
+                  <el-form-item label="线索ID" class="info-item readonly-item">
+                    <span class="readonly-value">{{ form.id || '-' }}</span>
+                  </el-form-item>
+
                   <el-form-item label="姓名" prop="name" class="info-item">
                     <el-input v-model="form.name" placeholder="请输入姓名" />
+                  </el-form-item>
+
+                  <el-form-item label="微信" prop="weixin" class="info-item">
+                    <el-input v-model.trim="form.weixin" maxlength="30" placeholder="请输入微信号" clearable />
                   </el-form-item>
 
                   <el-form-item label="手机号" class="info-item">
@@ -288,6 +296,7 @@ const router = useRouter()
 const form = reactive({
   id: '',
   name: '',
+  weixin: '',
   province: '',
   city: '',
   stage: '',
@@ -392,6 +401,7 @@ function syncCustomerFromRoute() {
   Object.assign(form, {
     id: route.query.id || '',
     name: route.query.name || '',
+    weixin: route.query.wechat || '',
     province: route.query.province || '',
     city: route.query.city || '',
     stage: route.query.stage || '',
@@ -563,6 +573,7 @@ async function handleSave() {
     const res = await updateCustomer({
       clueId: form.id,
       name: form.name,
+      weixin: form.weixin,
       age: form.age,
       gender: form.gender,
       stage: form.deptStage,
@@ -574,6 +585,7 @@ async function handleSave() {
         query: {
           ...route.query,
           name: form.name,
+          wechat: form.weixin,
           age: String(form.age),
           gender: form.gender,
           customerTags: JSON.stringify(form.tags)

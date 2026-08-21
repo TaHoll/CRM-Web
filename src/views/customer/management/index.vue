@@ -122,6 +122,7 @@ const defaultColumns = [
   { prop: 'leadLocation', label: '线索归属地', visible: true, minWidth: 150 },
   { prop: 'userNickName', label: '跟进人', visible: true, minWidth: 110 },
   { prop: 'deptName', label: '跟进部门', visible: true, minWidth: 130 },
+  { prop: 'latestFollowRemark', label: '最新跟进内容', visible: true, minWidth: 220 },
   { prop: 'effectiveStateNameStr', label: '阶段', visible: false, minWidth: 110 }
 ]
 
@@ -239,6 +240,7 @@ function handleEdit(row) {
     query: {
       id: row.clueId,
       name: row.name,
+      wechat: row.wechat || row.Wechat,
       phone: row.telephone,
       city: row.autoCityName,
       province: row.autoProvinceName,
