@@ -278,12 +278,13 @@
 
 <script setup name="CustomerManagementEdit">
 import { ElMessage } from 'element-plus'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { addFollowLog, followLogList, getTelephone, updateCustomer } from '@/api/public/lead'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
 import paymentQrCode from '@/assets/images/qrcode.jpg'
 
 const route = useRoute()
+const router = useRouter()
 const form = reactive({
   id: '',
   name: '',
@@ -568,6 +569,16 @@ async function handleSave() {
       tagIds: selectedTags.value
     })
     if (res.code === 200) {
+      await router.replace({
+        path: route.path,
+        query: {
+          ...route.query,
+          name: form.name,
+          age: String(form.age),
+          gender: form.gender,
+          customerTags: JSON.stringify(form.tags)
+        }
+      })
       ElMessage.success('客户信息已保存')
     }
   } finally {

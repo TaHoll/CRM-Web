@@ -1,6 +1,36 @@
 <template>
   <div class="app-container">
-    <el-form v-show="showSearch" :inline="true" @submit.prevent>
+    <el-form v-show="showSearch" class="lead-search-form" @submit.prevent>
+      <el-form-item label="姓名">
+        <el-input v-model="searchForm.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="手机号">
+        <el-input v-model="searchForm.telephone" placeholder="请输入手机号" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="微信">
+        <el-input v-model="searchForm.weixin" placeholder="请输入微信" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="客户标签">
+        <el-input v-model="searchForm.customerTags" placeholder="请输入客户标签" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="来源广告账号">
+        <el-input v-model="searchForm.advertiserName" placeholder="请输入来源广告账号" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="城市">
+        <el-input v-model="searchForm.autoCityName" placeholder="请输入线索所属城市" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="省份">
+        <el-input v-model="searchForm.autoProvinceName" placeholder="请输入线索所属省份" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="分配对象">
+        <el-input v-model="searchForm.stageUserName" placeholder="请输入分配对象" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="营销名称">
+        <el-input v-model="searchForm.promotionName" placeholder="请输入营销名称" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="流量类型">
+        <el-input v-model="searchForm.flowTypeStr" placeholder="请输入流量类型" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
       <el-form-item label="创建时间">
         <el-date-picker
           v-model="dateRange"
@@ -20,7 +50,7 @@
             :value="item.value" />
         </el-select>
       </el-form-item>
-      <el-form-item>
+      <el-form-item class="search-action-item">
         <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
       </el-form-item>
@@ -49,7 +79,7 @@
       row-key="clueId"
       header-cell-class-name="el-table-header-cell"
       @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
+      <el-table-column type="selection" width="55" align="center" fixed="left" />
       <el-table-column
         v-for="column in visibleColumns"
         :key="column.prop"
@@ -58,6 +88,7 @@
         :width="column.width"
         :min-width="column.minWidth || 120"
         :align="column.align || 'center'"
+        :fixed="isFixedColumn(column.prop) ? 'left' : undefined"
         :show-overflow-tooltip="true">
         <template #default="{ row }">
           <template v-if="column.prop === 'customerTags'">
@@ -92,7 +123,7 @@
       <el-alert title="拖拽字段可调整展示顺序，勾选控制是否显示。" type="info" :closable="false" class="mb10" />
       <div class="column-setting-list">
         <div
-          v-for="column in columns"
+          v-for="column in configurableColumns"
           :key="column.prop"
           class="column-setting-item"
           draggable="true"
@@ -126,17 +157,20 @@ const deptStageOptions = [
   { label: '售后', value: 300 }
 ]
 
+const FIXED_COLUMN_PROPS = ['name', 'telephone', 'weixin', 'createTimeDetail']
+
 const defaultColumns = [ 
-  { prop: 'customerTags', label: '客户标签', visible: true, minWidth: 160 },
   { prop: 'name', label: '姓名', visible: true, minWidth: 100 },
   { prop: 'telephone', label: '手机号', visible: true, minWidth: 130 },
+  { prop: 'weixin', label: '微信', visible: true, minWidth: 130 },
+  { prop: 'createTimeDetail', label: '创建时间', visible: true, type: 'datetime', minWidth: 170 },
+  { prop: 'customerTags', label: '客户标签', visible: true, minWidth: 160 },
   { prop: 'advertiserName', label: '来源广告账号', visible: true, minWidth: 150 },
   { prop: 'autoCityName', label: '线索所属城市', visible: true, minWidth: 130 }, 
   { prop: 'autoProvinceName', label: '线索所属省份', visible: true, minWidth: 130 }, 
   { prop: 'effectiveStateStr', label: '阶段', visible: true },
   { prop: 'stageUserName', label: '分配对象', visible: true, minWidth: 120 },
   { prop: 'clueTypeStr', label: '来源类型', visible: true }, 
-  { prop: 'createTimeDetail', label: '创建时间', visible: true, type: 'datetime', minWidth: 170 },
   { prop: 'modifyTime', label: '修改时间', visible: false, type: 'datetime', minWidth: 170 },
   { prop: 'promotionName', label: '营销名称', visible: false, minWidth: 150 },
   { prop: 'flowTypeStr', label: '流量类型', visible: false },
@@ -151,7 +185,6 @@ const defaultColumns = [
   { prop: 'countyName', label: '填写区县', visible: false },
   { prop: 'address', label: '地址', visible: false, minWidth: 180 },
   { prop: 'followLifeAccountName', label: '跟进广告账户', visible: false, minWidth: 180 },
-  { prop: 'weixin', label: '微信', visible: false, minWidth: 130 },
   { prop: 'tags', label: '来客系统标签', visible: false, minWidth: 150 },
   { prop: 'componentEventTypeTagsStr', label: '营销事件', visible: false, minWidth: 150 },
   { prop: 'authorNickname', label: '内容创作者', visible: false, minWidth: 150 }, 
@@ -169,7 +202,10 @@ function loadColumns() {
     const defaultMap = new Map(defaultColumns.map((item) => [item.prop, item]))
     const savedColumns = saved
       .filter((item) => defaultMap.has(item.prop))
-      .map((item) => ({ ...defaultMap.get(item.prop), visible: item.visible }))
+      .map((item) => ({
+        ...defaultMap.get(item.prop),
+        visible: isFixedColumn(item.prop) ? true : item.visible
+      }))
     const newColumns = defaultColumns
       .filter((item) => !saved.some((savedItem) => savedItem.prop === item.prop))
       .map((item) => ({ ...item }))
@@ -193,6 +229,18 @@ const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
 const dateRange = ref([])
+const searchForm = reactive({
+  name: '',
+  telephone: '',
+  weixin: '',
+  customerTags: '',
+  advertiserName: '',
+  autoCityName: '',
+  autoProvinceName: '',
+  stageUserName: '',
+  promotionName: '',
+  flowTypeStr: ''
+})
 const queryParams = reactive({
   deptStage: undefined,
   beginTime: undefined,
@@ -204,7 +252,23 @@ const queryParams = reactive({
 })
 const { proxy } = getCurrentInstance()
 
-const visibleColumns = computed(() => columns.value.filter((column) => column.visible))
+const visibleColumns = computed(() => {
+  const visible = columns.value.filter((column) => column.visible)
+  const fixedColumns = FIXED_COLUMN_PROPS
+    .map((prop) => visible.find((column) => column.prop === prop))
+    .filter(Boolean)
+  const normalColumns = visible.filter((column) => !isFixedColumn(column.prop))
+
+  return [...fixedColumns, ...normalColumns]
+})
+
+const configurableColumns = computed(() =>
+  columns.value.filter((column) => !isFixedColumn(column.prop))
+)
+
+function isFixedColumn(prop) {
+  return FIXED_COLUMN_PROPS.includes(prop)
+}
 
 watch(
   columns,
@@ -238,6 +302,9 @@ function handleQuery() {
 
 function resetQuery() {
   dateRange.value = []
+  Object.keys(searchForm).forEach((key) => {
+    searchForm[key] = ''
+  })
   queryParams.deptStage = undefined
   queryParams.beginTime = undefined
   queryParams.endTime = undefined
@@ -322,6 +389,41 @@ getList()
 </script>
 
 <style scoped>
+.lead-search-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0 16px;
+  margin-bottom: 10px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--el-fill-color-extra-light);
+}
+
+.lead-search-form :deep(.el-form-item) {
+  display: flex;
+  margin-right: 0;
+  margin-bottom: 14px;
+}
+
+.lead-search-form :deep(.el-form-item__content) {
+  flex: 1;
+  min-width: 0;
+}
+
+.lead-search-form :deep(.el-input),
+.lead-search-form :deep(.el-select),
+.lead-search-form :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.lead-search-form .search-action-item {
+  align-items: flex-end;
+}
+
+.lead-search-form .search-action-item :deep(.el-form-item__content) {
+  justify-content: flex-end;
+}
+
 .column-setting-list {
   max-height: 420px;
   overflow-y: auto;
@@ -356,5 +458,16 @@ getList()
 .customer-tag-item {
   border-color: transparent;
   color: #fff;
+}
+
+@media (max-width: 768px) {
+  .lead-search-form {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .lead-search-form .search-action-item :deep(.el-form-item__content) {
+    justify-content: flex-start;
+  }
 }
 </style>
