@@ -66,8 +66,19 @@
             <el-col :span="1.5">
               <el-button type="warning" plain icon="RefreshLeft" :disabled="!quotaEditable" @click="handleClearQuota">清零</el-button>
             </el-col>
+            <el-col :span="1.5">
+              <el-button type="primary" plain icon="CopyDocument" @click="openCopyDialog">复制配置</el-button>
+            </el-col>
             <right-toolbar v-model:showSearch="showSearch" @queryTable="handleQuery"></right-toolbar>
           </el-row>
+
+          <el-alert
+            v-if="copyPreviewing"
+            :title="`正在预览从 ${copySourceDate} 复制到 ${queryParams.quotaDate} 的配置，当前内容尚未保存`"
+            type="warning"
+            show-icon
+            :closable="false"
+            class="mb8" />
 
           <el-table v-loading="loading" :data="userList" border>
             <el-table-column prop="employeeId" label="员工ID" align="center" width="110" />
@@ -105,6 +116,28 @@
         <el-button type="primary" @click="handleBatchSetQuota">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="copyDialogOpen" title="复制配额配置" width="420px" append-to-body>
+      <el-alert title="以当前页面配置为配置源，点击预览后将在列表页展示目标日期的配置。" type="info" :closable="false" class="mb15" />
+      <el-form label-width="90px">
+        <el-form-item label="源日期">
+          <el-input :model-value="copySourceDate" disabled />
+        </el-form-item>
+        <el-form-item label="复制到">
+          <el-date-picker
+            v-model="copyTargetDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            :disabled-date="disableCopyDate"
+            placeholder="请选择当天之后的日期"
+            style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="copyDialogOpen = false">取消</el-button>
+        <el-button type="primary" @click="handleCopyPreview">预览</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -122,6 +155,11 @@ const deptOptions = ref([])
 const deptTreeRef = ref()
 const batchSetDialogOpen = ref(false)
 const batchQuotaCount = ref(10)
+const copyDialogOpen = ref(false)
+const copySourceDate = ref('')
+const copySourceList = ref([])
+const copyTargetDate = ref('')
+const copyPreviewing = ref(false)
 const today = getToday()
 const quotaEditable = computed(() => !isPastQuotaDate(queryParams.quotaDate))
 
@@ -143,6 +181,21 @@ function getToday() {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function getTomorrow() {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function disableCopyDate(date) {
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  return date.getTime() <= todayStart.getTime()
 }
 
 function isPastQuotaDate(quotaDate) {
@@ -183,6 +236,7 @@ function buildQueryParams() {
 }
 
 async function handleQuery() {
+  copyPreviewing.value = false
   loading.value = true
   try {
     const res = await userQuotaList(buildQueryParams())
@@ -202,6 +256,7 @@ async function handleQuery() {
 }
 
 function resetQuery() {
+  copyPreviewing.value = false
   queryParams.userName = ''
   queryParams.quotaDate = today
   queryParams.enabled = undefined
@@ -227,6 +282,48 @@ function handleClearQuota() {
   userList.value.forEach((user) => {
     user.quotaCount = 0
   })
+}
+
+function openCopyDialog() {
+  if (selectedDeptId.value === 0) {
+    proxy.$modal.msgWarning('请先选择需要复制配置的部门')
+    return
+  }
+  if (userList.value.length === 0) {
+    proxy.$modal.msgWarning('当前页面没有可复制的配置')
+    return
+  }
+  copySourceDate.value = queryParams.quotaDate
+  copySourceList.value = userList.value.map((user) => ({ ...user }))
+  copyTargetDate.value = getTomorrow()
+  copyDialogOpen.value = true
+}
+
+function handleCopyPreview() {
+  if (!copyTargetDate.value || copyTargetDate.value <= today) {
+    proxy.$modal.msgWarning('复制目标日期只能选择当天之后的日期')
+    return
+  }
+
+  if (copySourceList.value.length === 0) {
+    proxy.$modal.msgWarning('当前页面没有可复制的配置')
+    return
+  }
+
+  const targetDate = copyTargetDate.value
+  userList.value = copySourceList.value.map((user) => ({
+    ...user,
+    id: null,
+    quotaDate: targetDate,
+    assignCount: 0,
+    assignedCount: 0,
+    originalQuotaCount: 0,
+    originalStatus: 0
+  }))
+  queryParams.quotaDate = targetDate
+  copyPreviewing.value = true
+  copyDialogOpen.value = false
+  proxy.$modal.msgSuccess(`正在预览 ${targetDate} 的复制配置，确认后请点击保存配置`)
 }
 
 async function handleSave() {

@@ -170,6 +170,7 @@ const defaultColumns = [
   { prop: 'autoProvinceName', label: '线索所属省份', visible: true, minWidth: 130 }, 
   { prop: 'effectiveStateStr', label: '阶段', visible: true },
   { prop: 'stageUserName', label: '分配对象', visible: true, minWidth: 120 },
+  { prop: 'latestFollowRemark', label: '最新跟进内容', visible: true, minWidth: 220 },
   { prop: 'clueTypeStr', label: '来源类型', visible: true }, 
   { prop: 'modifyTime', label: '修改时间', visible: false, type: 'datetime', minWidth: 170 },
   { prop: 'promotionName', label: '营销名称', visible: false, minWidth: 150 },
@@ -285,7 +286,13 @@ async function getList() {
   ;[queryParams.beginTime, queryParams.endTime] = dateRange.value || []
   loading.value = true
   try {
-    const res = await listLead(queryParams)
+    const res = await listLead({
+      ...queryParams,
+      name: searchForm.name.trim(),
+      telephone: searchForm.telephone.trim(),
+      weixin: searchForm.weixin.trim(),
+      promotionName: searchForm.promotionName.trim()
+    })
     if (res.code === 200) {
       dataList.value = res.data?.result || []
       total.value = res.data?.totalNum || 0
