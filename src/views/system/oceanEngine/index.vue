@@ -2,8 +2,8 @@
   <div class="app-container ocean-auth-page">
     <div class="page-header">
       <div>
-        <h2 class="page-title">巨量引擎授权配置</h2>
-        <p class="page-description">管理用于获取巨量引擎账户和线索数据的应用授权信息</p>
+        <h2 class="page-title">主体管理</h2>
+        <p class="page-description">管理各主体的巨量引擎应用与授权配置信息</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="handleAdd">添加</el-button>
     </div>
@@ -28,11 +28,11 @@
 
         <div class="card-content">
           <div class="info-row">
-            <span class="info-label">App ID</span>
+            <span class="info-label">巨量 APP_ID</span>
             <span class="info-value">{{ item.appId }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Secret</span>
+            <span class="info-label">巨量 Secret</span>
             <span class="info-value secret-value">{{ maskSecret(item.secret) }}</span>
           </div>
           <div class="info-row">
@@ -58,37 +58,43 @@
     </div>
 
     <el-card v-else shadow="never" class="empty-card">
-      <el-empty description="暂无巨量引擎授权配置">
-        <el-button type="primary" :icon="Plus" @click="handleAdd">添加授权配置</el-button>
+      <el-empty description="暂无主体">
+        <el-button type="primary" :icon="Plus" @click="handleAdd">添加主体</el-button>
       </el-empty>
     </el-card>
 
     <el-dialog
       v-model="dialogVisible"
-      :title="form.id ? '编辑授权配置' : '添加授权配置'"
-      width="520px"
+      :title="form.id ? '编辑主体' : '添加主体'"
+      width="620px"
       append-to-body
       destroy-on-close
       @closed="resetForm"
     >
       <div class="dialog-tip">
         <el-icon><InfoFilled /></el-icon>
-        <span>请填写巨量引擎开放平台创建应用后获得的授权信息。</span>
+        <span>请填写主体在巨量引擎开放平台创建应用后获得的凭证。</span>
       </div>
 
       <el-form ref="authorizationFormRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="App ID" prop="appId">
-          <el-input v-model.trim="form.appId" maxlength="100" placeholder="请输入 App ID" />
-        </el-form-item>
-        <el-form-item label="Secret" prop="secret">
-          <el-input
-            v-model.trim="form.secret"
-            type="password"
-            maxlength="200"
-            placeholder="请输入 Secret"
-            show-password
-          />
-        </el-form-item>
+        <div class="platform-section">
+          <div class="platform-section-title">
+            巨量引擎开放平台
+            <span class="platform-section-note">广告线索和线索回调</span>
+          </div>
+          <el-form-item label="APP_ID" prop="appId">
+            <el-input v-model.trim="form.appId" maxlength="100" placeholder="请输入巨量引擎 APP_ID" />
+          </el-form-item>
+          <el-form-item label="Secret" prop="secret">
+            <el-input
+              v-model.trim="form.secret"
+              type="password"
+              maxlength="200"
+              placeholder="请输入巨量引擎 Secret"
+              show-password
+            />
+          </el-form-item>
+        </div>
       </el-form>
 
       <template #footer>
@@ -113,6 +119,9 @@ const authorizationList = ref([
     subjectName: '重庆示例科技有限公司',
     appId: '179***********428',
     secret: 'ocean-engine-secret-example',
+    douyinAppId: 'tt1234567890',
+    douyinAccount: '重庆示例科技',
+    douyinAppSecret: 'douyin-open-secret-example',
     authorized: true,
     createTime: '2026-08-13 10:30:00'
   },
@@ -121,6 +130,9 @@ const authorizationList = ref([
     subjectName: '',
     appId: '182***********716',
     secret: 'local-promotion-secret-example',
+    douyinAppId: 'tt0987654321',
+    douyinAccount: '',
+    douyinAppSecret: 'douyin-open-secret-example',
     authorized: false,
     createTime: '2026-08-12 16:20:00'
   }
@@ -129,15 +141,18 @@ const authorizationList = ref([
 const form = reactive(createDefaultForm())
 
 const rules = {
-  appId: [{ required: true, message: '请输入 App ID', trigger: 'blur' }],
-  secret: [{ required: true, message: '请输入 Secret', trigger: 'blur' }]
+  appId: [{ required: true, message: '请输入巨量引擎 APP_ID', trigger: 'blur' }],
+  secret: [{ required: true, message: '请输入巨量引擎 Secret', trigger: 'blur' }]
 }
 
 function createDefaultForm() {
   return {
     id: undefined,
     appId: '',
-    secret: ''
+    secret: '',
+    douyinAppId: '',
+    douyinAccount: '',
+    douyinAppSecret: ''
   }
 }
 
@@ -155,7 +170,10 @@ function handleEdit(item) {
   Object.assign(form, {
     id: item.id,
     appId: item.appId,
-    secret: item.secret
+    secret: item.secret,
+    douyinAppId: item.douyinAppId,
+    douyinAccount: item.douyinAccount,
+    douyinAppSecret: item.douyinAppSecret
   })
   dialogVisible.value = true
 }
@@ -170,7 +188,10 @@ function handleSave() {
     if (currentItem) {
       Object.assign(currentItem, {
         appId: form.appId,
-        secret: form.secret
+        secret: form.secret,
+        douyinAppId: form.douyinAppId,
+        douyinAccount: form.douyinAccount,
+        douyinAppSecret: form.douyinAppSecret
       })
     } else {
       authorizationList.value.unshift({
@@ -178,6 +199,9 @@ function handleSave() {
         subjectName: '',
         appId: form.appId,
         secret: form.secret,
+        douyinAppId: form.douyinAppId,
+        douyinAccount: form.douyinAccount,
+        douyinAppSecret: form.douyinAppSecret,
         authorized: false,
         createTime: new Date().toLocaleString('zh-CN', { hour12: false }).replaceAll('/', '-')
       })
@@ -316,7 +340,7 @@ function resetForm() {
 }
 
 .info-label {
-  flex: 0 0 78px;
+  flex: 0 0 105px;
   color: #909399;
 }
 
@@ -369,6 +393,27 @@ function resetForm() {
   color: #409eff;
   font-size: 13px;
   line-height: 20px;
+}
+
+.platform-section + .platform-section {
+  margin-top: 22px;
+}
+
+.platform-section-title {
+  margin: 0 0 16px;
+  padding-left: 10px;
+  border-left: 3px solid #409eff;
+  color: #303133;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.platform-section-note {
+  margin-left: 8px;
+  color: #909399;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 @media (max-width: 900px) {
