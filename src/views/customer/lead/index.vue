@@ -58,7 +58,7 @@
 
     <el-row :gutter="15" class="mb10">
       <el-col :span="1.5">
-        <el-button type="success" plain icon="User" @click="handleAssign">分配</el-button>
+        <el-button v-hasPermi="['crm:lead:assign']" type="success" plain icon="User" @click="handleAssign">分配</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button type="primary" plain icon="Refresh" @click="getList">刷新</el-button>

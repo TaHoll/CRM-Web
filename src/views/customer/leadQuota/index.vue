@@ -1,6 +1,28 @@
 <template>
   <div class="app-container lead-quota-page">
-    <el-splitter>
+    <div v-loading="subjectLoading" class="subject-tabs-bar">
+      <div v-if="subjectList.length" class="subject-tabs">
+        <el-tooltip
+          v-for="subject in subjectList"
+          :key="subject.id"
+          :content="getSubjectStatusText(subject)"
+          placement="top">
+          <button
+            type="button"
+            :class="[
+              'subject-tab',
+              isSubjectAvailable(subject) ? 'is-normal' : 'is-abnormal',
+              { 'is-active': activeSubjectId === subject.id }
+            ]"
+            @click="handleSubjectChange(subject)">
+            {{ subject.subjectName || '待授权主体' }}
+          </button>
+        </el-tooltip>
+      </div>
+      <el-empty v-else :image-size="48" description="暂无可配置主体" />
+    </div>
+
+    <el-splitter class="quota-workspace">
       <el-splitter-panel size="220px" :collapsible="true" style="padding-right: 10px" max="320px">
         <el-card shadow="never" class="dept-card">
           <div class="head-container">
@@ -58,16 +80,16 @@
 
           <el-row :gutter="10" class="mb8">
             <el-col :span="1.5">
-              <el-button type="primary" plain icon="Check" :disabled="!quotaEditable" @click="handleSave">保存配置</el-button>
+              <el-button v-hasPermi="['crm:quota:save']" type="primary" plain icon="Check" :disabled="!quotaSaveable" @click="handleSave">保存配置</el-button>
             </el-col>
             <el-col :span="1.5">
-              <el-button type="success" plain icon="Edit" :disabled="!quotaEditable" @click="batchSetDialogOpen = true">批量设置配额</el-button>
+              <el-button type="success" plain icon="Edit" :disabled="!quotaSaveable" @click="batchSetDialogOpen = true">批量设置配额</el-button>
             </el-col>
             <el-col :span="1.5">
-              <el-button type="warning" plain icon="RefreshLeft" :disabled="!quotaEditable" @click="handleClearQuota">清零</el-button>
+              <el-button type="warning" plain icon="RefreshLeft" :disabled="!quotaSaveable" @click="handleClearQuota">清零</el-button>
             </el-col>
             <el-col :span="1.5">
-              <el-button type="primary" plain icon="CopyDocument" @click="openCopyDialog">复制配置</el-button>
+              <el-button type="primary" plain icon="CopyDocument" :disabled="!subjectAvailable" @click="openCopyDialog">复制配置</el-button>
             </el-col>
             <right-toolbar v-model:showSearch="showSearch" @queryTable="handleQuery"></right-toolbar>
           </el-row>
@@ -144,10 +166,12 @@
 <script setup name="LeadAssignQuota">
 import { treeselect } from '@/api/system/dept'
 import { userQuotaList, userQuotaSave } from '@/api/public/lead'
+import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
 
 const { proxy } = getCurrentInstance()
 
 const loading = ref(false)
+const subjectLoading = ref(false)
 const showSearch = ref(true)
 const deptName = ref('')
 const selectedDeptId = ref(0)
@@ -160,8 +184,13 @@ const copySourceDate = ref('')
 const copySourceList = ref([])
 const copyTargetDate = ref('')
 const copyPreviewing = ref(false)
+const subjectList = ref([])
+const activeSubjectId = ref()
 const today = getToday()
+const currentSubject = computed(() => subjectList.value.find((subject) => subject.id === activeSubjectId.value))
+const subjectAvailable = computed(() => isSubjectAvailable(currentSubject.value))
 const quotaEditable = computed(() => !isPastQuotaDate(queryParams.quotaDate))
+const quotaSaveable = computed(() => subjectAvailable.value && quotaEditable.value)
 
 const queryParams = reactive({
   userName: '',
@@ -211,6 +240,46 @@ function getDeptTree() {
   })
 }
 
+async function getSubjectList() {
+  subjectLoading.value = true
+  try {
+    const response = await listOceanEngineSubjectTabs()
+    subjectList.value = response.data || []
+    if (subjectList.value.length === 0) {
+      activeSubjectId.value = undefined
+      proxy.$modal.msgWarning('系统未配置任何主体')
+      return false
+    }
+    const defaultSubject = subjectList.value.find(isSubjectAvailable) || subjectList.value[0]
+    activeSubjectId.value = defaultSubject?.id
+    return true
+  } finally {
+    subjectLoading.value = false
+  }
+}
+
+function isSubjectAvailable(subject) {
+  return subject?.tabStatus === 0
+}
+
+function getSubjectStatusText(subject) {
+  if (!subject) return '请选择主体'
+  const subjectName = subject.subjectName || '待授权主体'
+  if (subject.tabStatus === 1) return `${subjectName}：主体已停用`
+  if (subject.tabStatus === 2) return `${subjectName}：主体未启用`
+  return `${subjectName}：主体状态正常`
+}
+
+function handleSubjectChange(subject) {
+  if (activeSubjectId.value === subject.id) return
+  activeSubjectId.value = subject.id
+  copyPreviewing.value = false
+  userList.value = []
+  if (selectedDeptId.value > 0) {
+    handleQuery()
+  }
+}
+
 function filterNode(value, data) {
   if (!value) {
     return true
@@ -225,6 +294,7 @@ function handleNodeClick(data) {
 
 function buildQueryParams() {
   const params = {
+    subjectId: activeSubjectId.value,
     userNickName: queryParams.userName,
     deptId: selectedDeptId.value || 0,
     quotaDate: queryParams.quotaDate
@@ -236,6 +306,10 @@ function buildQueryParams() {
 }
 
 async function handleQuery() {
+  if (!activeSubjectId.value) {
+    proxy.$modal.msgWarning('请先选择主体')
+    return
+  }
   copyPreviewing.value = false
   loading.value = true
   try {
@@ -266,6 +340,10 @@ function resetQuery() {
 }
 
 function handleBatchSetQuota() {
+  if (!subjectAvailable.value) {
+    proxy.$modal.msgWarning('当前主体状态异常，不能配置配额')
+    return
+  }
   if (!quotaEditable.value) {
     return
   }
@@ -276,6 +354,10 @@ function handleBatchSetQuota() {
 }
 
 function handleClearQuota() {
+  if (!subjectAvailable.value) {
+    proxy.$modal.msgWarning('当前主体状态异常，不能配置配额')
+    return
+  }
   if (!quotaEditable.value) {
     return
   }
@@ -285,6 +367,10 @@ function handleClearQuota() {
 }
 
 function openCopyDialog() {
+  if (!subjectAvailable.value) {
+    proxy.$modal.msgWarning('当前主体状态异常，不能复制配置')
+    return
+  }
   if (selectedDeptId.value === 0) {
     proxy.$modal.msgWarning('请先选择需要复制配置的部门')
     return
@@ -332,6 +418,11 @@ async function handleSave() {
     return
   }
 
+  if (!subjectAvailable.value) {
+    proxy.$modal.msgWarning('当前主体状态异常，不能保存配置')
+    return
+  }
+
   const configs = userList.value
     .filter((user) => {
       const quotaCount = Number(user.quotaCount || 0)
@@ -361,6 +452,7 @@ async function handleSave() {
   }
 
   const res = await userQuotaSave({
+    subjectId: activeSubjectId.value,
     quotaDate: queryParams.quotaDate,
     configs
   })
@@ -371,12 +463,81 @@ async function handleSave() {
   }
 }
 
-getDeptTree()
+async function initializePage() {
+  const hasSubjects = await getSubjectList()
+  if (hasSubjects) {
+    getDeptTree()
+  }
+}
+
+initializePage()
 </script>
 
 <style scoped>
 .lead-quota-page {
   min-height: calc(100vh - 84px);
+}
+
+.subject-tabs-bar {
+  position: relative;
+  z-index: 2;
+  min-height: 48px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #dcdfe6;
+  background: #fff;
+}
+
+.subject-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin-bottom: -1px;
+}
+
+.subject-tab {
+  flex: 0 0 auto;
+  min-width: 116px;
+  height: 40px;
+  padding: 0 18px;
+  overflow: hidden;
+  border: 1px solid #c8c9cc;
+  border-radius: 8px 8px 0 0;
+  background: #dcdfe6;
+  color: #606266;
+  cursor: pointer;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.subject-tab.is-normal {
+  border-color: #67c23a;
+  background: #dff3d5;
+  color: #3d8b1f;
+  font-weight: 600;
+}
+
+.subject-tab.is-normal.is-active {
+  border-color: #4eaa28;
+  background: #67c23a;
+  color: #fff;
+  box-shadow: 0 4px 10px rgb(82 155 46 / 28%);
+}
+
+.subject-tab.is-abnormal.is-active {
+  border-color: #73767a;
+  background: #73767a;
+  color: #fff;
+  box-shadow: 0 4px 10px rgb(96 98 102 / 24%);
+}
+
+.subject-tab:hover {
+  transform: translateY(-1px);
+}
+
+.quota-workspace {
+  background: #fff;
 }
 
 .dept-card {
@@ -390,4 +551,5 @@ getDeptTree()
 .quota-content {
   padding: 10px;
 }
+
 </style>

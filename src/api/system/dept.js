@@ -75,3 +75,12 @@ export function delDept(deptId) {
     method: 'delete'
   })
 }
+
+// 批量分配部门用户
+export function assignDeptUsers(data) {
+  return request({
+    url: '/system/dept/assignUsers',
+    method: 'put',
+    data
+  })
+}

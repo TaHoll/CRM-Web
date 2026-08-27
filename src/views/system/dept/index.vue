@@ -50,13 +50,16 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200">
+      <el-table-column label="操作" width="280">
         <template #default="scope">
           <el-button text size="small" icon="edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:dept:update']">
             {{ $t('btn.edit') }}
           </el-button>
           <el-button text size="small" icon="plus" @click="handleAdd(scope.row)" v-hasPermi="['system:dept:add']">
             {{ $t('btn.add') }}
+          </el-button>
+          <el-button text size="small" icon="user" @click="handleAssignUser(scope.row)" v-hasPermi="['system:dept:assignUsers']">
+            分配用户
           </el-button>
           <el-button
             text
@@ -138,11 +141,50 @@
         <el-button type="primary" @click="submitForm">{{ $t('btn.submit') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog :title="`给 ${assignDeptName} 分配用户`" v-model="assignOpen" width="760px" append-to-body @close="cancelAssign">
+      <el-form :model="userQueryParams" :inline="true" @submit.prevent>
+        <el-form-item label="用户名称">
+          <el-input v-model="userQueryParams.userName" placeholder="请输入用户名称" clearable @keyup.enter="searchUsers" />
+        </el-form-item>
+        <el-form-item label="用户昵称">
+          <el-input v-model="userQueryParams.nickName" placeholder="请输入用户昵称" clearable @keyup.enter="searchUsers" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="search" @click="searchUsers">{{ $t('btn.search') }}</el-button>
+        </el-form-item>
+      </el-form>
+      <el-table
+        v-loading="userLoading"
+        :data="userList"
+        row-key="userId"
+        stripe
+        border
+        height="420"
+        @selection-change="handleUserSelectionChange">
+        <el-table-column type="selection" width="55" align="center" :selectable="(row) => row.userId !== 1" />
+        <el-table-column prop="userId" align="center" label="用户编号" width="110" />
+        <el-table-column prop="userName" align="center" label="用户名称" />
+        <el-table-column prop="nickName" align="center" label="用户昵称" />
+        <el-table-column prop="deptName" align="center" label="当前部门" />
+      </el-table>
+      <pagination
+        v-show="userTotal > 0"
+        :total="userTotal"
+        v-model:page="userQueryParams.pageNum"
+        v-model:limit="userQueryParams.pageSize"
+        @pagination="getUserList" />
+      <template #footer>
+        <el-button @click="cancelAssign">{{ $t('btn.cancel') }}</el-button>
+        <el-button type="primary" @click="submitAssignUsers">{{ $t('btn.submit') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup name="dept">
-import { listDept, getDept, delDept, addDept, updateDept, listDeptExcludeChild } from '@/api/system/dept'
+import { listDept, getDept, delDept, addDept, updateDept, listDeptExcludeChild, assignDeptUsers } from '@/api/system/dept'
+import { listUser } from '@/api/system/user'
 // 遮罩层
 const loading = ref(true)
 // 显示搜索条件
@@ -159,12 +201,27 @@ const deptOptions = ref([])
 const title = ref('')
 // 是否显示弹出层
 const open = ref(false)
+const assignOpen = ref(false)
+const assignDeptId = ref(undefined)
+const assignDeptName = ref('')
+const userLoading = ref(false)
+const userList = ref([])
+const userTotal = ref(0)
+const selectedUserIds = ref([])
 // 状态数据字典
 const statusOptions = ref([])
 // 查询参数
 const queryParams = reactive({
   deptName: undefined,
   status: undefined
+})
+const userQueryParams = reactive({
+  pageNum: 1,
+  pageSize: 10,
+  userName: undefined,
+  nickName: undefined,
+  excludeDeptId: undefined,
+  status: -1
 })
 const state = reactive({
   // 表单参数
@@ -228,6 +285,48 @@ function handleQuery() {
 function resetQuery() {
   proxy.resetForm('queryForm')
   handleQuery()
+}
+/** 分配部门用户 */
+function handleAssignUser(row) {
+  assignDeptId.value = row.deptId
+  assignDeptName.value = row.deptName
+  userQueryParams.excludeDeptId = row.deptId
+  selectedUserIds.value = []
+  assignOpen.value = true
+  searchUsers()
+}
+function getUserList() {
+  userLoading.value = true
+  listUser(userQueryParams)
+    .then((response) => {
+      userList.value = response.data.result
+      userTotal.value = response.data.totalNum
+    })
+    .finally(() => {
+      userLoading.value = false
+    })
+}
+function searchUsers() {
+  userQueryParams.pageNum = 1
+  getUserList()
+}
+function handleUserSelectionChange(selection) {
+  selectedUserIds.value = selection.map((item) => item.userId)
+}
+function submitAssignUsers() {
+  if (selectedUserIds.value.length === 0) {
+    proxy.$modal.msgWarning('请选择需要分配的用户')
+    return
+  }
+  assignDeptUsers({ deptId: assignDeptId.value, userIds: selectedUserIds.value }).then(() => {
+    proxy.$modal.msgSuccess('分配成功')
+    assignOpen.value = false
+    getList()
+  })
+}
+function cancelAssign() {
+  assignOpen.value = false
+  selectedUserIds.value = []
 }
 /** 新增按钮操作 */
 function handleAdd(row) {
