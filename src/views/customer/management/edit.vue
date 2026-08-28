@@ -1,101 +1,117 @@
 <template>
   <div class="app-container customer-edit-page">
-    <el-card class="page-card main-tabs-card" shadow="never">
-      <el-tabs v-model="pageTab" class="customer-page-tabs">
-        <el-tab-pane label="基本信息" name="base">
-          <el-card class="inner-card customer-info-card" shadow="never">
-            <el-form :model="form" label-position="top" class="customer-form">
-              <section class="form-section">
-                <div class="section-header">
-                  <div>
-                    <div class="section-title">客户信息</div>
-                    <div class="section-desc">维护客户基础资料、手机号和标签信息</div>
-                  </div>
-                  <div class="header-actions">
-                    <el-button type="success" @click="openPaymentDialog">收款</el-button>
-                    <el-button type="primary" plain @click="handleBusinessAction('合同')">合同</el-button>
-                    <el-button type="warning" plain @click="handleBusinessAction('补录订单')">补录订单</el-button>
-                    <el-button type="primary" :loading="saveLoading" @click="handleSave">保存客户信息</el-button>
-                  </div>
-                </div>
+    <el-card class="page-card customer-summary-card" shadow="never">
+      <div class="customer-profile">
+        <div :class="['customer-subject-name', { 'is-abnormal': form.subjectTabStatus !== 0 }]">
+          <span class="subject-name-value">{{ form.subjectName || '未设置主体' }}</span>
+        </div>
+        <div class="customer-profile-main">
+          <div class="customer-profile-title-row">
+            <div class="customer-name-row">
+              <div v-if="editingField === 'name'" class="profile-inline-editor name-editor">
+                <el-input v-model="form.name" size="small" placeholder="请输入姓名" />
+                <el-button link type="primary" @click="finishEdit">完成</el-button>
+              </div>
+              <template v-else>
+                <span class="customer-name">{{ form.name || '未命名客户' }}</span>
+                <el-tooltip content="编辑姓名" placement="top">
+                  <el-button link type="primary" :icon="Edit" @click="startEdit('name')" />
+                </el-tooltip>
+              </template>
+            </div>
+            <div class="header-actions">
+              <el-button type="success" @click="openPaymentDialog">收款</el-button>
+              <el-button type="primary" plain @click="handleBusinessAction('合同')">合同</el-button>
+              <el-button type="warning" plain @click="handleBusinessAction('补录订单')">补录订单</el-button>
+              <el-button type="primary" :loading="saveLoading" @click="handleSave">保存</el-button>
+            </div>
+          </div>
 
-                <div class="info-grid">
-                  <el-form-item label="线索ID" class="info-item readonly-item">
-                    <span class="readonly-value">{{ form.id || '-' }}</span>
-                  </el-form-item>
-
-                  <el-form-item label="姓名" prop="name" class="info-item">
-                    <el-input v-model="form.name" placeholder="请输入姓名" />
-                  </el-form-item>
-
-                  <el-form-item label="微信" prop="weixin" class="info-item">
-                    <el-input v-model.trim="form.weixin" maxlength="30" placeholder="请输入微信号" clearable />
-                  </el-form-item>
-
-                  <el-form-item label="手机号" class="info-item">
-                    <div class="phone-value">
-                      <span class="readonly-value phone-text">{{ displayPhone }}</span>
-                      <el-button link type="primary" :loading="phoneLoading" @click="getPhone">获取完整号码</el-button>
-                    </div>
-                  </el-form-item>
-
-                  <el-form-item label="性别" class="info-item">
-                    <el-radio-group v-model="form.gender">
-                      <el-radio value="MALE">男</el-radio>
-                      <el-radio value="FEMALE">女</el-radio>
-                    </el-radio-group>
-                  </el-form-item>
-
-                  <el-form-item label="年龄" class="info-item">
-                    <el-input-number v-model="form.age" :min="0" :max="120" controls-position="right" />
-                  </el-form-item>
-
-                  <el-form-item label="所属省份" class="info-item readonly-item">
-                    <span class="readonly-value">{{ form.province || '-' }}</span>
-                  </el-form-item>
-
-                  <el-form-item label="所属城市" class="info-item readonly-item">
-                    <span class="readonly-value">{{ form.city || '-' }}</span>
-                  </el-form-item>
-
-                  <el-form-item label="阶段" class="info-item readonly-item">
-                    <span class="readonly-value">{{ form.stage || '-' }}</span>
-                  </el-form-item>
-
-                  <el-form-item label="来源时间" class="info-item readonly-item">
-                    <span class="readonly-value">{{ form.sourceTime || '-' }}</span>
-                  </el-form-item>
-
-                  <el-form-item label="客户标签" class="info-item tag-info-item">
-                    <div class="tag-editor">
-                      <el-tag
-                        v-for="tag in form.tags"
-                        :key="tag.id || tag.name"
-                        :color="tag.color || tagColorMap[tag.name] || '#909399'"
-                        effect="dark"
-                        closable
-                        class="customer-tag"
-                        @close="removeTag(tag)">
-                        {{ tag.name }}
-                      </el-tag>
-                      <span v-if="form.tags.length === 0" class="empty-tags">暂无标签</span>
-                      <el-button plain size="small" @click="openTagPicker">新增标签</el-button>
-                    </div>
-                  </el-form-item>
-                </div>
-
-              </section>
-
-            </el-form>
-          </el-card>
-
-          <el-card class="inner-card follow-info-card" shadow="never">
-            <div class="section-header follow-section-header">
-              <div>
-                <div class="section-title">跟进记录</div>
-                <div class="section-desc">查看历史跟进内容并新增本次跟进记录。</div>
+          <div class="customer-profile-fields">
+            <div class="profile-field">
+              <span class="profile-label">线索ID：</span>
+              <span class="profile-value">{{ form.id || '-' }}</span>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">手机号：</span>
+              <span class="profile-value">{{ displayPhone }}</span>
+              <el-button link type="primary" :loading="phoneLoading" :disabled="phoneVisible" @click="getPhone">获取</el-button>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">年龄：</span>
+              <div v-if="editingField === 'age'" class="profile-inline-editor">
+                <el-input-number v-model="form.age" :min="0" :max="120" size="small" controls-position="right" />
+                <el-button link type="primary" @click="finishEdit">完成</el-button>
+              </div>
+              <template v-else>
+                <span class="profile-value">{{ form.age ?? '-' }}</span>
+                <el-tooltip content="编辑年龄" placement="top">
+                  <el-button link type="primary" :icon="Edit" @click="startEdit('age')" />
+                </el-tooltip>
+              </template>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">性别：</span>
+              <el-radio-group v-model="form.gender" size="small" class="gender-selector">
+                <el-radio-button value="MALE">男</el-radio-button>
+                <el-radio-button value="FEMALE">女</el-radio-button>
+                <el-radio-button value="UNKNOWN">未知</el-radio-button>
+              </el-radio-group>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">线索归属地：</span>
+              <span class="profile-value">{{ [form.province, form.city].filter(Boolean).join('') || '-' }}</span>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">微信：</span>
+              <div v-if="editingField === 'weixin'" class="profile-inline-editor">
+                <el-input v-model.trim="form.weixin" size="small" maxlength="30" placeholder="请输入微信号" clearable />
+                <el-button link type="primary" @click="finishEdit">完成</el-button>
+              </div>
+              <template v-else>
+                <span class="profile-value">{{ form.weixin || '-' }}</span>
+                <el-tooltip content="编辑微信" placement="top">
+                  <el-button link type="primary" :icon="Edit" @click="startEdit('weixin')" />
+                </el-tooltip>
+              </template>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">线索阶段：</span>
+              <span class="profile-value">{{ form.stage || '-' }}</span>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">来源时间：</span>
+              <span class="profile-value">{{ form.sourceTime || '-' }}</span>
+            </div>
+            <div class="profile-field profile-tags-field">
+              <span class="profile-label">客户标签：</span>
+              <div class="tag-editor">
+                <el-tag
+                  v-for="tag in form.tags"
+                  :key="tag.id || tag.name"
+                  :color="tag.color || tagColorMap[tag.name] || '#909399'"
+                  effect="dark"
+                  size="small"
+                  closable
+                  class="customer-tag"
+                  @close="removeTag(tag)">
+                  {{ tag.name }}
+                </el-tag>
+                <span v-if="form.tags.length === 0" class="empty-tags">暂无标签</span>
+                <el-tooltip content="新增标签" placement="top">
+                  <el-button circle size="small" :icon="Plus" @click="openTagPicker" />
+                </el-tooltip>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
+    <el-card class="page-card main-tabs-card" shadow="never">
+      <el-tabs v-model="pageTab" class="customer-page-tabs">
+        <el-tab-pane label="跟进记录" name="base">
+          <div class="follow-info-content">
             <div class="follow-records-page">
               <div v-loading="followLogLoading" class="follow-record-scroll">
                 <el-timeline v-if="followRecords.length > 0">
@@ -129,7 +145,6 @@
               </div>
 
               <el-card class="follow-add-card" shadow="never">
-                <div class="follow-panel-title">新增跟进记录</div>
                 <el-form label-position="top">
                   <el-form-item label="跟进内容">
                     <el-input
@@ -145,53 +160,26 @@
                 </el-form>
               </el-card>
             </div>
-          </el-card>
+          </div>
 
         </el-tab-pane>
 
-        <el-tab-pane label="操作日志" name="log">
-          <div class="log-filter">
-            <el-select v-model="logQuery.type" size="small" placeholder="操作类型">
-              <el-option label="全部" value="" />
-              <el-option label="分配" value="分配" />
-              <el-option label="信息变更" value="信息变更" />
-              <el-option label="获取号码" value="获取号码" />
-              <el-option label="跟进" value="跟进" />
-            </el-select>
-            <el-date-picker
-              v-model="logQuery.dateRange"
-              size="small"
-              type="daterange"
-              start-placeholder="开始时间"
-              end-placeholder="结束时间"
-              value-format="YYYY-MM-DD"
-            />
+        <el-tab-pane label="案件进度" name="caseProgress">
+          <div class="business-empty-panel">
+            <el-empty description="暂无案件进度" :image-size="80" />
           </div>
-          <el-timeline>
-            <el-timeline-item
-              v-for="item in operLogs"
-              :key="item.id"
-              :timestamp="item.time"
-              placement="top"
-              :type="item.type"
-            >
-              <div class="oper-log-card">
-                <div class="oper-log-header">
-                  <el-tag size="small" :type="item.tagType">{{ item.operType }}</el-tag>
-                  <span class="oper-log-title">{{ item.title }}</span>
-                </div>
-                <div class="oper-log-content">{{ item.content }}</div>
-                <div class="oper-log-meta">
-                  <span>操作人：{{ item.userName }}</span>
-                  <span v-if="item.targetUser">目标用户：{{ item.targetUser }}</span>
-                </div>
-                <div v-if="item.beforeValue || item.afterValue" class="oper-change-box">
-                  <div>变更前：{{ item.beforeValue || '-' }}</div>
-                  <div>变更后：{{ item.afterValue || '-' }}</div>
-                </div>
-              </div>
-            </el-timeline-item>
-          </el-timeline>
+        </el-tab-pane>
+
+        <el-tab-pane label="收款记录" name="paymentRecords">
+          <div class="business-empty-panel">
+            <el-empty description="暂无收款记录" :image-size="80" />
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane label="合同信息" name="contracts">
+          <div class="business-empty-panel">
+            <el-empty description="暂无合同信息" :image-size="80" />
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -204,7 +192,7 @@
           </div>
           <el-checkbox-group v-model="selectedTags" class="tag-category-options">
             <el-checkbox v-for="tag in category.tags" :key="tag.id" :value="tag.id" class="tag-option">
-              <el-tag :color="tag.color || '#409eff'" effect="dark" class="tag-option-preview">
+              <el-tag :color="tag.color || '#409eff'" effect="dark" size="small" class="tag-option-preview">
                 {{ tag.name }}
               </el-tag>
             </el-checkbox>
@@ -285,6 +273,7 @@
 </template>
 
 <script setup name="CustomerManagementEdit">
+import { Edit, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { addFollowLog, followLogList, getTelephone, updateCustomer } from '@/api/public/lead'
@@ -295,6 +284,9 @@ const route = useRoute()
 const router = useRouter()
 const form = reactive({
   id: '',
+  subjectId: undefined,
+  subjectName: '',
+  subjectTabStatus: 0,
   name: '',
   weixin: '',
   province: '',
@@ -311,6 +303,7 @@ const fullPhone = ref('')
 const phoneVisible = ref(false)
 const phoneLoading = ref(false)
 const saveLoading = ref(false)
+const editingField = ref('')
 const followLogLoading = ref(false)
 const followSaveLoading = ref(false)
 let followLogRequestId = 0
@@ -327,59 +320,21 @@ const supplementOrderForm = reactive({
 })
 const selectedTags = ref([])
 const pageTab = ref('base')
-const logQuery = reactive({
-  type: '',
-  dateRange: []
-})
 const tagOptions = ref([])
 const tagColorMap = ref({})
 const followRecords = ref([])
 const followRemark = ref('')
-const operLogs = ref([
-  {
-    id: 1,
-    time: '2026-08-10 15:30',
-    operType: '分配',
-    title: '手动分配线索',
-    content: '张三将该线索手动分配给李四。',
-    userName: '张三',
-    targetUser: '李四',
-    beforeValue: '',
-    afterValue: '',
-    type: 'primary',
-    tagType: 'primary'
-  },
-  {
-    id: 2,
-    time: '2026-08-10 15:36',
-    operType: '获取号码',
-    title: '查看完整手机号',
-    content: '李四查看了客户完整手机号，本次为第 1 次查看。',
-    userName: '李四',
-    targetUser: '',
-    beforeValue: '',
-    afterValue: '',
-    type: 'warning',
-    tagType: 'warning'
-  },
-  {
-    id: 3,
-    time: '2026-08-10 16:20',
-    operType: '信息变更',
-    title: '修改客户标签',
-    content: '李四更新了客户标签信息。',
-    userName: '李四',
-    targetUser: '',
-    beforeValue: '待跟进',
-    afterValue: '高意向',
-    type: 'success',
-    tagType: 'success'
-  }
-])
 const displayPhone = computed(() => {
   if (phoneVisible.value || fullPhone.value.length < 7) return fullPhone.value || '-'
   return `${fullPhone.value.slice(0, 3)}****${fullPhone.value.slice(-4)}`
 })
+function startEdit(field) {
+  editingField.value = field
+}
+
+function finishEdit() {
+  editingField.value = ''
+}
 
 function formatFollowTime(value) {
   if (!value) return '-'
@@ -400,6 +355,9 @@ function formatFollowStage(stage) {
 function syncCustomerFromRoute() {
   Object.assign(form, {
     id: route.query.id || '',
+    subjectId: route.query.subjectId === undefined ? undefined : Number(route.query.subjectId),
+    subjectName: route.query.subjectName || '',
+    subjectTabStatus: route.query.subjectTabStatus === undefined ? 0 : Number(route.query.subjectTabStatus),
     name: route.query.name || '',
     weixin: route.query.wechat || '',
     province: route.query.province || '',
@@ -415,6 +373,7 @@ function syncCustomerFromRoute() {
   fullPhone.value = route.query.phone || ''
   phoneVisible.value = false
   phoneLoading.value = false
+  editingField.value = ''
   tagPickerVisible.value = false
   syncSelectedTags()
   followRecords.value = []
@@ -580,6 +539,7 @@ async function handleSave() {
       tagIds: selectedTags.value
     })
     if (res.code === 200) {
+      finishEdit()
       await router.replace({
         path: route.path,
         query: {
@@ -642,25 +602,187 @@ function handleSupplementOrderSave() {
 
 <style scoped>
 .customer-edit-page {
-  padding: 16px;
+  padding: 0;
 }
 
 .page-card {
-  max-width: 1120px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 .main-tabs-card {
-  border-radius: 10px;
+  box-sizing: border-box;
+  border: 1px solid #dcdfe6 !important;
+  border-radius: 0;
+}
+
+.main-tabs-card :deep(.el-card__body) {
+  padding: 12px 16px 16px;
+}
+
+.customer-summary-card {
+  margin-bottom: 0;
+  border-radius: 0;
+}
+
+.customer-summary-card :deep(.el-card__body) {
+  padding: 16px 20px;
+}
+
+.customer-profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.customer-subject-name {
+  display: flex;
+  flex: 0 0 118px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 70px;
+  padding: 10px 12px;
+  overflow: hidden;
+  border: 1px solid #4eaa28;
+  border-radius: 12px;
+  background: #67c23a;
+  box-shadow: 0 4px 10px rgb(82 155 46 / 28%);
+  color: #fff;
+}
+
+.customer-subject-name.is-abnormal {
+  border-color: #73767a;
+  background: #73767a;
+  box-shadow: 0 4px 10px rgb(96 98 102 / 24%);
+}
+
+.subject-name-value {
+  display: -webkit-box;
+  overflow: hidden;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-all;
+}
+
+.customer-profile-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-profile-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.customer-profile-title-row .header-actions {
+  gap: 8px;
+}
+
+.customer-profile-title-row .header-actions :deep(.el-button) {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.customer-name-row,
+.profile-inline-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.customer-name {
+  color: var(--el-text-color-primary);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.name-editor :deep(.el-input) {
+  width: 180px;
+}
+
+.customer-profile-fields {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px 20px;
+}
+
+.profile-field {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 24px;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.profile-label {
+  flex: 0 0 auto;
+  color: var(--el-text-color-secondary);
+}
+
+.profile-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-inline-editor {
+  flex: 1;
+}
+
+.profile-inline-editor :deep(.el-input),
+.profile-inline-editor :deep(.el-input-number) {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-inline-editor :deep(.el-input-number) {
+  width: 108px;
+}
+
+.profile-inline-editor :deep(.el-radio) {
+  margin-right: 8px;
+}
+
+.profile-tags-field {
+  grid-column: 1 / -1;
 }
 
 .customer-page-tabs :deep(.el-tabs__header) {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .customer-page-tabs :deep(.el-tabs__item) {
-  height: 42px;
-  font-size: 15px;
+  height: 34px;
+  font-size: 14px;
+  line-height: 34px;
+}
+
+.customer-page-tabs :deep(.el-tabs__nav-wrap::after) {
+  height: 1px;
+}
+
+.business-empty-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-fill-color-extra-light);
 }
 
 .inner-card {
@@ -669,6 +791,10 @@ function handleSupplementOrderSave() {
 
 .follow-info-card {
   margin-top: 16px;
+}
+
+.follow-info-content {
+  padding: 0;
 }
 
 .follow-section-header {
@@ -712,6 +838,11 @@ function handleSupplementOrderSave() {
   margin-bottom: 20px;
 }
 
+.compact-section-header {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .section-title {
   margin-bottom: 4px;
   padding-left: 10px;
@@ -734,6 +865,11 @@ function handleSupplementOrderSave() {
   gap: 16px;
 }
 
+.compact-info-grid {
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 10px;
+}
+
 .info-item {
   min-width: 0;
   margin-bottom: 0 !important;
@@ -741,6 +877,14 @@ function handleSupplementOrderSave() {
   background: var(--el-fill-color-extra-light);
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
+}
+
+.compact-info-grid .info-item {
+  padding: 8px 12px;
+}
+
+.compact-info-grid .tag-info-item {
+  grid-column: span 2;
 }
 
 .readonly-item {
@@ -756,6 +900,12 @@ function handleSupplementOrderSave() {
   font-weight: 500;
   line-height: 20px;
   color: var(--el-text-color-regular);
+}
+
+.compact-customer-form :deep(.el-form-item__label) {
+  padding-bottom: 2px;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .customer-form :deep(.el-input),
@@ -775,6 +925,34 @@ function handleSupplementOrderSave() {
   min-height: 32px;
   line-height: 32px;
   color: var(--el-text-color-regular);
+}
+
+.compact-info-grid .readonly-value {
+  min-height: 28px;
+  line-height: 28px;
+}
+
+.field-value-row,
+.editable-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 28px;
+}
+
+.field-value-row .readonly-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editable-value :deep(.el-input),
+.editable-value :deep(.el-input-number) {
+  flex: 1;
+  min-width: 0;
 }
 
 .phone-text {
@@ -882,11 +1060,10 @@ function handleSupplementOrderSave() {
 
 .follow-record-scroll {
   height: 360px;
-  padding: 18px 18px 0 0;
+  padding: 8px 18px 0 0;
   overflow-y: auto;
-  background: var(--el-fill-color-extra-light);
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .follow-record-scroll :deep(.el-timeline) {
@@ -1028,8 +1205,32 @@ function handleSupplementOrderSave() {
     flex-direction: column;
   }
 
+  .customer-profile,
+  .customer-profile-title-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customer-subject-name {
+    flex-basis: auto;
+    min-height: auto;
+  }
+
+  .customer-profile-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .profile-tags-field {
+    grid-column: 1 / -1;
+  }
+
   .info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .compact-info-grid .tag-info-item {
+    grid-column: auto;
   }
 
   .phone-value {

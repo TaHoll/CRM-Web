@@ -1,6 +1,29 @@
 <template>
-  <div class="app-container">
-    <el-form :inline="true" class="mb10" @submit.prevent>
+  <div class="app-container customer-management-page">
+    <div v-loading="subjectLoading" class="subject-tabs-bar">
+      <div v-if="subjectList.length" class="subject-tabs">
+        <el-tooltip
+          v-for="subject in subjectList"
+          :key="subject.id"
+          :content="getSubjectStatusText(subject)"
+          placement="top">
+          <button
+            type="button"
+            :class="[
+              'subject-tab',
+              isSubjectAvailable(subject) ? 'is-normal' : 'is-abnormal',
+              { 'is-active': activeSubjectId === subject.id }
+            ]"
+            @click="handleSubjectChange(subject)">
+            {{ subject.subjectName || '待授权主体' }}
+          </button>
+        </el-tooltip>
+      </div>
+      <el-empty v-else :image-size="48" description="暂无可用主体" />
+    </div>
+
+    <template v-if="activeSubjectId">
+    <el-form v-show="showSearch" :inline="true" class="customer-search-form mb10" @submit.prevent>
       <el-form-item label="姓名">
         <el-input v-model="queryParams.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
       </el-form-item>
@@ -21,7 +44,7 @@
     </el-form>
 
     <el-row :gutter="15" class="mb10">
-      <right-toolbar @query-table="getList">
+      <right-toolbar v-model:show-search="showSearch" @query-table="getList">
         <el-tooltip content="列设置" placement="top">
           <el-button circle icon="Menu" @click="columnSettingVisible = true" />
         </el-tooltip>
@@ -101,12 +124,14 @@
         </div>
       </div>
     </el-dialog>
+    </template>
   </div>
 </template>
 
 <script setup name="CustomerManagement">
 import { useRouter } from 'vue-router'
 import { customerList } from '@/api/public/lead'
+import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
 
 const router = useRouter()
 const COLUMN_STORAGE_KEY = 'customer-management-columns'
@@ -152,8 +177,12 @@ const stageType = {
 }
 
 const loading = ref(false)
+const subjectLoading = ref(false)
+const showSearch = ref(true)
 const total = ref(0)
 const dataList = ref([])
+const subjectList = ref([])
+const activeSubjectId = ref()
 const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
@@ -163,6 +192,7 @@ const queryParams = reactive({
   name: undefined,
   beginTime: undefined,
   endTime: undefined,
+  subjectId: undefined,
   pager: {
     pageNum: 1,
     pageSize: 10
@@ -181,7 +211,13 @@ watch(
 )
 
 async function getList() {
+  if (!activeSubjectId.value) {
+    dataList.value = []
+    total.value = 0
+    return
+  }
   ;[queryParams.beginTime, queryParams.endTime] = leadTimeRange.value || []
+  queryParams.subjectId = activeSubjectId.value
   loading.value = true
   try {
     const res = await customerList(queryParams)
@@ -192,6 +228,42 @@ async function getList() {
   } finally {
     loading.value = false
   }
+}
+
+async function getSubjectList() {
+  subjectLoading.value = true
+  try {
+    const response = await listOceanEngineSubjectTabs()
+    subjectList.value = response.data || []
+    if (subjectList.value.length === 0) {
+      activeSubjectId.value = undefined
+      return false
+    }
+    const defaultSubject = subjectList.value.find(isSubjectAvailable) || subjectList.value[0]
+    activeSubjectId.value = defaultSubject?.id
+    return true
+  } finally {
+    subjectLoading.value = false
+  }
+}
+
+function isSubjectAvailable(subject) {
+  return subject?.tabStatus === 0
+}
+
+function getSubjectStatusText(subject) {
+  if (!subject) return '请选择主体'
+  const subjectName = subject.subjectName || '待授权主体'
+  if (subject.tabStatus === 1) return `${subjectName}：主体已停用`
+  if (subject.tabStatus === 2) return `${subjectName}：主体未启用`
+  return `${subjectName}：主体状态正常`
+}
+
+function handleSubjectChange(subject) {
+  if (activeSubjectId.value === subject.id) return
+  activeSubjectId.value = subject.id
+  queryParams.pager.pageNum = 1
+  getList()
 }
 
 function formatValue(value, type) {
@@ -235,10 +307,14 @@ function handleColumnDrop(targetProp) {
 }
 
 function handleEdit(row) {
+  const currentSubject = subjectList.value.find((subject) => subject.id === activeSubjectId.value)
   router.push({
     path: '/customer/management/edit',
     query: {
       id: row.clueId,
+      subjectId: activeSubjectId.value,
+      subjectName: currentSubject?.subjectName || '',
+      subjectTabStatus: currentSubject?.tabStatus ?? 0,
       name: row.name,
       wechat: row.wechat || row.Wechat,
       phone: row.telephone,
@@ -254,10 +330,83 @@ function handleEdit(row) {
   })
 }
 
-getList()
+async function initializePage() {
+  if (await getSubjectList()) {
+    getList()
+  }
+}
+
+initializePage()
 </script>
 
 <style scoped>
+.customer-management-page {
+  min-height: calc(100vh - 84px);
+}
+
+.subject-tabs-bar {
+  position: relative;
+  z-index: 2;
+  min-height: 48px;
+  margin: -20px -20px 16px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #dcdfe6;
+  background: #fff;
+}
+
+.subject-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin-bottom: -1px;
+}
+
+.subject-tab {
+  flex: 0 0 auto;
+  min-width: 116px;
+  height: 40px;
+  padding: 0 18px;
+  overflow: hidden;
+  border: 1px solid #c8c9cc;
+  border-radius: 8px 8px 0 0;
+  background: #dcdfe6;
+  color: #606266;
+  cursor: pointer;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.subject-tab.is-normal {
+  border-color: #67c23a;
+  background: #dff3d5;
+  color: #3d8b1f;
+  font-weight: 600;
+}
+
+.subject-tab.is-normal.is-active {
+  border-color: #4eaa28;
+  background: #67c23a;
+  color: #fff;
+  box-shadow: 0 4px 10px rgb(82 155 46 / 28%);
+}
+
+.subject-tab.is-abnormal.is-active {
+  border-color: #73767a;
+  background: #73767a;
+  color: #fff;
+  box-shadow: 0 4px 10px rgb(96 98 102 / 24%);
+}
+
+.subject-tab:hover {
+  transform: translateY(-1px);
+}
+
+.customer-search-form :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
 .tag-item + .tag-item {
   margin-left: 6px;
 }
