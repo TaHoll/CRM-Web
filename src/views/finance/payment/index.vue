@@ -72,9 +72,11 @@
       </el-table-column>
       <el-table-column prop="paymentScreenshotUrl" label="支付截图" width="100" align="center">
         <template #default="{ row }">
-          <el-tooltip v-if="row.paymentScreenshotUrl" content="点击查看大图" placement="top">
-            <image-preview :src="normalizePaymentScreenshotUrl(row.paymentScreenshotUrl)" width="44" height="44" />
-          </el-tooltip>
+          <el-link
+            v-if="row.paymentScreenshotUrl"
+            type="primary"
+            :underline="false"
+            @click="previewPaymentScreenshot(row.paymentScreenshotUrl)">查看</el-link>
           <span v-else>-</span>
         </template>
       </el-table-column>
@@ -118,6 +120,12 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="paymentScreenshotPreviewVisible" title="支付截图" width="720px" append-to-body>
+      <div class="payment-screenshot-preview">
+        <img :src="paymentScreenshotPreviewUrl" alt="支付截图" />
+      </div>
+    </el-dialog>
+
     <el-dialog v-model="detailVisible" title="审核详情" width="480px" append-to-body>
       <el-descriptions :column="1" border>
         <el-descriptions-item label="审核状态"><el-tag :type="statusTagType(currentOrder.orderStatus)">{{ formatStatus(currentOrder.orderStatus) }}</el-tag></el-descriptions-item>
@@ -140,6 +148,8 @@ const paymentList = ref([])
 const paymentTimeRange = ref([])
 const auditVisible = ref(false)
 const detailVisible = ref(false)
+const paymentScreenshotPreviewVisible = ref(false)
+const paymentScreenshotPreviewUrl = ref('')
 const auditSubmitting = ref(false)
 const auditRef = ref()
 const currentOrder = ref({})
@@ -197,20 +207,17 @@ function formatAmount(value) {
 function normalizePaymentScreenshotUrl(value) {
   if (!value) return ''
   try {
-    const url = new URL(value, window.location.origin)
-    const isLocalAddress = ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
-    const isCurrentOrigin = url.origin === window.location.origin
-    if (isLocalAddress || isCurrentOrigin) {
-      const baseApi = String(import.meta.env.VITE_APP_BASE_API || '').replace(/\/$/, '')
-      const pathname = baseApi && url.pathname.startsWith(`${baseApi}/`)
-        ? url.pathname.slice(baseApi.length)
-        : url.pathname
-      return `${pathname}${url.search}`
-    }
+    return new URL(value, window.location.origin).href
   } catch {
     return value
   }
-  return value
+}
+
+function previewPaymentScreenshot(value) {
+  const url = normalizePaymentScreenshotUrl(value)
+  if (!url) return
+  paymentScreenshotPreviewUrl.value = url
+  paymentScreenshotPreviewVisible.value = true
 }
 
 async function getList() {
@@ -266,6 +273,20 @@ getList()
 
 <style scoped>
 .payment-finance-page :deep(.el-table .cell) { white-space: nowrap; }
+
+.payment-screenshot-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.payment-screenshot-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
 .amount-text { color: #e65d2f; font-weight: 600; }
 .voucher-image { width: 44px; height: 44px; border-radius: 4px; cursor: pointer; }
 </style>

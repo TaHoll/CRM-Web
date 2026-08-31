@@ -21,8 +21,8 @@
             </div>
             <div class="header-actions">
               <el-button type="success" @click="openPaymentDialog">收款</el-button>
-              <el-button type="primary" plain @click="handleBusinessAction('合同')">合同</el-button>
-              <el-button type="warning" plain @click="handleBusinessAction('补录订单')">补录订单</el-button>
+              <el-button type="primary" plain @click="openContractDialog">创建合同</el-button>
+              <el-button type="warning" plain @click="handleBusinessAction('转客诉')">转客诉</el-button>
               <el-button type="primary" :loading="saveLoading" @click="handleSave">保存</el-button>
             </div>
           </div>
@@ -266,6 +266,59 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="contractDialogVisible" title="创建合同" width="680px" append-to-body>
+      <el-form ref="contractFormRef" :model="contractForm" :rules="contractRules" label-width="100px">
+        <section class="contract-form-section">
+          <div class="contract-section-title">合同信息</div>
+          <div class="contract-form-grid">
+            <el-form-item label="合同类型" prop="contractType">
+              <el-input v-model.trim="contractForm.contractType" maxlength="50" placeholder="请输入合同类型" />
+            </el-form-item>
+            <el-form-item label="合同金额" prop="contractAmount">
+              <el-input-number
+                v-model="contractForm.contractAmount"
+                :min="0.01"
+                :precision="2"
+                :step="0.01"
+                controls-position="right"
+                class="amount-input" />
+            </el-form-item>
+          </div>
+        </section>
+
+        <section class="contract-form-section">
+          <div class="contract-section-title">债权人信息</div>
+          <div class="contract-form-grid">
+            <el-form-item label="债权人姓名" prop="creditorName">
+              <el-input v-model.trim="contractForm.creditorName" maxlength="50" placeholder="请输入债权人姓名" />
+            </el-form-item>
+            <el-form-item label="债权人电话" prop="creditorPhone">
+              <el-input v-model.trim="contractForm.creditorPhone" maxlength="20" placeholder="请输入债权人电话" />
+            </el-form-item>
+            <el-form-item label="身份证号码" prop="creditorIdCard">
+              <el-input v-model.trim="contractForm.creditorIdCard" maxlength="18" placeholder="请输入债权人身份证号码" />
+            </el-form-item>
+            <el-form-item label="债权人地址" prop="creditorAddress" class="contract-address-item">
+              <el-input v-model.trim="contractForm.creditorAddress" maxlength="200" placeholder="请输入债权人地址" />
+            </el-form-item>
+          </div>
+        </section>
+
+        <section class="contract-form-section">
+          <div class="contract-section-title">债务人信息</div>
+          <div class="contract-form-grid">
+            <el-form-item label="债务人姓名" prop="debtorName">
+              <el-input v-model.trim="contractForm.debtorName" maxlength="50" placeholder="请输入债务人姓名" />
+            </el-form-item>
+          </div>
+        </section>
+      </el-form>
+      <template #footer>
+        <el-button @click="contractDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateContract">创建</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="paymentDialogVisible" title="收款" width="520px" append-to-body>
       <el-form
         ref="paymentFormRef"
@@ -426,6 +479,8 @@ const operationLogLoading = ref(false)
 let operationLogRequestId = 0
 let paymentRecordRequestId = 0
 const tagPickerVisible = ref(false)
+const contractDialogVisible = ref(false)
+const contractFormRef = ref()
 const paymentDialogVisible = ref(false)
 const paymentFormRef = ref()
 const paymentFiles = ref([])
@@ -440,6 +495,24 @@ const paymentForm = reactive({
   paymentTime: '',
   contract: ''
 })
+const contractForm = reactive({
+  creditorName: '',
+  creditorPhone: '',
+  creditorIdCard: '',
+  creditorAddress: '',
+  debtorName: '',
+  contractAmount: undefined,
+  contractType: ''
+})
+const contractRules = {
+  creditorName: [{ required: true, message: '请输入债权人姓名', trigger: 'blur' }],
+  creditorPhone: [{ required: true, message: '请输入债权人电话', trigger: 'blur' }],
+  creditorIdCard: [{ required: true, message: '请输入债权人身份证号码', trigger: 'blur' }],
+  creditorAddress: [{ required: true, message: '请输入债权人地址', trigger: 'blur' }],
+  debtorName: [{ required: true, message: '请输入债务人姓名', trigger: 'blur' }],
+  contractAmount: [{ required: true, type: 'number', message: '请输入合同金额', trigger: 'change' }],
+  contractType: [{ required: true, message: '请输入合同类型', trigger: 'blur' }]
+}
 const paymentRules = {
   paymentMethod: [{ required: true, type: 'number', message: '请选择支付方式', trigger: 'change' }],
   feeType: [{ required: true, type: 'number', message: '请选择费用类型', trigger: 'change' }],
@@ -758,6 +831,28 @@ function handleBusinessAction(action) {
   }
 
   ElMessage.info(`${action}功能暂未对接`)
+}
+
+function openContractDialog() {
+  Object.assign(contractForm, {
+    creditorName: '',
+    creditorPhone: '',
+    creditorIdCard: '',
+    creditorAddress: '',
+    debtorName: '',
+    contractAmount: undefined,
+    contractType: ''
+  })
+  contractFormRef.value?.clearValidate()
+  contractDialogVisible.value = true
+}
+
+async function handleCreateContract() {
+  const valid = await contractFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  contractDialogVisible.value = false
+  ElMessage.success('合同信息已填写，创建接口待对接')
 }
 
 function openPaymentDialog() {
@@ -1415,6 +1510,32 @@ function handleSupplementOrderSave() {
   width: 100%;
 }
 
+.contract-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.contract-form-section + .contract-form-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.contract-section-title {
+  margin: 0 0 14px;
+  padding-left: 10px;
+  border-left: 3px solid var(--el-color-primary);
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.contract-address-item {
+  grid-column: 1 / -1;
+}
+
 .payment-time-picker {
   width: 100% !important;
 }
@@ -1534,6 +1655,14 @@ function handleSupplementOrderSave() {
 
   .profile-tags-field {
     grid-column: 1 / -1;
+  }
+
+  .contract-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contract-address-item {
+    grid-column: auto;
   }
 
   .info-grid {
