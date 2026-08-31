@@ -34,6 +34,15 @@ export function changeOceanEngineSubjectStatus(data) {
   })
 }
 
+// 保存主体抖音开放平台配置
+export function saveDouyinSubjectConfig(data) {
+  return request({
+    url: '/system/oceanEngineSubject/douyinConfig',
+    method: 'put',
+    data
+  })
+}
+
 // 保存主体本地推账号启用配置
 export function saveOceanEngineAccountConfig(data) {
   return request({

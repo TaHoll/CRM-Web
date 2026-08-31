@@ -29,10 +29,6 @@
 
           <div class="customer-profile-fields">
             <div class="profile-field">
-              <span class="profile-label">线索ID：</span>
-              <span class="profile-value">{{ form.id || '-' }}</span>
-            </div>
-            <div class="profile-field">
               <span class="profile-label">手机号：</span>
               <span class="profile-value">{{ displayPhone }}</span>
               <el-button link type="primary" :loading="phoneLoading" :disabled="phoneVisible" @click="getPhone">获取</el-button>
@@ -171,14 +167,78 @@
         </el-tab-pane>
 
         <el-tab-pane label="收款记录" name="paymentRecords">
-          <div class="business-empty-panel">
-            <el-empty description="暂无收款记录" :image-size="80" />
-          </div>
+          <el-table
+            v-loading="paymentRecordLoading"
+            :data="paymentRecords"
+            border
+            stripe
+            empty-text="暂无收款记录">
+            <el-table-column prop="paymentOrderNo" label="付款单号" min-width="180" show-overflow-tooltip />
+            <el-table-column label="支付方式" width="120" align="center">
+              <template #default="{ row }">{{ formatPaymentMethod(row.paymentMethod) }}</template>
+            </el-table-column>
+            <el-table-column label="费用类型" width="110" align="center">
+              <template #default="{ row }">{{ formatFeeType(row.feeType) }}</template>
+            </el-table-column>
+            <el-table-column label="支付金额" width="130" align="right">
+              <template #default="{ row }">¥ {{ formatPaymentAmount(row.paymentAmount) }}</template>
+            </el-table-column>
+            <el-table-column label="合同编号" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.contractNo || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="审核状态" width="120" align="center">
+              <template #default="{ row }">
+                <el-tag :type="paymentStatusTagType(row.orderStatus)">
+                  {{ formatPaymentStatus(row.orderStatus) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="支付时间" min-width="170">
+              <template #default="{ row }">{{ formatFollowTime(row.paymentTime) }}</template>
+            </el-table-column>
+            <el-table-column label="提交时间" min-width="170">
+              <template #default="{ row }">{{ formatFollowTime(row.createTime) }}</template>
+            </el-table-column>
+          </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="合同信息" name="contracts">
           <div class="business-empty-panel">
             <el-empty description="暂无合同信息" :image-size="80" />
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane label="操作日志" name="operationLogs">
+          <div v-loading="operationLogLoading" class="oper-log-panel">
+            <el-timeline v-if="operationLogs.length > 0">
+              <el-timeline-item
+                v-for="item in operationLogs"
+                :key="item.id"
+                :timestamp="item.createTime"
+                placement="top">
+                <div class="oper-log-card">
+                  <div class="oper-log-header">
+                    <el-tag :type="operationLogTagType(item.type)" size="small">
+                      {{ operationLogTypeName(item.type) }}
+                    </el-tag>
+                    <span class="oper-log-title">{{ item.operatorNickName || '系统' }}</span>
+                  </div>
+                  <div class="oper-log-content">
+                    <template v-if="item.type === 1">
+                      将客户分配给 <strong>{{ item.targetUserNickName || '-' }}</strong>
+                    </template>
+                    <template v-else-if="item.type === 2">编辑了客户信息</template>
+                    <template v-else-if="item.type === 3">查看了客户完整号码</template>
+                    <template v-else>操作了客户信息</template>
+                  </div>
+                  <div class="oper-log-meta">
+                    <span>操作部门：{{ item.operatorDeptName || '-' }}</span>
+                    <span>线索阶段：{{ item.stageName || '-' }}</span>
+                  </div>
+                </div>
+              </el-timeline-item>
+            </el-timeline>
+            <el-empty v-else-if="!operationLogLoading" description="暂无操作日志" :image-size="70" />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -206,24 +266,78 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="paymentDialogVisible" title="收款" width="420px" append-to-body>
-      <el-tabs v-model="paymentTab" stretch>
-        <el-tab-pane label="收款码" name="qrcode">
-          <div class="payment-qrcode-panel">
-            <img :src="paymentQrCode" alt="收款二维码" class="payment-qrcode" />
-            <p>请使用微信扫码完成付款</p>
-          </div>
-        </el-tab-pane>
-        <el-tab-pane label="企微收款" name="wecom">
-          <el-form label-position="top">
-            <el-form-item label="付款单号">
-              <el-input v-model="paymentOrderNo" placeholder="请输入付款单号" clearable />
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
-      </el-tabs>
+    <el-dialog v-model="paymentDialogVisible" title="收款" width="520px" append-to-body>
+      <el-form
+        ref="paymentFormRef"
+        :model="paymentForm"
+        :rules="paymentRules"
+        label-width="100px">
+        <el-form-item label="支付方式" prop="paymentMethod">
+          <el-radio-group v-model="paymentForm.paymentMethod">
+            <el-radio-button :value="0">企微支付</el-radio-button>
+            <el-radio-button :value="1">对公账户</el-radio-button>
+            <el-radio-button :value="2">支付宝</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="费用类型" prop="feeType">
+          <el-select v-model="paymentForm.feeType" placeholder="请选择费用类型" style="width: 100%">
+            <el-option label="调解费" :value="0" />
+            <el-option label="诉讼费" :value="1" />
+            <el-option label="律师费" :value="2" />
+            <el-option label="保函费" :value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="支付订单号" prop="orderNo">
+          <el-input
+            v-model.trim="paymentForm.orderNo"
+            maxlength="64"
+            placeholder="请输入支付订单号"
+            clearable />
+        </el-form-item>
+        <el-form-item label="金额" prop="amount">
+          <el-input-number
+            v-model="paymentForm.amount"
+            :min="0.01"
+            :precision="2"
+            :step="0.01"
+            controls-position="right"
+            class="amount-input" />
+        </el-form-item>
+        <el-form-item label="支付时间" prop="paymentTime">
+          <el-date-picker
+            v-model="paymentForm.paymentTime"
+            type="datetime"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            placeholder="请选择支付时间"
+            class="payment-time-picker" />
+        </el-form-item>
+        <el-form-item label="合同">
+          <el-input
+            v-model.trim="paymentForm.contract"
+            maxlength="100"
+            placeholder="请输入合同名称或编号（选填）"
+            clearable />
+        </el-form-item>
+        <el-form-item label="支付凭证">
+          <el-upload
+            v-model:file-list="paymentFiles"
+            :class="{ 'is-limit-reached': paymentFiles.length >= 1 }"
+            action="#"
+            :auto-upload="false"
+            :limit="1"
+            :on-change="handlePaymentFileChange"
+            accept="image/jpeg,image/png,image/webp"
+            list-type="picture-card">
+            <span class="upload-plus">+</span>
+            <template #tip>
+              <div class="upload-tip">支持 JPG、PNG、WebP 图片，大小不超过 2MB，最多上传 1 张。</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <el-button @click="paymentDialogVisible = false">关闭</el-button>
+        <el-button @click="paymentDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="paymentSubmitting" @click="handlePaymentSave">提交</el-button>
       </template>
     </el-dialog>
 
@@ -276,9 +390,10 @@
 import { Edit, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
-import { addFollowLog, followLogList, getTelephone, updateCustomer } from '@/api/public/lead'
+import { upload } from '@/api/common'
+import { addFollowLog, followLogList, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
+import { addPaymentOrder, getPaymentOrderList } from '@/api/public/paymentOrder'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
-import paymentQrCode from '@/assets/images/qrcode.jpg'
 
 const route = useRoute()
 const router = useRouter()
@@ -307,10 +422,31 @@ const editingField = ref('')
 const followLogLoading = ref(false)
 const followSaveLoading = ref(false)
 let followLogRequestId = 0
+const operationLogLoading = ref(false)
+let operationLogRequestId = 0
+let paymentRecordRequestId = 0
 const tagPickerVisible = ref(false)
 const paymentDialogVisible = ref(false)
-const paymentTab = ref('qrcode')
-const paymentOrderNo = ref('')
+const paymentFormRef = ref()
+const paymentFiles = ref([])
+const paymentSubmitting = ref(false)
+const paymentRecordLoading = ref(false)
+const paymentRecords = ref([])
+const paymentForm = reactive({
+  paymentMethod: undefined,
+  feeType: undefined,
+  orderNo: '',
+  amount: undefined,
+  paymentTime: '',
+  contract: ''
+})
+const paymentRules = {
+  paymentMethod: [{ required: true, type: 'number', message: '请选择支付方式', trigger: 'change' }],
+  feeType: [{ required: true, type: 'number', message: '请选择费用类型', trigger: 'change' }],
+  orderNo: [{ required: true, message: '请输入支付订单号', trigger: 'blur' }],
+  amount: [{ required: true, type: 'number', min: 0.01, message: '请输入大于0的金额', trigger: 'change' }],
+  paymentTime: [{ required: true, message: '请选择支付时间', trigger: 'change' }]
+}
 const supplementOrderDialogVisible = ref(false)
 const supplementOrderFiles = ref([])
 const supplementOrderForm = reactive({
@@ -323,6 +459,7 @@ const pageTab = ref('base')
 const tagOptions = ref([])
 const tagColorMap = ref({})
 const followRecords = ref([])
+const operationLogs = ref([])
 const followRemark = ref('')
 const displayPhone = computed(() => {
   if (phoneVisible.value || fullPhone.value.length < 7) return fullPhone.value || '-'
@@ -352,6 +489,53 @@ function formatFollowStage(stage) {
   return stage === null || stage === undefined ? '-' : stageMap[stage] || String(stage)
 }
 
+function operationLogTypeName(type) {
+  return { 1: '分配客户', 2: '编辑客户', 3: '查看号码' }[type] || '客户操作'
+}
+
+function operationLogTagType(type) {
+  return { 1: 'primary', 2: 'warning', 3: 'success' }[type] || 'info'
+}
+
+function formatPaymentMethod(method) {
+  return { 0: '企微支付', 1: '对公账户', 2: '支付宝' }[method] || '-'
+}
+
+function formatFeeType(type) {
+  return { 0: '调解费', 1: '诉讼费', 2: '律师费', 3: '保函费' }[type] || '-'
+}
+
+function formatPaymentStatus(status) {
+  return { 0: '待审核', 1: '审核通过', 2: '审核未通过' }[status] || '-'
+}
+
+function paymentStatusTagType(status) {
+  return { 0: 'warning', 1: 'success', 2: 'danger' }[status] || 'info'
+}
+
+function formatPaymentAmount(amount) {
+  const value = Number(amount)
+  return Number.isFinite(value) ? value.toFixed(2) : '0.00'
+}
+
+function normalizePaymentScreenshotStorageUrl(value) {
+  if (!value) return ''
+  try {
+    const url = new URL(value, window.location.origin)
+    const isLocalAddress = ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
+    if (isLocalAddress || url.origin === window.location.origin) {
+      const baseApi = String(import.meta.env.VITE_APP_BASE_API || '').replace(/\/$/, '')
+      const pathname = baseApi && url.pathname.startsWith(`${baseApi}/`)
+        ? url.pathname.slice(baseApi.length)
+        : url.pathname
+      return `${pathname}${url.search}`
+    }
+  } catch {
+    return value
+  }
+  return value
+}
+
 function syncCustomerFromRoute() {
   Object.assign(form, {
     id: route.query.id || '',
@@ -377,7 +561,15 @@ function syncCustomerFromRoute() {
   tagPickerVisible.value = false
   syncSelectedTags()
   followRecords.value = []
+  operationLogRequestId++
+  operationLogLoading.value = false
+  operationLogs.value = []
+  paymentRecordRequestId++
+  paymentRecordLoading.value = false
+  paymentRecords.value = []
   void getFollowRecords()
+  void getOperationLogs()
+  void getPaymentRecords()
 }
 
 watch(() => route.fullPath, syncCustomerFromRoute, { immediate: true })
@@ -447,6 +639,7 @@ async function getPhone() {
       fullPhone.value = res.data || ''
       phoneVisible.value = true
       ElMessage.success('已获取完整号码')
+      await getOperationLogs()
     }
   } finally {
     phoneLoading.value = false
@@ -568,9 +761,128 @@ function handleBusinessAction(action) {
 }
 
 function openPaymentDialog() {
-  paymentTab.value = 'qrcode'
-  paymentOrderNo.value = ''
+  paymentForm.paymentMethod = undefined
+  paymentForm.feeType = undefined
+  paymentForm.orderNo = ''
+  paymentForm.amount = undefined
+  paymentForm.paymentTime = ''
+  paymentForm.contract = ''
+  paymentFiles.value = []
+  paymentSubmitting.value = false
+  paymentFormRef.value?.clearValidate()
   paymentDialogVisible.value = true
+}
+
+async function getOperationLogs() {
+  if (!form.id || operationLogLoading.value) return
+
+  const requestId = ++operationLogRequestId
+  operationLogLoading.value = true
+  try {
+    const res = await operationLogList(form.id)
+    if (requestId === operationLogRequestId && res.code === 200) {
+      operationLogs.value = Array.isArray(res.data) ? res.data : res.data?.result || []
+    }
+  } catch {
+    if (requestId === operationLogRequestId) {
+      operationLogs.value = []
+    }
+  } finally {
+    if (requestId === operationLogRequestId) {
+      operationLogLoading.value = false
+    }
+  }
+}
+
+async function getPaymentRecords() {
+  if (!form.id || paymentRecordLoading.value) return
+
+  const requestId = ++paymentRecordRequestId
+  paymentRecordLoading.value = true
+  try {
+    const res = await getPaymentOrderList(form.id)
+    if (requestId === paymentRecordRequestId && res.code === 200) {
+      paymentRecords.value = Array.isArray(res.data) ? res.data : []
+    }
+  } catch {
+    if (requestId === paymentRecordRequestId) {
+      paymentRecords.value = []
+    }
+  } finally {
+    if (requestId === paymentRecordRequestId) {
+      paymentRecordLoading.value = false
+    }
+  }
+}
+
+function handlePaymentFileChange(uploadFile) {
+  const rawFile = uploadFile.raw
+  if (!rawFile) return
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(rawFile.type)) {
+    paymentFiles.value = []
+    ElMessage.warning('只能上传 JPG、PNG、WebP 图片')
+    return
+  }
+  if (rawFile.size / 1024 / 1024 > 2) {
+    paymentFiles.value = []
+    ElMessage.warning('支付凭证图片不能超过2MB')
+  }
+}
+
+async function handlePaymentSave() {
+  if (!paymentFormRef.value || paymentSubmitting.value) return
+
+  const valid = await paymentFormRef.value.validate().catch(() => false)
+  if (!valid) return
+  if (!form.id) {
+    ElMessage.warning('线索ID不能为空')
+    return
+  }
+  if (form.deptStage === undefined || form.deptStage === null || Number.isNaN(form.deptStage)) {
+    ElMessage.warning('线索阶段不能为空')
+    return
+  }
+
+  paymentSubmitting.value = true
+  try {
+    let paymentScreenshotUrl = ''
+    const rawFile = paymentFiles.value[0]?.raw
+    if (rawFile) {
+      const uploadForm = new FormData()
+      uploadForm.append('file', rawFile)
+      uploadForm.append('FileDir', 'payment')
+      uploadForm.append('FileNameType', '3')
+      uploadForm.append('ClassifyType', 'payment_voucher')
+      uploadForm.append('Quality', '80')
+      const uploadRes = await upload(uploadForm)
+      if (uploadRes.code !== 200 || !uploadRes.data?.url) {
+        ElMessage.error(uploadRes.msg || '支付凭证上传失败')
+        return
+      }
+      paymentScreenshotUrl = normalizePaymentScreenshotStorageUrl(uploadRes.data.url)
+    }
+
+    const res = await addPaymentOrder({
+      paymentMethod: paymentForm.paymentMethod,
+      feeType: paymentForm.feeType,
+      paymentAmount: paymentForm.amount,
+      paymentOrderNo: paymentForm.orderNo,
+      contractNo: paymentForm.contract || null,
+      paymentScreenshotUrl: paymentScreenshotUrl || null,
+      paymentTime: paymentForm.paymentTime,
+      clueId: form.id,
+      stage: form.deptStage
+    })
+    if (res.code === 200) {
+      paymentDialogVisible.value = false
+      ElMessage.success('付款订单提交成功')
+      await getPaymentRecords()
+    }
+  } finally {
+    paymentSubmitting.value = false
+  }
 }
 
 function openSupplementOrderDialog() {
@@ -1098,33 +1410,23 @@ function handleSupplementOrderSave() {
   color: #fff;
 }
 
-.payment-qrcode-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 0 4px;
-  color: var(--el-text-color-secondary);
-}
-
-.payment-qrcode {
-  width: 220px;
-  height: 220px;
-  padding: 8px;
-  object-fit: contain;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-}
-
 .amount-input,
 .amount-input :deep(.el-input-number) {
   width: 100%;
+}
+
+.payment-time-picker {
+  width: 100% !important;
 }
 
 .upload-plus {
   color: var(--el-text-color-secondary);
   font-size: 28px;
   line-height: 1;
+}
+
+.is-limit-reached :deep(.el-upload--picture-card) {
+  display: none;
 }
 
 .upload-tip {
@@ -1157,6 +1459,15 @@ function handleSupplementOrderSave() {
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
+}
+
+.oper-log-panel {
+  max-width: 900px;
+  padding: 24px 20px 8px;
+}
+
+.oper-log-panel :deep(.el-timeline) {
+  padding-left: 10px;
 }
 
 .oper-log-header {

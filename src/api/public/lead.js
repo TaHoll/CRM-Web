@@ -52,6 +52,14 @@ export function followLogList(clueId) {
   })
 }
 
+export function operationLogList(clueId) {
+  return request({
+    url: '/crm/lead/operLogList',
+    method: 'get',
+    params: { clueId }
+  })
+}
+
 export function addFollowLog(data) {
   return request({
     url: '/crm/lead/addlog',

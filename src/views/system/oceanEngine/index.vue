@@ -209,6 +209,12 @@
               <el-form-item label="AppSecret" prop="douyinSecret">
                 <el-input v-model.trim="form.douyinSecret" type="password" show-password placeholder="请输入 AppSecret" />
               </el-form-item>
+              <el-form-item label="抖音 ID" prop="douyinAccountId">
+                <el-input v-model.trim="form.douyinAccountId" maxlength="100" placeholder="请输入抖音 ID" />
+              </el-form-item>
+              <el-form-item label="来客商户 ID" prop="douyinLifeMerchantId">
+                <el-input v-model.trim="form.douyinLifeMerchantId" maxlength="100" placeholder="请输入来客商户 ID" />
+              </el-form-item>
             </div>
           </div>
         </template>
@@ -254,6 +260,7 @@ import {
   createOceanEngineSubject,
   listOceanEngineSubjectAccounts,
   listOceanEngineSubjects,
+  saveDouyinSubjectConfig,
   saveOceanEngineAccountConfig,
   syncOceanEngineAdvertiserList
 } from '@/api/system/oceanEngineSubject'
@@ -357,6 +364,8 @@ const rules = {
   secret: [{ required: true, message: '请输入巨量引擎 Secret', trigger: 'blur' }],
   douyinAppId: [{ required: true, message: '请输入抖音开放平台 APP_ID', trigger: 'blur' }],
   douyinSecret: [{ required: true, message: '请输入抖音开放平台 AppSecret', trigger: 'blur' }],
+  douyinAccountId: [{ required: true, message: '请输入抖音 ID', trigger: 'blur' }],
+  douyinLifeMerchantId: [{ required: true, message: '请输入来客商户 ID', trigger: 'blur' }],
   weComCorpId: [{ required: true, message: '请输入企业微信 CorpId', trigger: 'blur' }],
   weComSecret: [{ required: true, message: '请输入企业微信 Secret', trigger: 'blur' }]
 }
@@ -374,7 +383,17 @@ const oceanAuthorizationDescription = computed(() => {
 })
 
 function createDefaultForm() {
-  return { appId: '', secret: '', douyinAppId: '', douyinSecret: '', weComCorpId: '', weComSecret: '', enabledAccountIds: [] }
+  return {
+    appId: '',
+    secret: '',
+    douyinAppId: '',
+    douyinSecret: '',
+    douyinAccountId: '',
+    douyinLifeMerchantId: '',
+    weComCorpId: '',
+    weComSecret: '',
+    enabledAccountIds: []
+  }
 }
 
 function oceanStatusText(status) {
@@ -403,6 +422,8 @@ async function handlePlatformEdit(item, platform) {
     secret: item.secret,
     douyinAppId: item.douyinAppId,
     douyinSecret: item.douyinSecret,
+    douyinAccountId: item.douyinAccountId,
+    douyinLifeMerchantId: item.douyinLifeMerchantId,
     weComCorpId: item.weComCorpId,
     weComSecret: item.weComSecret,
     enabledAccountIds: []
@@ -496,8 +517,10 @@ async function loadSubjectList() {
       secret: item.secret,
       oceanAuthStatus: item.oceanEngineAuthStatus,
       douyinAuthorized: item.douyinAuthStatus === 1,
-      douyinAppId: '',
-      douyinSecret: '',
+      douyinAppId: item.douyinAppId || '',
+      douyinSecret: item.douyinAppSecret || '',
+      douyinAccountId: item.douyinAccountId || '',
+      douyinLifeMerchantId: item.douyinLifeMerchantId || '',
       weComAuthorized: item.weComAuthStatus === 1,
       weComCorpId: '',
       weComSecret: '',
@@ -527,9 +550,14 @@ function handleSave() {
         await loadSubjectList()
         proxy.$modal.msgSuccess('巨量引擎配置已保存')
       } else if (activePlatform.value === 'douyin') {
-        currentSubject.value.douyinAppId = form.douyinAppId
-        currentSubject.value.douyinSecret = form.douyinSecret
-        currentSubject.value.douyinAuthorized = true
+        await saveDouyinSubjectConfig({
+          subjectId: currentSubject.value.id,
+          appId: form.douyinAppId,
+          appSecret: form.douyinSecret,
+          douyinAccountId: form.douyinAccountId,
+          lifeMerchantId: form.douyinLifeMerchantId
+        })
+        await loadSubjectList()
         proxy.$modal.msgSuccess('抖音开放平台配置已保存')
       } else {
         currentSubject.value.weComCorpId = form.weComCorpId
