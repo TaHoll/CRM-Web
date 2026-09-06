@@ -62,6 +62,14 @@
           <el-tag :type="statusTagType(row.contractStatus)">{{ formatStatus(row.contractStatus) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="enterpriseSealStatus" label="盖章状态" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag v-if="Number(row.contractStatus) === 0" type="info">未发起</el-tag>
+          <el-tag v-else :type="Number(row.enterpriseSealStatus) === 1 ? 'success' : 'warning'">
+            {{ Number(row.enterpriseSealStatus) === 1 ? '已盖章' : '未盖章' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="170" align="center">
         <template #default="{ row }">{{ parseTime(row.createTime) }}</template>
       </el-table-column>
@@ -81,6 +89,13 @@
               :loading="auditLoadingId === row.id"
               @click="handleAudit(row, 2)">不通过</el-button>
           </template>
+          <el-button
+            v-else-if="Number(row.contractStatus) === 1 && Number(row.enterpriseSealStatus) !== 1"
+            v-hasPermi="['crm:contract:audit']"
+            link
+            type="success"
+            :loading="signUrlLoadingId === row.id"
+            @click="handleContractSeal(row)">签署</el-button>
           <el-button link type="primary" @click="showDetail(row)">详情</el-button>
         </template>
       </el-table-column>
@@ -98,6 +113,11 @@
         <el-descriptions-item label="所属主体">{{ currentContract.subjectName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="合同状态">
           <el-tag :type="statusTagType(currentContract.contractStatus)">{{ formatStatus(currentContract.contractStatus) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="盖章状态">
+          <el-tag :type="Number(currentContract.enterpriseSealStatus) === 1 ? 'success' : 'warning'">
+            {{ Number(currentContract.enterpriseSealStatus) === 1 ? '已盖章' : '未盖章' }}
+          </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="债权人姓名">{{ currentContract.creditorName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="债权人电话">{{ currentContract.creditorMobile || '-' }}</el-descriptions-item>
@@ -121,6 +141,7 @@
 
 <script setup name="CustomerContractAudit">
 import { auditContract, getContractAuditList } from '@/api/public/contract'
+import { getContractSignUrl } from '@/api/public/esign'
 
 const { proxy } = getCurrentInstance()
 const loading = ref(false)
@@ -129,6 +150,7 @@ const total = ref(0)
 const contractList = ref([])
 const createTimeRange = ref([])
 const auditLoadingId = ref(null)
+const signUrlLoadingId = ref(null)
 const detailVisible = ref(false)
 const currentContract = ref({})
 
@@ -212,6 +234,38 @@ async function handleAudit(row, auditStatus) {
     }
   } finally {
     auditLoadingId.value = null
+  }
+}
+
+async function handleContractSeal(row) {
+  if (signUrlLoadingId.value || Number(row.contractStatus) !== 1) return
+
+  const signWindow = window.open('', '_blank')
+  if (signWindow) {
+    signWindow.document.title = '正在打开签署页面'
+    signWindow.document.body.innerText = '正在获取企业盖章链接，请稍候...'
+  }
+
+  signUrlLoadingId.value = row.id
+  try {
+    const response = await getContractSignUrl(row.id, 1)
+    const signUrl = response.data?.shortUrl || response.data?.url
+    if (!signUrl) {
+      signWindow?.close()
+      proxy.$modal.msgWarning('未获取到盖章链接')
+      return
+    }
+
+    if (signWindow) {
+      signWindow.location.replace(signUrl)
+    } else {
+      window.location.assign(signUrl)
+    }
+  } catch (error) {
+    signWindow?.close()
+    throw error
+  } finally {
+    signUrlLoadingId.value = null
   }
 }
 
