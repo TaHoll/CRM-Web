@@ -21,7 +21,7 @@
             </div>
             <div class="header-actions">
               <el-button type="success" @click="openPaymentDialog">收款</el-button>
-              <el-button type="primary" plain @click="openContractDialog">创建合同</el-button>
+              <el-button type="primary" plain :loading="contractCheckLoading" @click="openContractDialog">创建合同</el-button>
               <el-button type="warning" plain @click="handleBusinessAction('转客诉')">转客诉</el-button>
               <el-button type="primary" :loading="saveLoading" @click="handleSave">保存</el-button>
             </div>
@@ -203,9 +203,50 @@
         </el-tab-pane>
 
         <el-tab-pane label="合同信息" name="contracts">
-          <div class="business-empty-panel">
-            <el-empty description="暂无合同信息" :image-size="80" />
-          </div>
+          <el-table
+            v-loading="contractListLoading"
+            :data="contractRecords"
+            border
+            stripe
+            empty-text="暂无合同信息">
+            <el-table-column prop="disputeType" label="纠纷类型" min-width="190" show-overflow-tooltip />
+            <el-table-column prop="creditorName" label="债权人" min-width="110" show-overflow-tooltip />
+            <el-table-column prop="debtorName" label="债务人" min-width="110" show-overflow-tooltip />
+            <el-table-column label="合同金额" width="130" align="right">
+              <template #default="{ row }">¥ {{ formatPaymentAmount(row.contractAmount) }}</template>
+            </el-table-column>
+            <el-table-column label="服务费" width="100" align="center">
+              <template #default="{ row }">{{ formatContractRate(row.recoveryServiceFeeRate) }}</template>
+            </el-table-column>
+            <el-table-column prop="entrustedPersonName" label="受委托人" min-width="110" show-overflow-tooltip />
+            <el-table-column prop="entrustedPersonPhone" label="受委托人电话" min-width="140" />
+            <el-table-column label="合同状态" width="110" align="center">
+              <template #default="{ row }">
+                <el-tag :type="contractStatusTagType(row.contractStatus)">
+                  {{ formatContractStatus(row.contractStatus) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="创建时间" min-width="170">
+              <template #default="{ row }">{{ formatFollowTime(row.createTime) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="150" fixed="right" align="center">
+              <template #default="{ row }">
+                <el-button v-if="Number(row.contractStatus) === 0" link type="primary" @click="openEditContractDialog(row)">
+                  编辑
+                </el-button>
+                <el-button
+                  v-else-if="Number(row.contractStatus) === 1"
+                  link
+                  type="primary"
+                  :loading="contractSignLinkLoadingId === row.id"
+                  @click="handleCopyContractSignUrl(row)">
+                  获取签署链接
+                </el-button>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="操作日志" name="operationLogs">
@@ -266,13 +307,24 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="contractDialogVisible" title="创建合同" width="680px" append-to-body>
-      <el-form ref="contractFormRef" :model="contractForm" :rules="contractRules" label-width="100px">
+    <el-dialog v-model="contractDialogVisible" :title="contractEditingId ? '编辑合同' : '创建合同'" width="680px" append-to-body>
+      <el-form ref="contractFormRef" :model="contractForm" :rules="contractRules" label-width="120px" class="contract-create-form">
         <section class="contract-form-section">
           <div class="contract-section-title">合同信息</div>
           <div class="contract-form-grid">
-            <el-form-item label="合同类型" prop="contractType">
-              <el-input v-model.trim="contractForm.contractType" maxlength="50" placeholder="请输入合同类型" />
+            <el-form-item label="纠纷类型" prop="disputeType">
+              <el-select v-model="contractForm.disputeType" placeholder="请选择纠纷类型" filterable class="contract-dispute-select">
+                <el-option-group
+                  v-for="group in disputeTypeOptions"
+                  :key="group.label"
+                  :label="group.label">
+                  <el-option
+                    v-for="option in group.options"
+                    :key="option"
+                    :label="option"
+                    :value="option" />
+                </el-option-group>
+              </el-select>
             </el-form-item>
             <el-form-item label="合同金额" prop="contractAmount">
               <el-input-number
@@ -282,6 +334,30 @@
                 :step="0.01"
                 controls-position="right"
                 class="amount-input" />
+            </el-form-item>
+            <el-form-item label="受委托人姓名" prop="entrustedPersonName">
+              <el-input
+                v-model.trim="contractForm.entrustedPersonName"
+                maxlength="50"
+                placeholder="请输入受委托人姓名" />
+            </el-form-item>
+            <el-form-item label="受委托人电话" prop="entrustedPersonPhone">
+              <el-input
+                v-model.trim="contractForm.entrustedPersonPhone"
+                maxlength="20"
+                placeholder="请输入受委托人电话" />
+            </el-form-item>
+            <el-form-item label="服务费" prop="recoveryServiceFeeRate">
+              <div class="contract-rate-input">
+                <el-input-number
+                  v-model="contractForm.recoveryServiceFeeRate"
+                  :min="0"
+                  :max="100"
+                  :precision="2"
+                  :step="0.1"
+                  controls-position="right" />
+                <span class="contract-rate-unit">%</span>
+              </div>
             </el-form-item>
           </div>
         </section>
@@ -315,7 +391,9 @@
       </el-form>
       <template #footer>
         <el-button @click="contractDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateContract">创建</el-button>
+        <el-button type="primary" :loading="contractSubmitting" @click="handleCreateContract">
+          {{ contractEditingId ? '保存' : '创建' }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -368,6 +446,7 @@
           <el-input
             v-model.trim="paymentForm.contract"
             maxlength="100"
+            :disabled="paymentContractLocked"
             placeholder="请输入合同名称或编号（选填）"
             clearable />
         </el-form-item>
@@ -443,13 +522,18 @@
 import { Edit, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
+import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
 import { addFollowLog, followLogList, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
 import { addPaymentOrder, getPaymentOrderList } from '@/api/public/paymentOrder'
+import { addContract, checkContractCreate, getContractList, updateContract } from '@/api/public/contract'
+import { getContractSignUrl } from '@/api/public/esign'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
+import { validIdCard, validMobile } from '@/utils/validate'
 
 const route = useRoute()
 const router = useRouter()
+const { toClipboard } = useClipboard()
 const form = reactive({
   id: '',
   subjectId: undefined,
@@ -478,15 +562,23 @@ let followLogRequestId = 0
 const operationLogLoading = ref(false)
 let operationLogRequestId = 0
 let paymentRecordRequestId = 0
+let contractListRequestId = 0
 const tagPickerVisible = ref(false)
 const contractDialogVisible = ref(false)
+const contractCheckLoading = ref(false)
+const contractSubmitting = ref(false)
+const contractEditingId = ref(null)
+const contractSignLinkLoadingId = ref(null)
 const contractFormRef = ref()
 const paymentDialogVisible = ref(false)
 const paymentFormRef = ref()
 const paymentFiles = ref([])
 const paymentSubmitting = ref(false)
+const paymentContractLocked = ref(false)
 const paymentRecordLoading = ref(false)
 const paymentRecords = ref([])
+const contractListLoading = ref(false)
+const contractRecords = ref([])
 const paymentForm = reactive({
   paymentMethod: undefined,
   feeType: undefined,
@@ -502,16 +594,78 @@ const contractForm = reactive({
   creditorAddress: '',
   debtorName: '',
   contractAmount: undefined,
-  contractType: ''
+  entrustedPersonName: '',
+  entrustedPersonPhone: '',
+  recoveryServiceFeeRate: undefined,
+  disputeType: ''
 })
+const disputeTypeOptions = [
+  {
+    label: '经济类',
+    options: ['民间借贷纠纷', '借款本息偿还事宜纠纷', '货款支付结算事宜纠纷', '买卖合同货款纠纷']
+  },
+  {
+    label: '离婚类',
+    options: ['离婚纠纷']
+  },
+  {
+    label: '维权类',
+    options: [
+      '买卖合同纠纷',
+      '欺诈纠纷',
+      '虚假宣传纠纷',
+      '食品(药品)安全问题纠纷',
+      '预付卡(会员)退费纠纷',
+      '服务合同纠纷',
+      '产品责任纠纷'
+    ]
+  },
+  {
+    label: '交通事故类',
+    options: ['机动车交通事故责任纠纷', '机动车交通事故人身损害赔偿纠纷', '机动车交通事故车辆损失赔偿纠纷']
+  },
+  {
+    label: '劳动/劳务类',
+    options: ['劳动合同纠纷', '追索劳动报酬纠纷', '违法解除劳动合同纠纷']
+  }
+]
+const validateMobileField = (_rule, value, callback) => {
+  if (!value || validMobile(value)) {
+    callback()
+    return
+  }
+  callback(new Error('请输入正确的手机号码'))
+}
+const validateIdCardField = (_rule, value, callback) => {
+  if (!value || validIdCard(value)) {
+    callback()
+    return
+  }
+  callback(new Error('请输入正确的身份证号码'))
+}
 const contractRules = {
   creditorName: [{ required: true, message: '请输入债权人姓名', trigger: 'blur' }],
-  creditorPhone: [{ required: true, message: '请输入债权人电话', trigger: 'blur' }],
-  creditorIdCard: [{ required: true, message: '请输入债权人身份证号码', trigger: 'blur' }],
+  creditorPhone: [
+    { required: true, message: '请输入债权人电话', trigger: 'blur' },
+    { validator: validateMobileField, trigger: 'blur' }
+  ],
+  creditorIdCard: [
+    { required: true, message: '请输入债权人身份证号码', trigger: 'blur' },
+    { validator: validateIdCardField, trigger: 'blur' }
+  ],
   creditorAddress: [{ required: true, message: '请输入债权人地址', trigger: 'blur' }],
   debtorName: [{ required: true, message: '请输入债务人姓名', trigger: 'blur' }],
   contractAmount: [{ required: true, type: 'number', message: '请输入合同金额', trigger: 'change' }],
-  contractType: [{ required: true, message: '请输入合同类型', trigger: 'blur' }]
+  entrustedPersonName: [{ required: true, message: '请输入受委托人姓名', trigger: 'blur' }],
+  entrustedPersonPhone: [
+    { required: true, message: '请输入受委托人电话', trigger: 'blur' },
+    { validator: validateMobileField, trigger: 'blur' }
+  ],
+  recoveryServiceFeeRate: [
+    { required: true, type: 'number', message: '请输入服务费比例', trigger: 'change' },
+    { type: 'number', min: 0, max: 100, message: '服务费比例必须在0到100之间', trigger: 'change' }
+  ],
+  disputeType: [{ required: true, message: '请选择纠纷类型', trigger: 'change' }]
 }
 const paymentRules = {
   paymentMethod: [{ required: true, type: 'number', message: '请选择支付方式', trigger: 'change' }],
@@ -591,6 +745,19 @@ function formatPaymentAmount(amount) {
   return Number.isFinite(value) ? value.toFixed(2) : '0.00'
 }
 
+function formatContractRate(rate) {
+  const value = Number(rate)
+  return `${Number.isFinite(value) ? value.toFixed(2) : '0.00'}%`
+}
+
+function formatContractStatus(status) {
+  return ({ 0: '审核中', 1: '签署中', 2: '签署完成', 3: '审核不通过' })[Number(status)] || '未知状态'
+}
+
+function contractStatusTagType(status) {
+  return ({ 0: 'warning', 1: 'primary', 2: 'success', 3: 'danger' })[Number(status)] || 'info'
+}
+
 function normalizePaymentScreenshotStorageUrl(value) {
   if (!value) return ''
   try {
@@ -640,9 +807,13 @@ function syncCustomerFromRoute() {
   paymentRecordRequestId++
   paymentRecordLoading.value = false
   paymentRecords.value = []
+  contractListRequestId++
+  contractListLoading.value = false
+  contractRecords.value = []
   void getFollowRecords()
   void getOperationLogs()
   void getPaymentRecords()
+  void getContractRecords()
 }
 
 watch(() => route.fullPath, syncCustomerFromRoute, { immediate: true })
@@ -833,39 +1004,143 @@ function handleBusinessAction(action) {
   ElMessage.info(`${action}功能暂未对接`)
 }
 
-function openContractDialog() {
+async function openContractDialog() {
+  if (!form.id || contractCheckLoading.value) {
+    if (!form.id) ElMessage.warning('当前客户线索ID不能为空')
+    return
+  }
+
+  contractCheckLoading.value = true
+  try {
+    await checkContractCreate(form.id)
+    contractEditingId.value = null
+
+    Object.assign(contractForm, {
+      creditorName: '',
+      creditorPhone: '',
+      creditorIdCard: '',
+      creditorAddress: '',
+      debtorName: '',
+      contractAmount: undefined,
+      entrustedPersonName: '',
+      entrustedPersonPhone: '',
+      recoveryServiceFeeRate: undefined,
+      disputeType: ''
+    })
+    contractFormRef.value?.clearValidate()
+    contractDialogVisible.value = true
+  } finally {
+    contractCheckLoading.value = false
+  }
+}
+
+function openEditContractDialog(row) {
+  if (Number(row.contractStatus) !== 0) {
+    ElMessage.warning('只有审核中的合同可以编辑')
+    return
+  }
+
+  contractEditingId.value = row.id
   Object.assign(contractForm, {
-    creditorName: '',
-    creditorPhone: '',
-    creditorIdCard: '',
-    creditorAddress: '',
-    debtorName: '',
-    contractAmount: undefined,
-    contractType: ''
+    creditorName: row.creditorName || '',
+    creditorPhone: row.creditorMobile || '',
+    creditorIdCard: row.creditorIdCardNo || '',
+    creditorAddress: row.creditorAddress || '',
+    debtorName: row.debtorName || '',
+    contractAmount: Number(row.contractAmount) || undefined,
+    entrustedPersonName: row.entrustedPersonName || '',
+    entrustedPersonPhone: row.entrustedPersonPhone || '',
+    recoveryServiceFeeRate: Number(row.recoveryServiceFeeRate),
+    disputeType: row.disputeType || ''
   })
   contractFormRef.value?.clearValidate()
   contractDialogVisible.value = true
 }
 
+async function handleCopyContractSignUrl(row) {
+  if (contractSignLinkLoadingId.value || Number(row.contractStatus) !== 1) return
+
+  contractSignLinkLoadingId.value = row.id
+  try {
+    const response = await getContractSignUrl(row.id, 2)
+    const signUrl = response.data?.shortUrl || response.data?.url
+    if (!signUrl) {
+      ElMessage.warning('未获取到签署链接')
+      return
+    }
+
+    try {
+      await toClipboard(signUrl)
+      ElMessage.success('已复制链接')
+    } catch {
+      ElMessage.error('链接复制失败，请检查浏览器剪贴板权限')
+    }
+  } finally {
+    contractSignLinkLoadingId.value = null
+  }
+}
+
 async function handleCreateContract() {
+  if (contractSubmitting.value) return
   const valid = await contractFormRef.value?.validate().catch(() => false)
   if (!valid) return
 
-  contractDialogVisible.value = false
-  ElMessage.success('合同信息已填写，创建接口待对接')
+  contractSubmitting.value = true
+  try {
+    const contractData = {
+      creditorName: contractForm.creditorName,
+      creditorIdCardNo: contractForm.creditorIdCard,
+      creditorMobile: contractForm.creditorPhone,
+      creditorAddress: contractForm.creditorAddress,
+      debtorName: contractForm.debtorName,
+      disputeType: contractForm.disputeType,
+      contractAmount: contractForm.contractAmount,
+      recoveryServiceFeeRate: contractForm.recoveryServiceFeeRate,
+      entrustedPersonName: contractForm.entrustedPersonName,
+      entrustedPersonPhone: contractForm.entrustedPersonPhone,
+      clueId: form.id
+    }
+    if (contractEditingId.value) {
+      await updateContract({ id: contractEditingId.value, ...contractData })
+    } else {
+      await addContract(contractData)
+    }
+    contractDialogVisible.value = false
+    ElMessage.success(contractEditingId.value ? '合同编辑成功' : '合同创建成功')
+    await getContractRecords()
+    pageTab.value = 'contracts'
+  } finally {
+    contractSubmitting.value = false
+  }
 }
 
-function openPaymentDialog() {
+async function openPaymentDialog() {
   paymentForm.paymentMethod = undefined
   paymentForm.feeType = undefined
   paymentForm.orderNo = ''
   paymentForm.amount = undefined
   paymentForm.paymentTime = ''
   paymentForm.contract = ''
+  paymentContractLocked.value = false
   paymentFiles.value = []
   paymentSubmitting.value = false
   paymentFormRef.value?.clearValidate()
   paymentDialogVisible.value = true
+
+  await getContractRecords()
+  bindSignedContractToPayment()
+}
+
+function bindSignedContractToPayment() {
+  const signedContract = contractRecords.value.find(item =>
+    Number(item.stage) === Number(form.deptStage)
+      && Number(item.contractStatus) === 2
+      && item.signFlowId
+  )
+  if (signedContract) {
+    paymentForm.contract = signedContract.signFlowId
+    paymentContractLocked.value = true
+  }
 }
 
 async function getOperationLogs() {
@@ -906,6 +1181,30 @@ async function getPaymentRecords() {
   } finally {
     if (requestId === paymentRecordRequestId) {
       paymentRecordLoading.value = false
+    }
+  }
+}
+
+async function getContractRecords() {
+  if (!form.id || contractListLoading.value) return
+
+  const requestId = ++contractListRequestId
+  contractListLoading.value = true
+  try {
+    const res = await getContractList(form.id)
+    if (requestId === contractListRequestId && res.code === 200) {
+      contractRecords.value = Array.isArray(res.data) ? res.data : []
+      if (paymentDialogVisible.value) {
+        bindSignedContractToPayment()
+      }
+    }
+  } catch {
+    if (requestId === contractListRequestId) {
+      contractRecords.value = []
+    }
+  } finally {
+    if (requestId === contractListRequestId) {
+      contractListLoading.value = false
     }
   }
 }
@@ -1508,6 +1807,29 @@ function handleSupplementOrderSave() {
 .amount-input,
 .amount-input :deep(.el-input-number) {
   width: 100%;
+}
+
+.contract-dispute-select {
+  width: 100%;
+}
+
+.contract-create-form :deep(.el-form-item__label) {
+  white-space: nowrap;
+}
+
+.contract-rate-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.contract-rate-input :deep(.el-input-number) {
+  width: 100%;
+}
+
+.contract-rate-unit {
+  margin-left: 8px;
+  color: var(--el-text-color-regular);
 }
 
 .contract-form-grid {

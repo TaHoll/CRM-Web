@@ -81,6 +81,44 @@ export function validEmail(email) {
 }
 
 /**
+ * 校验中国大陆手机号
+ * @param {string} mobile
+ * @returns {Boolean}
+ */
+export function validMobile(mobile) {
+  return /^1[3-9]\d{9}$/.test(String(mobile || '').trim())
+}
+
+/**
+ * 校验中国大陆18位居民身份证号码
+ * @param {string} idCard
+ * @returns {Boolean}
+ */
+export function validIdCard(idCard) {
+  const value = String(idCard || '').trim()
+  if (!/^[1-9]\d{16}[0-9Xx]$/.test(value)) return false
+
+  const year = Number(value.slice(6, 10))
+  const month = Number(value.slice(10, 12))
+  const day = Number(value.slice(12, 14))
+  const birthDate = new Date(year, month - 1, day)
+  if (
+    year < 1900 ||
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day ||
+    birthDate > new Date()
+  ) {
+    return false
+  }
+
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+  const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+  const weightedSum = weights.reduce((sum, weight, index) => sum + Number(value[index]) * weight, 0)
+  return value[17].toUpperCase() === checkCodes[weightedSum % 11]
+}
+
+/**
  * @param {string} str
  * @returns {Boolean}
  */

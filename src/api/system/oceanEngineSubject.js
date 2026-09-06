@@ -43,6 +43,33 @@ export function saveDouyinSubjectConfig(data) {
   })
 }
 
+// 保存主体e签宝配置
+export function saveESignSubjectConfig(subjectId, data) {
+  return request({
+    url: `/system/oceanEngineSubject/eSignConfig/${subjectId}`,
+    method: 'put',
+    data
+  })
+}
+
+// 查询主体的e签宝流程模板列表
+export function listESignDocumentTemplates(subjectId, params) {
+  return request({
+    url: `/openApi/ESign/document-templates/${subjectId}`,
+    method: 'get',
+    params
+  })
+}
+
+// 保存主体选择的e签宝流程模板
+export function saveESignFlowTemplate(subjectId, data) {
+  return request({
+    url: `/system/oceanEngineSubject/eSignTemplate/${subjectId}`,
+    method: 'put',
+    data
+  })
+}
+
 // 保存主体本地推账号启用配置
 export function saveOceanEngineAccountConfig(data) {
   return request({

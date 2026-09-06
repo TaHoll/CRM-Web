@@ -89,6 +89,23 @@
               </span>
             </el-tooltip>
           </div>
+
+          <div class="platform-row">
+            <div class="platform-content">
+              <div class="platform-heading">
+                <span class="platform-name">e签宝</span>
+                <span :class="['platform-status', oceanStatusClass(item.eSignAuthStatus)]">
+                  {{ oceanStatusText(item.eSignAuthStatus) }}
+                </span>
+              </div>
+              <span v-if="item.eSignAuthStatus === 1 && item.eSignOrgId" class="platform-tip">
+                组织 ID：{{ item.eSignOrgId }}
+              </span>
+            </div>
+            <el-tooltip content="编辑e签宝配置" placement="top">
+              <el-button class="platform-edit-button" :icon="Edit" circle text @click="handlePlatformEdit(item, 'eSign')" />
+            </el-tooltip>
+          </div>
         </div>
       </el-card>
     </div>
@@ -219,7 +236,7 @@
           </div>
         </template>
 
-        <template v-else>
+        <template v-else-if="activePlatform === 'weCom'">
           <div class="dialog-tip">
             <el-icon><InfoFilled /></el-icon>
             <span>企业微信配置将归属于当前已授权的巨量主体。</span>
@@ -236,17 +253,84 @@
             </div>
           </div>
         </template>
+
+        <template v-else>
+          <el-steps :active="eSignStep" finish-status="success" align-center class="esign-steps">
+            <el-step title="应用配置" description="填写应用凭证和组织名称" />
+            <el-step title="选择合同模板" description="设置默认签署模板" />
+          </el-steps>
+
+          <template v-if="eSignStep === 0">
+            <div class="dialog-tip">
+              <el-icon><InfoFilled /></el-icon>
+              <span>确定后会查询e签宝企业认证信息，认证成功后进入合同模板选择。</span>
+            </div>
+            <div class="form-section">
+              <div class="section-title">e签宝配置</div>
+              <div class="form-grid">
+                <el-form-item label="AppId" prop="eSignAppId">
+                  <el-input v-model.trim="form.eSignAppId" maxlength="100" placeholder="请输入e签宝 AppId" />
+                </el-form-item>
+                <el-form-item label="AppSecret" prop="eSignAppSecret">
+                  <el-input v-model.trim="form.eSignAppSecret" type="password" maxlength="200" show-password placeholder="请输入e签宝 AppSecret" />
+                </el-form-item>
+                <el-form-item label="组织名称" prop="eSignOrgName" class="full-width-form-item">
+                  <el-input v-model.trim="form.eSignOrgName" maxlength="100" placeholder="请输入e签宝已认证的完整组织名称" />
+                </el-form-item>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <el-alert title="e签宝授权成功" type="success" :closable="false" show-icon class="esign-success-alert">
+              <template #default>
+                已获取企业认证信息，可以继续选择合同模板。
+              </template>
+            </el-alert>
+            <div class="form-section template-config-section">
+              <div class="section-heading">
+                <div class="section-title">选择合同模板</div>
+                <el-button link type="primary" @click="eSignStep = 0">重新配置应用</el-button>
+              </div>
+              <div class="template-select-row">
+                <el-select
+                  v-model="form.eSignFlowTemplateId"
+                  filterable
+                  clearable
+                  :loading="templateLoading"
+                  placeholder="请选择合同模板"
+                >
+                  <el-option
+                    v-for="template in eSignTemplateOptions"
+                    :key="template.signTemplateId"
+                    :label="template.signTemplateName"
+                    :value="template.signTemplateId"
+                  />
+                </el-select>
+                <el-button
+                  type="primary"
+                  :loading="templateSaving"
+                  :disabled="!form.eSignFlowTemplateId"
+                  @click="handleSaveESignTemplate"
+                >
+                  保存模板
+                </el-button>
+              </div>
+              <div class="section-description">请选择该主体发起合同签署时默认使用的合同模板。</div>
+            </div>
+          </template>
+        </template>
       </el-form>
 
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button
-          v-if="dialogMode === 'create' || activePlatform !== 'oceanEngine' || currentSubject?.oceanAuthStatus === 1"
+          v-if="(dialogMode === 'create' || activePlatform !== 'oceanEngine' || currentSubject?.oceanAuthStatus === 1) && !(activePlatform === 'eSign' && eSignStep === 1)"
           type="primary"
           :loading="saving"
           @click="handleSave"
         >
-          {{ dialogMode === 'create' ? '创建主体' : '保存配置' }}
+          {{ dialogMode === 'create' ? '创建主体' : activePlatform === 'eSign' ? '确定并下一步' : '保存配置' }}
         </el-button>
       </template>
     </el-dialog>
@@ -258,9 +342,12 @@ import { Edit, InfoFilled, Lock, Plus, Refresh } from '@element-plus/icons-vue'
 import {
   changeOceanEngineSubjectStatus,
   createOceanEngineSubject,
+  listESignDocumentTemplates,
   listOceanEngineSubjectAccounts,
   listOceanEngineSubjects,
   saveDouyinSubjectConfig,
+  saveESignFlowTemplate,
+  saveESignSubjectConfig,
   saveOceanEngineAccountConfig,
   syncOceanEngineAdvertiserList
 } from '@/api/system/oceanEngineSubject'
@@ -270,6 +357,10 @@ const dialogVisible = ref(false)
 const saving = ref(false)
 const syncingAccounts = ref(false)
 const accountLoading = ref(false)
+const templateLoading = ref(false)
+const templateSaving = ref(false)
+const eSignTemplateOptions = ref([])
+const eSignStep = ref(0)
 const statusChangingSubjectId = ref()
 const loading = ref(false)
 const configFormRef = ref()
@@ -367,13 +458,16 @@ const rules = {
   douyinAccountId: [{ required: true, message: '请输入抖音 ID', trigger: 'blur' }],
   douyinLifeMerchantId: [{ required: true, message: '请输入来客商户 ID', trigger: 'blur' }],
   weComCorpId: [{ required: true, message: '请输入企业微信 CorpId', trigger: 'blur' }],
-  weComSecret: [{ required: true, message: '请输入企业微信 Secret', trigger: 'blur' }]
+  weComSecret: [{ required: true, message: '请输入企业微信 Secret', trigger: 'blur' }],
+  eSignAppId: [{ required: true, message: '请输入e签宝 AppId', trigger: 'blur' }],
+  eSignAppSecret: [{ required: true, message: '请输入e签宝 AppSecret', trigger: 'blur' }],
+  eSignOrgName: [{ required: true, message: '请输入e签宝组织名称', trigger: 'blur' }]
 }
 
 const currentSubject = computed(() => subjectList.value.find((item) => item.id === currentSubjectId.value))
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'create') return '添加主体'
-  return ({ oceanEngine: '巨量引擎配置', douyin: '抖音开放平台配置', weCom: '企业微信配置' })[activePlatform.value]
+  return ({ oceanEngine: '巨量引擎配置', douyin: '抖音开放平台配置', weCom: '企业微信配置', eSign: 'e签宝配置' })[activePlatform.value]
 })
 const dialogWidth = computed(() => dialogMode.value === 'edit' && activePlatform.value === 'oceanEngine' ? '960px' : '720px')
 const oceanAuthorizationDescription = computed(() => {
@@ -392,6 +486,10 @@ function createDefaultForm() {
     douyinLifeMerchantId: '',
     weComCorpId: '',
     weComSecret: '',
+    eSignAppId: '',
+    eSignAppSecret: '',
+    eSignOrgName: '',
+    eSignFlowTemplateId: '',
     enabledAccountIds: []
   }
 }
@@ -412,11 +510,12 @@ function handleAdd() {
 }
 
 async function handlePlatformEdit(item, platform) {
-  if (platform !== 'oceanEngine' && item.oceanAuthStatus !== 1) return
+  if (['douyin', 'weCom'].includes(platform) && item.oceanAuthStatus !== 1) return
   resetForm()
   currentSubjectId.value = item.id
   dialogMode.value = 'edit'
   activePlatform.value = platform
+  eSignStep.value = platform === 'eSign' && item.eSignAuthStatus === 1 ? 1 : 0
   Object.assign(form, {
     appId: item.appId,
     secret: item.secret,
@@ -426,9 +525,17 @@ async function handlePlatformEdit(item, platform) {
     douyinLifeMerchantId: item.douyinLifeMerchantId,
     weComCorpId: item.weComCorpId,
     weComSecret: item.weComSecret,
+    eSignAppId: item.eSignAppId,
+    eSignAppSecret: item.eSignAppSecret,
+    eSignOrgName: '',
+    eSignFlowTemplateId: item.eSignFlowTemplateId,
     enabledAccountIds: []
   })
   dialogVisible.value = true
+
+  if (platform === 'eSign' && item.eSignAuthStatus === 1) {
+    await loadESignTemplates(item.id)
+  }
 
   if (platform !== 'oceanEngine' || item.oceanAuthStatus !== 1) return
   accountLoading.value = true
@@ -524,12 +631,52 @@ async function loadSubjectList() {
       weComAuthorized: item.weComAuthStatus === 1,
       weComCorpId: '',
       weComSecret: '',
+      eSignAuthStatus: item.eSignAuthStatus || 0,
+      eSignAppId: item.eSignAppId || '',
+      eSignAppSecret: item.eSignAppSecret || '',
+      eSignOrgId: item.eSignOrgId || '',
+      eSignFlowTemplateId: item.eSignFlowTemplateId || '',
       accountCount: item.accountCount || 0,
       enabledAccountCount: item.enabledAccountCount || 0,
       accounts: []
     }))
   } finally {
     loading.value = false
+  }
+}
+
+async function loadESignTemplates(subjectId) {
+  templateLoading.value = true
+  eSignTemplateOptions.value = []
+  try {
+    const pageSize = 20
+    const firstResponse = await listESignDocumentTemplates(subjectId, { pageNum: 1, pageSize })
+    const firstPage = firstResponse.data || {}
+    const templates = [...(firstPage.signTemplates || [])]
+    const pageCount = Math.ceil((firstPage.total || templates.length) / pageSize)
+
+    for (let pageNum = 2; pageNum <= pageCount; pageNum += 1) {
+      const response = await listESignDocumentTemplates(subjectId, { pageNum, pageSize })
+      templates.push(...(response.data?.signTemplates || []))
+    }
+    eSignTemplateOptions.value = templates
+  } finally {
+    templateLoading.value = false
+  }
+}
+
+async function handleSaveESignTemplate() {
+  if (!currentSubject.value || !form.eSignFlowTemplateId || templateSaving.value) return
+  templateSaving.value = true
+  try {
+    await saveESignFlowTemplate(currentSubject.value.id, {
+      flowTemplateId: form.eSignFlowTemplateId
+    })
+    currentSubject.value.eSignFlowTemplateId = form.eSignFlowTemplateId
+    proxy.$modal.msgSuccess('合同模板保存成功')
+    dialogVisible.value = false
+  } finally {
+    templateSaving.value = false
   }
 }
 
@@ -559,11 +706,22 @@ function handleSave() {
         })
         await loadSubjectList()
         proxy.$modal.msgSuccess('抖音开放平台配置已保存')
-      } else {
+      } else if (activePlatform.value === 'weCom') {
         currentSubject.value.weComCorpId = form.weComCorpId
         currentSubject.value.weComSecret = form.weComSecret
         currentSubject.value.weComAuthorized = true
         proxy.$modal.msgSuccess('企业微信配置已保存')
+      } else {
+        await saveESignSubjectConfig(currentSubject.value.id, {
+          appId: form.eSignAppId,
+          appSecret: form.eSignAppSecret,
+          orgName: form.eSignOrgName
+        })
+        await loadSubjectList()
+        eSignStep.value = 1
+        await loadESignTemplates(currentSubject.value.id)
+        proxy.$modal.msgSuccess('e签宝授权成功')
+        return
       }
       dialogVisible.value = false
     } finally {
@@ -574,6 +732,8 @@ function handleSave() {
 
 function resetForm() {
   Object.assign(form, createDefaultForm())
+  eSignTemplateOptions.value = []
+  eSignStep.value = 0
   currentSubjectId.value = undefined
   configFormRef.value?.clearValidate()
 }
@@ -633,6 +793,12 @@ onMounted(loadSubjectList)
 .section-description, .selected-count { color: #909399; font-size: 12px; }
 .selected-count { padding-top: 3px; color: #409eff; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.full-width-form-item { grid-column: 1 / -1; }
+.template-config-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ebeef5; }
+.template-select-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.template-select-row .el-select { flex: 1; }
+.esign-steps { margin: 4px 0 28px; }
+.esign-success-alert { margin-bottom: 22px; }
 .account-table { width: 100%; border-radius: 6px; }
 .account-table :deep(.el-table__header th) { background: #f7f8fa; color: #606266; font-weight: 500; }
 @media (max-width: 900px) {
