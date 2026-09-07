@@ -227,6 +227,9 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column prop="signFlowId" label="合同编号" min-width="230" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.signFlowId || '-' }}</template>
+            </el-table-column>
             <el-table-column label="创建时间" min-width="170">
               <template #default="{ row }">{{ formatFollowTime(row.createTime) }}</template>
             </el-table-column>
@@ -751,11 +754,11 @@ function formatContractRate(rate) {
 }
 
 function formatContractStatus(status) {
-  return ({ 0: '审核中', 1: '签署中', 2: '签署完成', 3: '审核不通过' })[Number(status)] || '未知状态'
+  return ({ 0: '审核中', 1: '签署中', 2: '签署完成', 3: '审核不通过', 4: '已失效' })[Number(status)] || '未知状态'
 }
 
 function contractStatusTagType(status) {
-  return ({ 0: 'warning', 1: 'primary', 2: 'success', 3: 'danger' })[Number(status)] || 'info'
+  return ({ 0: 'warning', 1: 'primary', 2: 'success', 3: 'danger', 4: 'info' })[Number(status)] || 'info'
 }
 
 function normalizePaymentScreenshotStorageUrl(value) {

@@ -289,24 +289,43 @@
             </el-alert>
             <div class="form-section template-config-section">
               <div class="section-heading">
-                <div class="section-title">选择合同模板</div>
+              <div class="section-title">选择合同模板</div>
                 <el-button link type="primary" @click="eSignStep = 0">重新配置应用</el-button>
               </div>
+              <div class="template-select-list">
+                <el-form-item label="默认合同模板" class="template-select-item">
+                  <el-select
+                    v-model="form.eSignFlowTemplateId"
+                    filterable
+                    clearable
+                    :loading="templateLoading"
+                    placeholder="请选择默认合同模板"
+                  >
+                    <el-option
+                      v-for="template in eSignTemplateOptions"
+                      :key="template.signTemplateId"
+                      :label="template.signTemplateName"
+                      :value="template.signTemplateId"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="授权委托书（工作人员版）" class="template-select-item">
+                  <el-select v-model="form.eSignStaffAuthorizationTemplateId" filterable clearable :loading="templateLoading" placeholder="请选择模板">
+                    <el-option v-for="template in eSignTemplateOptions" :key="template.signTemplateId" :label="template.signTemplateName" :value="template.signTemplateId" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="授权委托书（近亲属版）" class="template-select-item">
+                  <el-select v-model="form.eSignRelativeAuthorizationTemplateId" filterable clearable :loading="templateLoading" placeholder="请选择模板">
+                    <el-option v-for="template in eSignTemplateOptions" :key="template.signTemplateId" :label="template.signTemplateName" :value="template.signTemplateId" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="执行风险代理合同" class="template-select-item">
+                  <el-select v-model="form.eSignExecutionRiskAgencyTemplateId" filterable clearable :loading="templateLoading" placeholder="请选择模板">
+                    <el-option v-for="template in eSignTemplateOptions" :key="template.signTemplateId" :label="template.signTemplateName" :value="template.signTemplateId" />
+                  </el-select>
+                </el-form-item>
+              </div>
               <div class="template-select-row">
-                <el-select
-                  v-model="form.eSignFlowTemplateId"
-                  filterable
-                  clearable
-                  :loading="templateLoading"
-                  placeholder="请选择合同模板"
-                >
-                  <el-option
-                    v-for="template in eSignTemplateOptions"
-                    :key="template.signTemplateId"
-                    :label="template.signTemplateName"
-                    :value="template.signTemplateId"
-                  />
-                </el-select>
                 <el-button
                   type="primary"
                   :loading="templateSaving"
@@ -316,7 +335,7 @@
                   保存模板
                 </el-button>
               </div>
-              <div class="section-description">请选择该主体发起合同签署时默认使用的合同模板。</div>
+              <div class="section-description">请选择各合同场景所需的流程模板，默认合同模板用于当前线上合同签署流程。</div>
             </div>
           </template>
         </template>
@@ -490,6 +509,9 @@ function createDefaultForm() {
     eSignAppSecret: '',
     eSignOrgName: '',
     eSignFlowTemplateId: '',
+    eSignStaffAuthorizationTemplateId: '',
+    eSignRelativeAuthorizationTemplateId: '',
+    eSignExecutionRiskAgencyTemplateId: '',
     enabledAccountIds: []
   }
 }
@@ -529,6 +551,9 @@ async function handlePlatformEdit(item, platform) {
     eSignAppSecret: item.eSignAppSecret,
     eSignOrgName: '',
     eSignFlowTemplateId: item.eSignFlowTemplateId,
+    eSignStaffAuthorizationTemplateId: item.eSignStaffAuthorizationTemplateId,
+    eSignRelativeAuthorizationTemplateId: item.eSignRelativeAuthorizationTemplateId,
+    eSignExecutionRiskAgencyTemplateId: item.eSignExecutionRiskAgencyTemplateId,
     enabledAccountIds: []
   })
   dialogVisible.value = true
@@ -636,6 +661,9 @@ async function loadSubjectList() {
       eSignAppSecret: item.eSignAppSecret || '',
       eSignOrgId: item.eSignOrgId || '',
       eSignFlowTemplateId: item.eSignFlowTemplateId || '',
+      eSignStaffAuthorizationTemplateId: item.eSignStaffAuthorizationTemplateId || '',
+      eSignRelativeAuthorizationTemplateId: item.eSignRelativeAuthorizationTemplateId || '',
+      eSignExecutionRiskAgencyTemplateId: item.eSignExecutionRiskAgencyTemplateId || '',
       accountCount: item.accountCount || 0,
       enabledAccountCount: item.enabledAccountCount || 0,
       accounts: []
@@ -670,9 +698,15 @@ async function handleSaveESignTemplate() {
   templateSaving.value = true
   try {
     await saveESignFlowTemplate(currentSubject.value.id, {
-      flowTemplateId: form.eSignFlowTemplateId
+      flowTemplateId: form.eSignFlowTemplateId,
+      staffAuthorizationTemplateId: form.eSignStaffAuthorizationTemplateId,
+      relativeAuthorizationTemplateId: form.eSignRelativeAuthorizationTemplateId,
+      executionRiskAgencyTemplateId: form.eSignExecutionRiskAgencyTemplateId
     })
     currentSubject.value.eSignFlowTemplateId = form.eSignFlowTemplateId
+    currentSubject.value.eSignStaffAuthorizationTemplateId = form.eSignStaffAuthorizationTemplateId
+    currentSubject.value.eSignRelativeAuthorizationTemplateId = form.eSignRelativeAuthorizationTemplateId
+    currentSubject.value.eSignExecutionRiskAgencyTemplateId = form.eSignExecutionRiskAgencyTemplateId
     proxy.$modal.msgSuccess('合同模板保存成功')
     dialogVisible.value = false
   } finally {
@@ -795,13 +829,16 @@ onMounted(loadSubjectList)
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .full-width-form-item { grid-column: 1 / -1; }
 .template-config-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ebeef5; }
+.template-select-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+.template-select-item { margin-bottom: 16px; }
+.template-select-item :deep(.el-select) { width: 100%; }
 .template-select-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-.template-select-row .el-select { flex: 1; }
+.template-select-row { justify-content: flex-end; }
 .esign-steps { margin: 4px 0 28px; }
 .esign-success-alert { margin-bottom: 22px; }
 .account-table { width: 100%; border-radius: 6px; }
 .account-table :deep(.el-table__header th) { background: #f7f8fa; color: #606266; font-weight: 500; }
 @media (max-width: 900px) {
-  .subject-grid, .form-grid, .ocean-config-layout { grid-template-columns: 1fr; }
+  .subject-grid, .form-grid, .ocean-config-layout, .template-select-list { grid-template-columns: 1fr; }
 }
 </style>

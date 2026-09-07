@@ -62,6 +62,9 @@
           <el-tag :type="statusTagType(row.contractStatus)">{{ formatStatus(row.contractStatus) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="signFlowId" label="合同编号" min-width="230" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.signFlowId || '-' }}</template>
+      </el-table-column>
       <el-table-column prop="enterpriseSealStatus" label="盖章状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag v-if="Number(row.contractStatus) === 0" type="info">未发起</el-tag>
@@ -73,7 +76,7 @@
       <el-table-column prop="createTime" label="创建时间" width="170" align="center">
         <template #default="{ row }">{{ parseTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="190" align="center" fixed="right">
+      <el-table-column label="操作" width="220" align="center" fixed="right">
         <template #default="{ row }">
           <template v-if="Number(row.contractStatus) === 0">
             <el-button
@@ -89,13 +92,21 @@
               :loading="auditLoadingId === row.id"
               @click="handleAudit(row, 2)">不通过</el-button>
           </template>
-          <el-button
-            v-else-if="Number(row.contractStatus) === 1 && Number(row.enterpriseSealStatus) !== 1"
-            v-hasPermi="['crm:contract:audit']"
-            link
-            type="success"
-            :loading="signUrlLoadingId === row.id"
-            @click="handleContractSeal(row)">签署</el-button>
+          <template v-else-if="Number(row.contractStatus) === 1">
+            <el-button
+              v-if="Number(row.enterpriseSealStatus) !== 1"
+              v-hasPermi="['crm:contract:audit']"
+              link
+              type="success"
+              :loading="signUrlLoadingId === row.id"
+              @click="handleContractSeal(row)">签署</el-button>
+            <el-button
+              v-hasPermi="['crm:contract:audit']"
+              link
+              type="danger"
+              :loading="revokeLoadingId === row.id"
+              @click="handleRevoke(row)">撤销</el-button>
+          </template>
           <el-button link type="primary" @click="showDetail(row)">详情</el-button>
         </template>
       </el-table-column>
@@ -140,7 +151,7 @@
 </template>
 
 <script setup name="CustomerContractAudit">
-import { auditContract, getContractAuditList } from '@/api/public/contract'
+import { auditContract, getContractAuditList, revokeContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
 
 const { proxy } = getCurrentInstance()
@@ -151,6 +162,7 @@ const contractList = ref([])
 const createTimeRange = ref([])
 const auditLoadingId = ref(null)
 const signUrlLoadingId = ref(null)
+const revokeLoadingId = ref(null)
 const detailVisible = ref(false)
 const currentContract = ref({})
 
@@ -158,7 +170,8 @@ const statusOptions = [
   { label: '审核中', value: 0 },
   { label: '签署中', value: 1 },
   { label: '签署完成', value: 2 },
-  { label: '审核不通过', value: 3 }
+  { label: '审核不通过', value: 3 },
+  { label: '已失效', value: 4 }
 ]
 
 const queryParams = reactive({
@@ -178,7 +191,7 @@ function formatStatus(value) {
 }
 
 function statusTagType(value) {
-  return ({ 0: 'warning', 1: 'primary', 2: 'success', 3: 'danger' })[Number(value)] || 'info'
+  return ({ 0: 'warning', 1: 'primary', 2: 'success', 3: 'danger', 4: 'info' })[Number(value)] || 'info'
 }
 
 function formatStage(value) {
@@ -266,6 +279,22 @@ async function handleContractSeal(row) {
     throw error
   } finally {
     signUrlLoadingId.value = null
+  }
+}
+
+async function handleRevoke(row) {
+  if (revokeLoadingId.value || Number(row.contractStatus) !== 1) return
+
+  await proxy.$modal.confirm(`确认撤销债权人“${row.creditorName}”的签署流程吗？撤销后不可恢复。`)
+  revokeLoadingId.value = row.id
+  try {
+    const response = await revokeContract(row.id)
+    if (response.code === 200) {
+      proxy.$modal.msgSuccess('合同已撤销')
+      await getList()
+    }
+  } finally {
+    revokeLoadingId.value = null
   }
 }
 

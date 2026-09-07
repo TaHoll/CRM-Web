@@ -53,3 +53,11 @@ export function auditContract(data) {
     data
   })
 }
+
+// 撤销签署中的客户合同
+export function revokeContract(contractId) {
+  return request({
+    url: `/crm/contract/revoke/${contractId}`,
+    method: 'put'
+  })
+}
