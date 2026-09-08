@@ -23,11 +23,41 @@
     </div>
 
     <template v-if="activeSubjectId">
-    <el-form v-show="showSearch" :inline="true" class="customer-search-form mb10" @submit.prevent>
+    <el-form v-show="showSearch" class="customer-search-form" @submit.prevent>
       <el-form-item label="姓名">
         <el-input v-model="queryParams.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="线索时间">
+      <el-form-item label="手机号">
+        <el-input v-model="queryParams.telephone" placeholder="请输入手机号" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="微信">
+        <el-input v-model="queryParams.wechat" placeholder="请输入微信" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
+      <el-form-item label="客户标签">
+        <el-select
+          v-model="queryParams.customerTagIds"
+          placeholder="请选择客户标签"
+          multiple
+          filterable
+          clearable
+          collapse-tags
+          collapse-tags-tooltip
+          :loading="customerTagOptionsLoading"
+          @visible-change="handleCustomerTagFilterVisible"
+          @change="handleQuery">
+          <el-option-group
+            v-for="category in customerTagOptions"
+            :key="category.id"
+            :label="category.categoryName || category.name || '未分类'">
+            <el-option
+              v-for="tag in category.tags || []"
+              :key="tag.id"
+              :label="tag.name"
+              :value="tag.id" />
+          </el-option-group>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="创建时间">
         <el-date-picker
           v-model="leadTimeRange"
           type="datetimerange"
@@ -37,7 +67,31 @@
           range-separator="至"
           clearable />
       </el-form-item>
-      <el-form-item>
+      <el-form-item v-hasPermi="['crm:customer:assign-filter']" label="分配对象">
+        <el-select
+          v-model="queryParams.assignedUserId"
+          placeholder="请选择分配对象"
+          clearable
+          placement="bottom-start"
+          :fallback-placements="['bottom-start']"
+          :loading="assignUserOptionsLoading"
+          @visible-change="handleAssignUserFilterVisible">
+          <template #header>
+            <el-input
+              v-model="assignUserKeyword"
+              placeholder="请输入用户昵称搜索"
+              clearable
+              @click.stop
+              @keydown.stop />
+          </template>
+          <el-option
+            v-for="user in filteredAssignUserOptions"
+            :key="user.userId"
+            :label="user.nickName || user.userName"
+            :value="user.userId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item class="search-action-item">
         <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
       </el-form-item>
@@ -69,7 +123,8 @@
               :key="tag.id"
               :color="tag.color || '#909399'"
               class="tag-item"
-              effect="dark">
+              effect="dark"
+              size="small">
               {{ tag.name }}
             </el-tag>
             <span v-if="!row.customerTags || row.customerTags.length === 0">-</span>
@@ -131,7 +186,9 @@
 <script setup name="CustomerManagement">
 import { useRouter } from 'vue-router'
 import { customerList } from '@/api/public/lead'
+import { treeSelectWithUserList } from '@/api/system/dept'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
+import { listEnabledTagOptions } from '@/api/system/tagCategory'
 
 const router = useRouter()
 const COLUMN_STORAGE_KEY = 'customer-management-columns'
@@ -183,16 +240,34 @@ const total = ref(0)
 const dataList = ref([])
 const subjectList = ref([])
 const activeSubjectId = ref()
+const assignUserOptions = ref([])
+const assignUserOptionsLoading = ref(false)
+const assignUserKeyword = ref('')
+const customerTagOptions = ref([])
+const customerTagOptionsLoading = ref(false)
 const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
 const visibleColumns = computed(() => columns.value.filter((column) => column.visible))
+const filteredAssignUserOptions = computed(() => {
+  const keyword = assignUserKeyword.value.trim().toLocaleLowerCase()
+  if (!keyword) return assignUserOptions.value
+
+  return assignUserOptions.value.filter((user) =>
+    String(user.nickName || '').toLocaleLowerCase().includes(keyword)
+    || String(user.userName || '').toLocaleLowerCase().includes(keyword)
+  )
+})
 const leadTimeRange = ref([])
 const queryParams = reactive({
   name: undefined,
+  telephone: undefined,
+  wechat: undefined,
+  customerTagIds: [],
   beginTime: undefined,
   endTime: undefined,
   subjectId: undefined,
+  assignedUserId: undefined,
   pager: {
     pageNum: 1,
     pageSize: 10
@@ -283,10 +358,57 @@ function handleQuery() {
 
 function resetQuery() {
   queryParams.name = undefined
+  queryParams.telephone = undefined
+  queryParams.wechat = undefined
+  queryParams.customerTagIds = []
+  queryParams.assignedUserId = undefined
   leadTimeRange.value = []
   queryParams.beginTime = undefined
   queryParams.endTime = undefined
   handleQuery()
+}
+
+async function handleAssignUserFilterVisible(visible) {
+  if (!visible) {
+    assignUserKeyword.value = ''
+    return
+  }
+  if (!visible || assignUserOptions.value.length > 0 || assignUserOptionsLoading.value) return
+
+  assignUserOptionsLoading.value = true
+  try {
+    const response = await treeSelectWithUserList()
+    const userMap = new Map()
+
+    function collectUsers(nodes = []) {
+      nodes.forEach((node) => {
+        ;(node.users || []).forEach((user) => {
+          if (user?.userId) {
+            userMap.set(Number(user.userId), user)
+          }
+        })
+        collectUsers(node.children || [])
+      })
+    }
+
+    collectUsers(response.data || [])
+    assignUserOptions.value = Array.from(userMap.values())
+      .sort((left, right) => String(left.nickName || left.userName).localeCompare(String(right.nickName || right.userName), 'zh-CN'))
+  } finally {
+    assignUserOptionsLoading.value = false
+  }
+}
+
+async function handleCustomerTagFilterVisible(visible) {
+  if (!visible || customerTagOptions.value.length > 0 || customerTagOptionsLoading.value) return
+
+  customerTagOptionsLoading.value = true
+  try {
+    const response = await listEnabledTagOptions({ includeDisabled: 1 })
+    customerTagOptions.value = Array.isArray(response.data) ? response.data : response.data?.result || []
+  } finally {
+    customerTagOptionsLoading.value = false
+  }
 }
 
 function formatLeadLocation(row) {
@@ -403,17 +525,52 @@ initializePage()
   transform: translateY(-1px);
 }
 
+.customer-search-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0 16px;
+  margin-bottom: 10px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--el-fill-color-extra-light);
+}
+
 .customer-search-form :deep(.el-form-item) {
-  margin-bottom: 0;
+  display: flex;
+  margin-right: 0;
+  margin-bottom: 14px;
+}
+
+.customer-search-form :deep(.el-form-item__content) {
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-search-form :deep(.el-input),
+.customer-search-form :deep(.el-select),
+.customer-search-form :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.customer-search-form .search-action-item {
+  align-items: flex-end;
+}
+
+.customer-search-form .search-action-item :deep(.el-form-item__content) {
+  justify-content: flex-end;
 }
 
 .tag-item + .tag-item {
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
 .tag-item {
   border-color: transparent;
   color: #fff;
+  --el-tag-font-size: 11px;
+  height: 20px;
+  line-height: 18px;
+  padding: 0 6px;
 }
 
 .column-setting-list {
@@ -438,5 +595,16 @@ initializePage()
   margin-right: 10px;
   color: var(--el-text-color-secondary);
   font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .customer-search-form {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .customer-search-form .search-action-item :deep(.el-form-item__content) {
+    justify-content: flex-start;
+  }
 }
 </style>

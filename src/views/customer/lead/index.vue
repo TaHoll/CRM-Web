@@ -11,25 +11,57 @@
         <el-input v-model="searchForm.weixin" placeholder="请输入微信" clearable @keyup.enter="handleQuery" />
       </el-form-item>
       <el-form-item label="客户标签">
-        <el-input v-model="searchForm.customerTags" placeholder="请输入客户标签" clearable @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item label="来源广告账号">
-        <el-input v-model="searchForm.advertiserName" placeholder="请输入来源广告账号" clearable @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item label="城市">
-        <el-input v-model="searchForm.autoCityName" placeholder="请输入线索所属城市" clearable @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item label="省份">
-        <el-input v-model="searchForm.autoProvinceName" placeholder="请输入线索所属省份" clearable @keyup.enter="handleQuery" />
+        <el-select
+          v-model="searchForm.customerTagIds"
+          placeholder="请选择客户标签"
+          multiple
+          filterable
+          clearable
+          collapse-tags
+          collapse-tags-tooltip
+          :loading="customerTagOptionsLoading"
+          @visible-change="handleCustomerTagFilterVisible"
+          @change="handleQuery">
+          <el-option-group
+            v-for="category in customerTagOptions"
+            :key="category.id"
+            :label="category.categoryName || category.name || '未分类'">
+            <el-option
+              v-for="tag in category.tags || []"
+              :key="tag.id"
+              :label="tag.name"
+              :value="tag.id" />
+          </el-option-group>
+        </el-select>
       </el-form-item>
       <el-form-item label="分配对象">
-        <el-input v-model="searchForm.stageUserName" placeholder="请输入分配对象" clearable @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item label="营销名称">
-        <el-input v-model="searchForm.promotionName" placeholder="请输入营销名称" clearable @keyup.enter="handleQuery" />
+        <el-select
+          v-model="searchForm.assignedUserId"
+          placeholder="请选择分配对象"
+          clearable
+          placement="bottom-start"
+          :fallback-placements="['bottom-start']"
+          :loading="assignUserOptionsLoading"
+          @visible-change="handleAssignUserFilterVisible">
+          <template #header>
+            <el-input
+              v-model="assignUserKeyword"
+              placeholder="请输入用户昵称搜索"
+              clearable
+              @click.stop
+              @keydown.stop />
+          </template>
+          <el-option
+            v-for="user in filteredAssignUserOptions"
+            :key="user.userId"
+            :label="user.nickName || user.userName"
+            :value="user.userId" />
+        </el-select>
       </el-form-item>
       <el-form-item label="流量类型">
-        <el-input v-model="searchForm.flowTypeStr" placeholder="请输入流量类型" clearable @keyup.enter="handleQuery" />
+        <el-select v-model="searchForm.flowType" placeholder="请选择流量类型" clearable>
+          <el-option v-for="item in flowTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
       </el-form-item>
       <el-form-item label="创建时间">
         <el-date-picker
@@ -146,6 +178,8 @@
 
 <script setup name="LeadPool">
 import { assignLead, listLead } from '@/api/public/lead'
+import { treeSelectWithUserList } from '@/api/system/dept'
+import { listEnabledTagOptions } from '@/api/system/tagCategory'
 import UserSelectDialog from '@/components/UserSelectDialog/index.vue'
 
 const COLUMN_STORAGE_KEY = 'lead-pool-columns'
@@ -226,6 +260,11 @@ const selectedLeads = ref([])
 const assignUserDialogOpen = ref(false)
 const assignUserId = ref(undefined)
 const assignUser = ref()
+const assignUserOptions = ref([])
+const assignUserOptionsLoading = ref(false)
+const assignUserKeyword = ref('')
+const customerTagOptions = ref([])
+const customerTagOptionsLoading = ref(false)
 const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
@@ -234,14 +273,15 @@ const searchForm = reactive({
   name: '',
   telephone: '',
   weixin: '',
-  customerTags: '',
-  advertiserName: '',
-  autoCityName: '',
-  autoProvinceName: '',
-  stageUserName: '',
-  promotionName: '',
-  flowTypeStr: ''
+  customerTagIds: [],
+  assignedUserId: undefined,
+  flowType: ''
 })
+
+const flowTypeOptions = [
+  { label: '自然流量', value: 'NATURE' },
+  { label: '广告流量', value: 'AD' }
+]
 const queryParams = reactive({
   deptStage: undefined,
   beginTime: undefined,
@@ -252,6 +292,15 @@ const queryParams = reactive({
   }
 })
 const { proxy } = getCurrentInstance()
+const filteredAssignUserOptions = computed(() => {
+  const keyword = assignUserKeyword.value.trim().toLocaleLowerCase()
+  if (!keyword) return assignUserOptions.value
+
+  return assignUserOptions.value.filter((user) =>
+    String(user.nickName || '').toLocaleLowerCase().includes(keyword)
+    || String(user.userName || '').toLocaleLowerCase().includes(keyword)
+  )
+})
 
 const visibleColumns = computed(() => {
   const visible = columns.value.filter((column) => column.visible)
@@ -291,7 +340,9 @@ async function getList() {
       name: searchForm.name.trim(),
       telephone: searchForm.telephone.trim(),
       weixin: searchForm.weixin.trim(),
-      promotionName: searchForm.promotionName.trim()
+      customerTagIds: searchForm.customerTagIds,
+      assignedUserId: searchForm.assignedUserId || undefined,
+      flowType: searchForm.flowType || undefined
     })
     if (res.code === 200) {
       dataList.value = res.data?.result || []
@@ -312,10 +363,54 @@ function resetQuery() {
   Object.keys(searchForm).forEach((key) => {
     searchForm[key] = ''
   })
+  searchForm.customerTagIds = []
   queryParams.deptStage = undefined
   queryParams.beginTime = undefined
   queryParams.endTime = undefined
   handleQuery()
+}
+
+async function handleAssignUserFilterVisible(visible) {
+  if (!visible) {
+    assignUserKeyword.value = ''
+    return
+  }
+  if (!visible || assignUserOptions.value.length > 0 || assignUserOptionsLoading.value) return
+
+  assignUserOptionsLoading.value = true
+  try {
+    const response = await treeSelectWithUserList()
+    const userMap = new Map()
+
+    function collectUsers(nodes = []) {
+      nodes.forEach((node) => {
+        ;(node.users || []).forEach((user) => {
+          if (user?.userId) {
+            userMap.set(Number(user.userId), user)
+          }
+        })
+        collectUsers(node.children || [])
+      })
+    }
+
+    collectUsers(response.data || [])
+    assignUserOptions.value = Array.from(userMap.values())
+      .sort((left, right) => String(left.nickName || left.userName).localeCompare(String(right.nickName || right.userName), 'zh-CN'))
+  } finally {
+    assignUserOptionsLoading.value = false
+  }
+}
+
+async function handleCustomerTagFilterVisible(visible) {
+  if (!visible || customerTagOptions.value.length > 0 || customerTagOptionsLoading.value) return
+
+  customerTagOptionsLoading.value = true
+  try {
+    const response = await listEnabledTagOptions({ includeDisabled: 1 })
+    customerTagOptions.value = Array.isArray(response.data) ? response.data : response.data?.result || []
+  } finally {
+    customerTagOptionsLoading.value = false
+  }
 }
 
 function formatValue(value, type) {

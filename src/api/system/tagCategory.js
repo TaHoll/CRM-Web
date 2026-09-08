@@ -19,10 +19,11 @@ export function addTagCategory(data) {
 }
 
 // 获取启用的标签分类及标签选项
-export function listEnabledTagOptions() {
+export function listEnabledTagOptions(params = {}) {
   return request({
     url: '/system/tag/category/enabled-options',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 
