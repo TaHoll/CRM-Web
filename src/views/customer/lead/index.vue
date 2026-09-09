@@ -1,6 +1,9 @@
 <template>
   <div class="app-container">
     <el-form v-show="showSearch" class="lead-search-form" @submit.prevent>
+      <el-form-item label="线索ID">
+        <el-input v-model="searchForm.clueId" placeholder="请输入线索ID" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
       <el-form-item label="姓名">
         <el-input v-model="searchForm.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
       </el-form-item>
@@ -270,6 +273,7 @@ const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
 const dateRange = ref([])
 const searchForm = reactive({
+  clueId: '',
   name: '',
   telephone: '',
   weixin: '',
@@ -337,6 +341,7 @@ async function getList() {
   try {
     const res = await listLead({
       ...queryParams,
+      clueId: searchForm.clueId.trim(),
       name: searchForm.name.trim(),
       telephone: searchForm.telephone.trim(),
       weixin: searchForm.weixin.trim(),

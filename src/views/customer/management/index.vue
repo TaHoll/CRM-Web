@@ -24,6 +24,9 @@
 
     <template v-if="activeSubjectId">
     <el-form v-show="showSearch" class="customer-search-form" @submit.prevent>
+      <el-form-item label="线索ID">
+        <el-input v-model="queryParams.clueId" placeholder="请输入线索ID" clearable @keyup.enter="handleQuery" />
+      </el-form-item>
       <el-form-item label="姓名">
         <el-input v-model="queryParams.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
       </el-form-item>
@@ -260,6 +263,7 @@ const filteredAssignUserOptions = computed(() => {
 })
 const leadTimeRange = ref([])
 const queryParams = reactive({
+  clueId: undefined,
   name: undefined,
   telephone: undefined,
   wechat: undefined,
@@ -357,6 +361,7 @@ function handleQuery() {
 }
 
 function resetQuery() {
+  queryParams.clueId = undefined
   queryParams.name = undefined
   queryParams.telephone = undefined
   queryParams.wechat = undefined
