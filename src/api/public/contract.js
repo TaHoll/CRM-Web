@@ -45,6 +45,15 @@ export function getContractAuditList(query) {
   })
 }
 
+// 分页查询客户合同订单列表
+export function getContractOrderList(query) {
+  return request({
+    url: '/crm/contract/order/list',
+    method: 'get',
+    params: query
+  })
+}
+
 // 审核客户合同
 export function auditContract(data) {
   return request({

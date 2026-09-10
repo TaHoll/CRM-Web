@@ -446,12 +446,19 @@
             class="payment-time-picker" />
         </el-form-item>
         <el-form-item label="合同">
-          <el-input
-            v-model.trim="paymentForm.contract"
-            maxlength="100"
-            :disabled="paymentContractLocked"
-            placeholder="请输入合同名称或编号（选填）"
-            clearable />
+          <el-select
+            v-model="paymentForm.contract"
+            :loading="contractListLoading"
+            placeholder="请选择当前阶段合同（选填）"
+            clearable
+            filterable
+            style="width: 100%">
+            <el-option
+              v-for="item in currentStageContractOptions"
+              :key="item.id"
+              :label="formatPaymentContractOption(item)"
+              :value="item.signFlowId || String(item.id)" />
+          </el-select>
         </el-form-item>
         <el-form-item label="支付凭证">
           <el-upload
@@ -577,7 +584,6 @@ const paymentDialogVisible = ref(false)
 const paymentFormRef = ref()
 const paymentFiles = ref([])
 const paymentSubmitting = ref(false)
-const paymentContractLocked = ref(false)
 const paymentRecordLoading = ref(false)
 const paymentRecords = ref([])
 const contractListLoading = ref(false)
@@ -590,6 +596,9 @@ const paymentForm = reactive({
   paymentTime: '',
   contract: ''
 })
+const currentStageContractOptions = computed(() =>
+  contractRecords.value.filter(item => Number(item.stage) === Number(form.deptStage))
+)
 const contractForm = reactive({
   creditorName: '',
   creditorPhone: '',
@@ -1124,26 +1133,18 @@ async function openPaymentDialog() {
   paymentForm.amount = undefined
   paymentForm.paymentTime = ''
   paymentForm.contract = ''
-  paymentContractLocked.value = false
   paymentFiles.value = []
   paymentSubmitting.value = false
   paymentFormRef.value?.clearValidate()
   paymentDialogVisible.value = true
 
   await getContractRecords()
-  bindSignedContractToPayment()
 }
 
-function bindSignedContractToPayment() {
-  const signedContract = contractRecords.value.find(item =>
-    Number(item.stage) === Number(form.deptStage)
-      && Number(item.contractStatus) === 2
-      && item.signFlowId
-  )
-  if (signedContract) {
-    paymentForm.contract = signedContract.signFlowId
-    paymentContractLocked.value = true
-  }
+function formatPaymentContractOption(item) {
+  const contractNo = item.signFlowId || `合同ID：${item.id}`
+  const amount = formatPaymentAmount(item.contractAmount)
+  return `${contractNo} / ${formatContractStatus(item.contractStatus)} / ¥ ${amount}`
 }
 
 async function getOperationLogs() {
@@ -1197,9 +1198,6 @@ async function getContractRecords() {
     const res = await getContractList(form.id)
     if (requestId === contractListRequestId && res.code === 200) {
       contractRecords.value = Array.isArray(res.data) ? res.data : []
-      if (paymentDialogVisible.value) {
-        bindSignedContractToPayment()
-      }
     }
   } catch {
     if (requestId === contractListRequestId) {
