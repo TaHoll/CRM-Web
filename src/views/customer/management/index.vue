@@ -2,18 +2,10 @@
   <div class="app-container customer-management-page">
     <div v-loading="subjectLoading" class="subject-tabs-bar">
       <div v-if="subjectList.length" class="subject-tabs">
-        <el-tooltip
-          v-for="subject in subjectList"
-          :key="subject.id"
-          :content="getSubjectStatusText(subject)"
-          placement="top">
+        <el-tooltip v-for="subject in subjectList" :key="subject.id" :content="getSubjectStatusText(subject)" placement="top">
           <button
             type="button"
-            :class="[
-              'subject-tab',
-              isSubjectAvailable(subject) ? 'is-normal' : 'is-abnormal',
-              { 'is-active': activeSubjectId === subject.id }
-            ]"
+            :class="['subject-tab', isSubjectAvailable(subject) ? 'is-normal' : 'is-abnormal', { 'is-active': activeSubjectId === subject.id }]"
             @click="handleSubjectChange(subject)">
             {{ subject.subjectName || '待授权主体' }}
           </button>
@@ -23,107 +15,149 @@
     </div>
 
     <template v-if="activeSubjectId">
-    <el-form v-show="showSearch" :inline="true" class="customer-search-form mb10" @submit.prevent>
-      <el-form-item label="姓名">
-        <el-input v-model="queryParams.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item label="分配时间">
-        <el-date-picker
-          v-model="leadTimeRange"
-          type="datetimerange"
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          value-format="YYYY-MM-DD HH:mm:ss"
-          range-separator="至"
-          clearable />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
-        <el-button icon="Refresh" @click="resetQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+      <el-form v-show="showSearch" class="customer-search-form" @submit.prevent>
+        <el-form-item label="线索ID">
+          <el-input v-model="queryParams.clueId" placeholder="请输入线索ID" clearable @keyup.enter="handleQuery" />
+        </el-form-item>
+        <el-form-item label="姓名">
+          <el-input v-model="queryParams.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="queryParams.telephone" placeholder="请输入手机号" clearable @keyup.enter="handleQuery" />
+        </el-form-item>
+        <el-form-item label="微信">
+          <el-input v-model="queryParams.wechat" placeholder="请输入微信" clearable @keyup.enter="handleQuery" />
+        </el-form-item>
+        <el-form-item label="客户标签">
+          <el-select
+            v-model="queryParams.customerTagIds"
+            placeholder="请选择客户标签"
+            multiple
+            filterable
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            :loading="customerTagOptionsLoading"
+            @visible-change="handleCustomerTagFilterVisible"
+            @change="handleQuery">
+            <el-option-group v-for="category in customerTagOptions" :key="category.id" :label="category.categoryName || category.name || '未分类'">
+              <el-option v-for="tag in category.tags || []" :key="tag.id" :label="tag.name" :value="tag.id" />
+            </el-option-group>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="创建时间">
+          <el-date-picker
+            v-model="leadTimeRange"
+            type="datetimerange"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            range-separator="至"
+            clearable />
+        </el-form-item>
+        <el-form-item v-hasPermi="['crm:customer:assign-filter']" label="分配对象">
+          <el-select
+            v-model="queryParams.assignedUserId"
+            placeholder="请选择分配对象"
+            clearable
+            placement="bottom-start"
+            :fallback-placements="['bottom-start']"
+            :loading="assignUserOptionsLoading"
+            @visible-change="handleAssignUserFilterVisible">
+            <template #header>
+              <el-input v-model="assignUserKeyword" placeholder="请输入用户昵称搜索" clearable @click.stop @keydown.stop />
+            </template>
+            <el-option v-for="user in filteredAssignUserOptions" :key="user.userId" :label="user.nickName || user.userName" :value="user.userId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item class="search-action-item">
+          <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
+          <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
 
-    <el-row :gutter="15" class="mb10">
-      <right-toolbar v-model:show-search="showSearch" @query-table="getList">
-        <el-tooltip content="列设置" placement="top">
-          <el-button circle icon="Menu" @click="columnSettingVisible = true" />
-        </el-tooltip>
-      </right-toolbar>
-    </el-row>
+      <el-row :gutter="15" class="mb10">
+        <right-toolbar v-model:show-search="showSearch" @query-table="getList">
+          <el-tooltip content="列设置" placement="top">
+            <el-button circle icon="Menu" @click="columnSettingVisible = true" />
+          </el-tooltip>
+        </right-toolbar>
+      </el-row>
 
-    <el-table v-loading="loading" :data="dataList" min-height="520" border highlight-current-row row-key="clueId">
-      <el-table-column type="index" label="序号" width="60" align="center" />
-      <el-table-column
-        v-for="column in visibleColumns"
-        :key="column.prop"
-        :prop="column.prop"
-        :label="column.label"
-        :width="column.width"
-        :min-width="column.minWidth || 120"
-        :align="column.align || 'center'"
-        :show-overflow-tooltip="column.prop !== 'customerTags'">
-        <template #default="{ row }">
-          <template v-if="column.prop === 'customerTags'">
-            <el-tag
-              v-for="tag in row.customerTags || []"
-              :key="tag.id"
-              :color="tag.color || '#909399'"
-              class="tag-item"
-              effect="dark">
-              {{ tag.name }}
-            </el-tag>
-            <span v-if="!row.customerTags || row.customerTags.length === 0">-</span>
-          </template>
-          <template v-else-if="column.prop === 'leadLocation'">
-            {{ formatLeadLocation(row) }}
-          </template>
-          <template v-else-if="column.prop === 'effectiveStateNameStr'">
-            <el-tag :type="stageType[row.effectiveStateNameStr] || 'info'">{{ formatValue(row.effectiveStateNameStr) }}</el-tag>
-          </template>
-          <template v-else-if="column.prop === 'userNickName'">
-            {{ formatValue(row.userNickName || row.UserNickName) }}
-          </template>
-          <template v-else-if="column.prop === 'deptName'">
-            {{ formatValue(row.deptName || row.DeptName) }}
-          </template>
-          <template v-else-if="column.prop === 'wechat'">
-            {{ formatValue(row.wechat || row.Wechat) }}
-          </template>
-          <template v-else>
-            {{ formatValue(row[column.prop], column.type) }}
-          </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="90" align="center" fixed="right">
-        <template #default="{ row }">
-          <el-button v-hasPermi="['customer:management:edit']" link type="primary" icon="Edit" @click="handleEdit(row)">编辑</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <pagination
-      v-show="total > 0"
-      v-model:page="queryParams.pager.pageNum"
-      v-model:limit="queryParams.pager.pageSize"
-      :total="total"
-      @pagination="getList" />
-
-    <el-dialog v-model="columnSettingVisible" title="列设置" width="420px" append-to-body>
-      <el-alert title="拖拽字段可调整展示顺序，勾选控制是否显示。" type="info" :closable="false" class="mb10" />
-      <div class="column-setting-list">
-        <div
-          v-for="column in columns"
+      <el-table v-loading="loading" :data="dataList" min-height="520" border highlight-current-row row-key="clueId">
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column
+          v-for="column in visibleColumns"
           :key="column.prop"
-          class="column-setting-item"
-          draggable="true"
-          @dragstart="handleColumnDragStart(column.prop)"
-          @dragover.prevent
-          @drop="handleColumnDrop(column.prop)">
-          <span class="drag-handle">⠿</span>
-          <el-checkbox v-model="column.visible">{{ column.label }}</el-checkbox>
+          :prop="column.prop"
+          :label="column.label"
+          :width="column.width"
+          :min-width="column.minWidth || 120"
+          :align="column.align || 'center'"
+          :show-overflow-tooltip="column.prop !== 'customerTags'">
+          <template #default="{ row }">
+            <template v-if="column.prop === 'customerTags'">
+              <el-tag
+                v-for="tag in row.customerTags || []"
+                :key="tag.id"
+                :color="tag.color || '#909399'"
+                class="tag-item"
+                effect="dark"
+                size="small">
+                {{ tag.name }}
+              </el-tag>
+              <span v-if="!row.customerTags || row.customerTags.length === 0">-</span>
+            </template>
+            <template v-else-if="column.prop === 'leadLocation'">
+              {{ formatLeadLocation(row) }}
+            </template>
+            <template v-else-if="column.prop === 'effectiveStateNameStr'">
+              <el-tag :type="stageType[row.effectiveStateNameStr] || 'info'">{{ formatValue(row.effectiveStateNameStr) }}</el-tag>
+            </template>
+            <template v-else-if="column.prop === 'userNickName'">
+              {{ formatValue(row.userNickName || row.UserNickName) }}
+            </template>
+            <template v-else-if="column.prop === 'deptName'">
+              {{ formatValue(row.deptName || row.DeptName) }}
+            </template>
+            <template v-else-if="column.prop === 'wechat'">
+              {{ formatValue(row.wechat || row.Wechat) }}
+            </template>
+            <template v-else>
+              {{ formatValue(row[column.prop], column.type) }}
+            </template>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="90" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button v-hasPermi="['customer:management:edit']" link type="primary" icon="Edit" @click="handleEdit(row)">编辑</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <pagination
+        v-show="total > 0"
+        v-model:page="queryParams.pager.pageNum"
+        v-model:limit="queryParams.pager.pageSize"
+        :total="total"
+        @pagination="getList" />
+
+      <el-dialog v-model="columnSettingVisible" title="列设置" width="420px" append-to-body>
+        <el-alert title="拖拽字段可调整展示顺序，勾选控制是否显示。" type="info" :closable="false" class="mb10" />
+        <div class="column-setting-list">
+          <div
+            v-for="column in columns"
+            :key="column.prop"
+            class="column-setting-item"
+            draggable="true"
+            @dragstart="handleColumnDragStart(column.prop)"
+            @dragover.prevent
+            @drop="handleColumnDrop(column.prop)">
+            <span class="drag-handle">⠿</span>
+            <el-checkbox v-model="column.visible">{{ column.label }}</el-checkbox>
+          </div>
         </div>
-      </div>
-    </el-dialog>
+      </el-dialog>
     </template>
   </div>
 </template>
@@ -131,7 +165,9 @@
 <script setup name="CustomerManagement">
 import { useRouter } from 'vue-router'
 import { customerList } from '@/api/public/lead'
+import { treeSelectWithUserList } from '@/api/system/dept'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
+import { listEnabledTagOptions } from '@/api/system/tagCategory'
 
 const router = useRouter()
 const COLUMN_STORAGE_KEY = 'customer-management-columns'
@@ -153,15 +189,12 @@ const defaultColumns = [
 
 function loadColumns() {
   try {
-    const saved = JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY) || '[]')
-      .map((item) => item.prop === 'createTimeDetail' ? { ...item, prop: 'createTime' } : item)
+    const saved = JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY) || '[]').map((item) =>
+      item.prop === 'createTimeDetail' ? { ...item, prop: 'createTime' } : item
+    )
     const defaultMap = new Map(defaultColumns.map((item) => [item.prop, item]))
-    const savedColumns = saved
-      .filter((item) => defaultMap.has(item.prop))
-      .map((item) => ({ ...defaultMap.get(item.prop), visible: item.visible }))
-    const newColumns = defaultColumns
-      .filter((item) => !saved.some((savedItem) => savedItem.prop === item.prop))
-      .map((item) => ({ ...item }))
+    const savedColumns = saved.filter((item) => defaultMap.has(item.prop)).map((item) => ({ ...defaultMap.get(item.prop), visible: item.visible }))
+    const newColumns = defaultColumns.filter((item) => !saved.some((savedItem) => savedItem.prop === item.prop)).map((item) => ({ ...item }))
 
     return [...savedColumns, ...newColumns]
   } catch {
@@ -183,16 +216,40 @@ const total = ref(0)
 const dataList = ref([])
 const subjectList = ref([])
 const activeSubjectId = ref()
+const assignUserOptions = ref([])
+const assignUserOptionsLoading = ref(false)
+const assignUserKeyword = ref('')
+const customerTagOptions = ref([])
+const customerTagOptionsLoading = ref(false)
 const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
 const visibleColumns = computed(() => columns.value.filter((column) => column.visible))
+const filteredAssignUserOptions = computed(() => {
+  const keyword = assignUserKeyword.value.trim().toLocaleLowerCase()
+  if (!keyword) return assignUserOptions.value
+
+  return assignUserOptions.value.filter(
+    (user) =>
+      String(user.nickName || '')
+        .toLocaleLowerCase()
+        .includes(keyword) ||
+      String(user.userName || '')
+        .toLocaleLowerCase()
+        .includes(keyword)
+  )
+})
 const leadTimeRange = ref([])
 const queryParams = reactive({
+  clueId: undefined,
   name: undefined,
+  telephone: undefined,
+  wechat: undefined,
+  customerTagIds: [],
   beginTime: undefined,
   endTime: undefined,
   subjectId: undefined,
+  assignedUserId: undefined,
   pager: {
     pageNum: 1,
     pageSize: 10
@@ -202,10 +259,7 @@ const queryParams = reactive({
 watch(
   columns,
   (value) => {
-    localStorage.setItem(
-      COLUMN_STORAGE_KEY,
-      JSON.stringify(value.map(({ prop, visible }) => ({ prop, visible })))
-    )
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(value.map(({ prop, visible }) => ({ prop, visible }))))
   },
   { deep: true }
 )
@@ -282,11 +336,60 @@ function handleQuery() {
 }
 
 function resetQuery() {
+  queryParams.clueId = undefined
   queryParams.name = undefined
+  queryParams.telephone = undefined
+  queryParams.wechat = undefined
+  queryParams.customerTagIds = []
+  queryParams.assignedUserId = undefined
   leadTimeRange.value = []
   queryParams.beginTime = undefined
   queryParams.endTime = undefined
   handleQuery()
+}
+
+async function handleAssignUserFilterVisible(visible) {
+  if (!visible) {
+    assignUserKeyword.value = ''
+    return
+  }
+  if (!visible || assignUserOptions.value.length > 0 || assignUserOptionsLoading.value) return
+
+  assignUserOptionsLoading.value = true
+  try {
+    const response = await treeSelectWithUserList()
+    const userMap = new Map()
+
+    function collectUsers(nodes = []) {
+      nodes.forEach((node) => {
+        ;(node.users || []).forEach((user) => {
+          if (user?.userId) {
+            userMap.set(Number(user.userId), user)
+          }
+        })
+        collectUsers(node.children || [])
+      })
+    }
+
+    collectUsers(response.data || [])
+    assignUserOptions.value = Array.from(userMap.values()).sort((left, right) =>
+      String(left.nickName || left.userName).localeCompare(String(right.nickName || right.userName), 'zh-CN')
+    )
+  } finally {
+    assignUserOptionsLoading.value = false
+  }
+}
+
+async function handleCustomerTagFilterVisible(visible) {
+  if (!visible || customerTagOptions.value.length > 0 || customerTagOptionsLoading.value) return
+
+  customerTagOptionsLoading.value = true
+  try {
+    const response = await listEnabledTagOptions({ includeDisabled: 1 })
+    customerTagOptions.value = Array.isArray(response.data) ? response.data : response.data?.result || []
+  } finally {
+    customerTagOptionsLoading.value = false
+  }
 }
 
 function formatLeadLocation(row) {
@@ -403,17 +506,52 @@ initializePage()
   transform: translateY(-1px);
 }
 
+.customer-search-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0 16px;
+  margin-bottom: 10px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--el-fill-color-extra-light);
+}
+
 .customer-search-form :deep(.el-form-item) {
-  margin-bottom: 0;
+  display: flex;
+  margin-right: 0;
+  margin-bottom: 14px;
+}
+
+.customer-search-form :deep(.el-form-item__content) {
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-search-form :deep(.el-input),
+.customer-search-form :deep(.el-select),
+.customer-search-form :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.customer-search-form .search-action-item {
+  align-items: flex-end;
+}
+
+.customer-search-form .search-action-item :deep(.el-form-item__content) {
+  justify-content: flex-end;
 }
 
 .tag-item + .tag-item {
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
 .tag-item {
   border-color: transparent;
   color: #fff;
+  --el-tag-font-size: 11px;
+  height: 20px;
+  line-height: 18px;
+  padding: 0 6px;
 }
 
 .column-setting-list {
@@ -438,5 +576,16 @@ initializePage()
   margin-right: 10px;
   color: var(--el-text-color-secondary);
   font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .customer-search-form {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .customer-search-form .search-action-item :deep(.el-form-item__content) {
+    justify-content: flex-start;
+  }
 }
 </style>
