@@ -99,7 +99,14 @@
               link
               type="success"
               :loading="signUrlLoadingId === row.id"
-              @click="handleContractSeal(row)">签署</el-button>
+              @click="handleContractSeal(row)">盖章</el-button>
+            <el-button
+              v-if="Number(row.enterpriseSealStatus) === 1"
+              v-hasPermi="['crm:contract:audit']"
+              link
+              type="success"
+              :loading="completeLoadingId === row.id"
+              @click="handleComplete(row)">签署完成</el-button>
             <el-button
               v-hasPermi="['crm:contract:audit']"
               link
@@ -151,7 +158,7 @@
 </template>
 
 <script setup name="CustomerContractAudit">
-import { auditContract, getContractAuditList, revokeContract } from '@/api/public/contract'
+import { auditContract, completeContract, getContractAuditList, revokeContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
 
 const { proxy } = getCurrentInstance()
@@ -162,6 +169,7 @@ const contractList = ref([])
 const createTimeRange = ref([])
 const auditLoadingId = ref(null)
 const signUrlLoadingId = ref(null)
+const completeLoadingId = ref(null)
 const revokeLoadingId = ref(null)
 const detailVisible = ref(false)
 const currentContract = ref({})
@@ -295,6 +303,24 @@ async function handleRevoke(row) {
     }
   } finally {
     revokeLoadingId.value = null
+  }
+}
+
+async function handleComplete(row) {
+  if (completeLoadingId.value
+    || Number(row.contractStatus) !== 1
+    || Number(row.enterpriseSealStatus) !== 1) return
+
+  await proxy.$modal.confirm(`确认将债权人“${row.creditorName}”的合同标记为签署完成吗？`)
+  completeLoadingId.value = row.id
+  try {
+    const response = await completeContract(row.id)
+    if (response.code === 200) {
+      proxy.$modal.msgSuccess('合同已标记为签署完成')
+      await getList()
+    }
+  } finally {
+    completeLoadingId.value = null
   }
 }
 
