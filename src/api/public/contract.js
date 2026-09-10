@@ -61,3 +61,11 @@ export function revokeContract(contractId) {
     method: 'put'
   })
 }
+
+// 完成已盖章合同的签署
+export function completeContract(contractId) {
+  return request({
+    url: `/crm/contract/complete/${contractId}`,
+    method: 'put'
+  })
+}
