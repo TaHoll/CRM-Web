@@ -27,7 +27,7 @@
       <el-form-item label="姓名">
         <el-input v-model="queryParams.name" placeholder="请输入姓名" clearable @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="线索时间">
+      <el-form-item label="分配时间">
         <el-date-picker
           v-model="leadTimeRange"
           type="datetimerange"
