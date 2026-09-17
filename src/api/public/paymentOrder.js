@@ -1,5 +1,12 @@
 import request from '@/utils/request'
 
+export function getDashboardPaymentStatistics() {
+  return request({
+    url: '/crm/payment/dashboard/statistics',
+    method: 'get'
+  })
+}
+
 export function getPaymentOrderList(clueId) {
   return request({
     url: '/crm/payment/list',

@@ -19,11 +19,11 @@ export function updateContract(data) {
 }
 
 // 创建合同前检查当前线索是否满足创建条件
-export function checkContractCreate(clueId) {
+export function checkContractCreate(assignId) {
   return request({
     url: '/crm/contract/create-check',
     method: 'get',
-    params: { clueId }
+    params: { assignId }
   })
 }
 

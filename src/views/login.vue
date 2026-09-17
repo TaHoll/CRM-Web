@@ -6,15 +6,7 @@
 
       <LangSelect title="多语言设置" class="langSet" />
 
-      <div style="padding: 0 25px 5px 25px">
-        <el-tabs v-model="loginType" @tab-click="handleLoginType">
-          <el-tab-pane :label="$t('login.loginway1')" :name="1"></el-tab-pane>
-          <el-tab-pane :label="$t('login.loginway2')" :name="2" v-if="defaultSettings.showPhoneLogin"></el-tab-pane>
-          <el-tab-pane :label="$t('login.loginway3')" :name="3" v-if="defaultSettings.showQrLogin"></el-tab-pane>
-        </el-tabs>
-      </div>
-
-      <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form" v-if="loginType == 1">
+      <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form">
         <el-form-item prop="tenantId" v-show="defaultSettings.showTenant">
           <el-select v-model="loginForm.tenantId" size="default" placeholder="请选择租户" style="width: 100%" @change="handleTenantId">
             <el-option value="tenant0" label="默认租户"></el-option>
@@ -67,9 +59,6 @@
         </el-form-item>
       </el-form>
 
-      <qrLogin ref="qrLoginRef" v-if="loginType == 3"></qrLogin>
-      <phoneLogin v-if="loginType == 2"></phoneLogin>
-      <oauthLogin v-if="defaultSettings.showOtherLogin"></oauthLogin>
     </div>
 
     <div class="el-login-footer">
@@ -86,16 +75,12 @@ import defaultSettings from '@/settings'
 import starBackground from '@/views/components/starBackground.vue'
 import LangSelect from '@/components/LangSelect/index.vue'
 import useUserStore from '@/store/modules/user'
-import oauthLogin from './components/Login/oauthLogin.vue'
-import phoneLogin from './components/Login/phoneLogin.vue'
-import qrLogin from './components/Login/qrLogin.vue'
 
 var visitorId = ''
 const fpPromise = import('https://openfpcdn.io/fingerprintjs/v3').then((FingerprintJS) => FingerprintJS.load())
 
 const userStore = useUserStore()
 const router = useRouter()
-const route = useRoute()
 const { proxy } = getCurrentInstance()
 
 const loginForm = ref({
@@ -111,20 +96,12 @@ const loginRules = {
   password: [{ required: true, trigger: 'blur', message: '请输入您的密码' }],
   code: [{ required: true, trigger: 'change', message: '请输入验证码' }]
 }
-const loginType = computed({
-  get: () => userStore.loginType,
-  set: (val) => {
-    userStore.loginType = val
-  }
-})
 const codeUrl = ref('')
 const loading = ref(false)
 // 验证码开关
 const captchaOnOff = ref('')
 // 注册开关
 const register = ref(false)
-const redirect = ref()
-redirect.value = route.query.redirect
 // Get the visitor identifier when you need it.
 fpPromise
   .then((fp) => fp.get())
@@ -133,13 +110,6 @@ fpPromise
     visitorId = result.visitorId
     userStore.setClientId(visitorId)
   })
-watch(
-  route,
-  (newRoute) => {
-    redirect.value = newRoute.query && newRoute.query.redirect
-  },
-  { immediate: true }
-)
 function handleLogin() {
   proxy.$refs.loginRef.validate((valid) => {
     if (valid) {
@@ -160,7 +130,7 @@ function handleLogin() {
         .login(loginForm.value)
         .then(() => {
           proxy.$modal.msgSuccess(proxy.$t('login.loginSuccess'))
-          router.push({ path: redirect.value || '/dashboard' })
+          router.push({ path: '/dashboard' })
         })
         .catch((error) => {
           console.error(error)
@@ -193,32 +163,6 @@ function getCookie() {
 }
 function handleForgetPwd() {
   proxy.$modal.msg('请联系管理员')
-}
-
-function handleLoginType(t) {
-  // const val = t.paneName
-
-  if (userStore.loginType == 3) {
-    nextTick(() => {
-      proxy.$refs.qrLoginRef.clearQr()
-    })
-  }
-}
-watch(
-  () => userStore.loginType,
-  (val) => {
-    if (val == 3) {
-      handleShowQrLogin()
-    }
-  },
-  {
-    immediate: true
-  }
-)
-function handleShowQrLogin() {
-  nextTick(() => {
-    proxy.$refs.qrLoginRef.generateCode()
-  })
 }
 
 /**

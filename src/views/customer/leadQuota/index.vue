@@ -91,6 +91,9 @@
             <el-col :span="1.5">
               <el-button type="primary" plain icon="CopyDocument" :disabled="!subjectAvailable" @click="openCopyDialog">复制配置</el-button>
             </el-col>
+            <el-col :span="1.5">
+              <el-button v-hasPermi="['crm:quota:dashboard']" type="primary" plain icon="DataBoard" @click="quotaDashboardOpen = true">分量看板</el-button>
+            </el-col>
             <right-toolbar v-model:showSearch="showSearch" @queryTable="handleQuery"></right-toolbar>
           </el-row>
 
@@ -160,6 +163,12 @@
         <el-button type="primary" @click="handleCopyPreview">预览</el-button>
       </template>
     </el-dialog>
+
+    <QuotaDashboardDialog
+      v-model="quotaDashboardOpen"
+      :subject-list="subjectList"
+      :active-subject-id="activeSubjectId"
+      :quota-date="queryParams.quotaDate" />
   </div>
 </template>
 
@@ -167,6 +176,7 @@
 import { treeselect } from '@/api/system/dept'
 import { userQuotaList, userQuotaSave } from '@/api/public/lead'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
+import QuotaDashboardDialog from './components/QuotaDashboardDialog.vue'
 
 const { proxy } = getCurrentInstance()
 
@@ -184,6 +194,7 @@ const copySourceDate = ref('')
 const copySourceList = ref([])
 const copyTargetDate = ref('')
 const copyPreviewing = ref(false)
+const quotaDashboardOpen = ref(false)
 const subjectList = ref([])
 const activeSubjectId = ref()
 const today = getToday()

@@ -35,9 +35,10 @@ const usePermissionStore = defineStore('permission', {
       return new Promise((resolve) => {
         // 向后端请求路由数据
         getRouters().then((res) => {
-          const sdata = JSON.parse(JSON.stringify(res.data))
-          const rdata = JSON.parse(JSON.stringify(res.data))
-          const defaultData = JSON.parse(JSON.stringify(res.data))
+          const menuRoutes = excludeDashboardRoutes(res.data)
+          const sdata = JSON.parse(JSON.stringify(menuRoutes))
+          const rdata = JSON.parse(JSON.stringify(menuRoutes))
+          const defaultData = JSON.parse(JSON.stringify(menuRoutes))
           const sidebarRoutes = filterAsyncRouter(sdata)
           const rewriteRoutes = filterAsyncRouter(rdata, false, true)
           const defaultRoutes = filterAsyncRouter(defaultData)
@@ -65,6 +66,22 @@ const usePermissionStore = defineStore('permission', {
     }
   }
 })
+
+function excludeDashboardRoutes(routes = []) {
+  return routes.reduce((result, route) => {
+    const normalizedPath = `/${String(route.path || '').replace(/^\/+/, '')}`
+    const isDashboard = normalizedPath === '/dashboard' || route.name === 'Dashboard' || route.component === 'index_v1'
+    if (isDashboard) return result
+
+    const currentRoute = { ...route }
+    if (Array.isArray(route.children)) {
+      currentRoute.children = excludeDashboardRoutes(route.children)
+      if (route.children.length > 0 && currentRoute.children.length === 0) return result
+    }
+    result.push(currentRoute)
+    return result
+  }, [])
+}
 
 // 遍历后台传来的路由字符串，转换为组件对象
 function filterAsyncRouter(asyncRouterMap, lastRouter = false, type = false) {

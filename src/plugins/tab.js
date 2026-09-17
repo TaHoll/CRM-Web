@@ -33,7 +33,7 @@ export default {
   closePage(obj) {
     if (obj === undefined) {
       return useTagsViewStore().delView(router.currentRoute.value).then(({ lastPath }) => {
-        return router.push(lastPath || '/index');
+        return router.push(lastPath || '/dashboard');
       });
     }
     return useTagsViewStore().delView(obj);

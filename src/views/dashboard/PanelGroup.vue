@@ -3,20 +3,24 @@
     <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col">
       <div class="card-panel" @click="handleSetLineChartData('newVisitis')">
         <div class="card-panel-icon-wrapper icon-people">
-          <svg-icon name="peoples" class-name="card-panel-icon" />
+          <svg-icon name="money" class-name="card-panel-icon" />
         </div>
         <div class="card-panel-description">
-          <el-statistic :title="$t('layout.onlineUsers')" :value="state.onlineNum" />
+          <el-statistic title="今日收款" :value="state.todayPayment">
+            <template #prefix>¥</template>
+          </el-statistic>
         </div>
       </div>
     </el-col>
     <el-col :xs="12" :sm="12" :lg="6" class="card-panel-col">
       <div class="card-panel" @click="handleSetLineChartData('messages')">
         <div class="card-panel-icon-wrapper icon-message">
-          <svg-icon name="message" class-name="card-panel-icon" />
+          <svg-icon name="money" class-name="card-panel-icon" />
         </div>
         <div class="card-panel-description">
-          <el-statistic :value="state.order" :title="$t('layout.message')"> </el-statistic>
+          <el-statistic title="本月收款" :value="state.monthPayment">
+            <template #prefix>¥</template>
+          </el-statistic>
         </div>
       </div>
     </el-col>
@@ -26,10 +30,8 @@
           <svg-icon name="money" class-name="card-panel-icon" />
         </div>
         <div class="card-panel-description">
-          <el-statistic :value="state.order" :title="$t('layout.amount')">
-            <template #title>
-              <div style="display: inline-flex; align-items: center">{{ $t('layout.amount') }}</div>
-            </template>
+          <el-statistic title="本月待收" :value="state.pendingPayment">
+            <template #prefix>¥</template>
           </el-statistic>
         </div>
       </div>
@@ -40,11 +42,7 @@
           <svg-icon name="shopping" class-name="card-panel-icon" />
         </div>
         <div class="card-panel-description">
-          <el-statistic :value="state.order" :title="$t('layout.order')">
-            <template #title>
-              <div style="display: inline-flex; align-items: center">{{ $t('layout.order') }}</div>
-            </template>
-          </el-statistic>
+          <el-statistic title="本月成交" :value="state.dealCount" />
           <div class="statistic-footer">
             <div class="footer-item">
               <span>环比</span>
@@ -71,17 +69,22 @@
 </template>
 
 <script setup>
-import useSocketStore from '@/store/modules/socket'
+import { getDashboardPaymentStatistics } from '@/api/public/paymentOrder'
+
 const emit = defineEmits()
 
 const state = reactive({
-  chatNum: 1390,
-  onlineNum: computed(() => {
-    return useSocketStore().onlineNum
-  }),
-  amount: 99998,
-  order: 1999
+  todayPayment: 0,
+  monthPayment: 0,
+  pendingPayment: 0,
+  dealCount: 0
 })
+
+onMounted(async () => {
+  const response = await getDashboardPaymentStatistics()
+  Object.assign(state, response.data || {})
+})
+
 function handleSetLineChartData(type) {
   emit('handleSetLineChartData', type)
 }

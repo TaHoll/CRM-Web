@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container customer-edit-page">
+  <div v-loading="detailLoading" class="app-container customer-edit-page">
     <el-card class="page-card customer-summary-card" shadow="never">
       <div class="customer-profile">
         <div :class="['customer-subject-name', { 'is-abnormal': form.subjectTabStatus !== 0 }]">
@@ -76,8 +76,20 @@
               <span class="profile-value">{{ form.stage || '-' }}</span>
             </div>
             <div class="profile-field">
+              <span class="profile-label">分配阶段：</span>
+              <span class="profile-value">{{ formatFollowStage(form.deptStage) }}</span>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">跟进人：</span>
+              <span class="profile-value">{{ form.assignedUserNickName || '-' }}</span>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">跟进部门：</span>
+              <span class="profile-value">{{ form.assignedDeptName || '-' }}</span>
+            </div>
+            <div class="profile-field">
               <span class="profile-label">来源时间：</span>
-              <span class="profile-value">{{ form.sourceTime || '-' }}</span>
+              <span class="profile-value">{{ formatFollowTime(form.sourceTime) }}</span>
             </div>
             <div class="profile-field profile-tags-field">
               <span class="profile-label">客户标签：</span>
@@ -531,10 +543,10 @@
 <script setup name="CustomerManagementEdit">
 import { Edit, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
-import { addFollowLog, followLogList, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
+import { addFollowLog, followLogList, getCustomerDetail, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
 import { addPaymentOrder, getPaymentOrderList } from '@/api/public/paymentOrder'
 import { addContract, checkContractCreate, getContractList, updateContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
@@ -542,9 +554,9 @@ import { listEnabledTagOptions } from '@/api/system/tagCategory'
 import { validIdCard, validMobile } from '@/utils/validate'
 
 const route = useRoute()
-const router = useRouter()
 const { toClipboard } = useClipboard()
 const form = reactive({
+  assignId: '',
   id: '',
   subjectId: undefined,
   subjectName: '',
@@ -555,12 +567,19 @@ const form = reactive({
   city: '',
   stage: '',
   deptStage: undefined,
+  assignedUserId: undefined,
+  assignedUserName: '',
+  assignedUserNickName: '',
+  assignedDeptId: undefined,
+  assignedDeptName: '',
   sourceTime: '',
   gender: 'MALE',
   age: 0,
   tags: []
 })
 
+const detailLoading = ref(false)
+let detailRequestId = 0
 const fullPhone = ref('')
 const phoneVisible = ref(false)
 const phoneLoading = ref(false)
@@ -788,30 +807,9 @@ function normalizePaymentScreenshotStorageUrl(value) {
   return value
 }
 
-function syncCustomerFromRoute() {
-  Object.assign(form, {
-    id: route.query.id || '',
-    subjectId: route.query.subjectId === undefined ? undefined : Number(route.query.subjectId),
-    subjectName: route.query.subjectName || '',
-    subjectTabStatus: route.query.subjectTabStatus === undefined ? 0 : Number(route.query.subjectTabStatus),
-    name: route.query.name || '',
-    weixin: route.query.wechat || '',
-    province: route.query.province || '',
-    city: route.query.city || '',
-    stage: route.query.stage || '',
-    deptStage: route.query.deptStage === undefined ? undefined : Number(route.query.deptStage),
-    sourceTime: route.query.sourceTime || '',
-    gender: route.query.gender || 'MALE',
-    age: Number(route.query.age) || 0,
-    tags: parseCustomerTags()
-  })
-
-  fullPhone.value = route.query.phone || ''
-  phoneVisible.value = false
-  phoneLoading.value = false
-  editingField.value = ''
-  tagPickerVisible.value = false
-  syncSelectedTags()
+function resetCustomerRelatedData() {
+  followLogRequestId++
+  followLogLoading.value = false
   followRecords.value = []
   operationLogRequestId++
   operationLogLoading.value = false
@@ -822,13 +820,75 @@ function syncCustomerFromRoute() {
   contractListRequestId++
   contractListLoading.value = false
   contractRecords.value = []
-  void getFollowRecords()
-  void getOperationLogs()
-  void getPaymentRecords()
-  void getContractRecords()
 }
 
-watch(() => route.fullPath, syncCustomerFromRoute, { immediate: true })
+async function loadCustomerDetail() {
+  if (route.path !== '/customer/management/edit') return
+
+  const assignId = Array.isArray(route.query.assignId)
+    ? route.query.assignId[0]
+    : route.query.assignId
+  if (!assignId) {
+    ElMessage.warning('客户分配记录ID不能为空')
+    return
+  }
+
+  const requestId = ++detailRequestId
+  detailLoading.value = true
+  resetCustomerRelatedData()
+  phoneVisible.value = false
+  phoneLoading.value = false
+  editingField.value = ''
+  tagPickerVisible.value = false
+  try {
+    const res = await getCustomerDetail(assignId)
+    if (requestId !== detailRequestId || res.code !== 200) return
+
+    const customer = res.data || {}
+    Object.assign(form, {
+      assignId: String(customer.assignId ?? assignId),
+      id: customer.clueId || '',
+      subjectId: customer.subjectId,
+      subjectName: customer.subjectName || '',
+      subjectTabStatus: Number(customer.subjectTabStatus) || 0,
+      name: customer.name || '',
+      weixin: customer.wechat || '',
+      province: customer.autoProvinceName || '',
+      city: customer.autoCityName || '',
+      stage: customer.effectiveStateNameStr || '',
+      deptStage: customer.stage === undefined ? undefined : Number(customer.stage),
+      assignedUserId: customer.assignedUserId,
+      assignedUserName: customer.assignedUserName || '',
+      assignedUserNickName: customer.userNickName || '',
+      assignedDeptId: customer.assignedDeptId,
+      assignedDeptName: customer.deptName || '',
+      sourceTime: customer.createTime || '',
+      gender: customer.gender || 'UNKNOWN',
+      age: Number(customer.age) || 0,
+      tags: Array.isArray(customer.customerTags) ? customer.customerTags : []
+    })
+    fullPhone.value = customer.telephone || ''
+    syncSelectedTags()
+    void getFollowRecords()
+    void getOperationLogs()
+    void getPaymentRecords()
+    void getContractRecords()
+  } finally {
+    if (requestId === detailRequestId) {
+      detailLoading.value = false
+    }
+  }
+}
+
+watch(
+  () => [route.path, route.query.assignId],
+  ([path]) => {
+    if (path === '/customer/management/edit') {
+      void loadCustomerDetail()
+    }
+  },
+  { immediate: true }
+)
 
 async function getFollowRecords() {
   if (!form.id || followLogLoading.value) return
@@ -950,26 +1010,6 @@ function syncSelectedTags() {
     .map((tag) => tag.id)
 }
 
-function parseCustomerTags() {
-  try {
-    const source = Array.isArray(route.query.customerTags)
-      ? route.query.customerTags[0]
-      : route.query.customerTags
-    const tags = JSON.parse(source || '[]')
-    if (Array.isArray(tags)) {
-      return tags
-        .filter((tag) => tag?.name)
-        .map((tag) => ({ id: tag.id, name: tag.name, color: tag.color }))
-    }
-  } catch {
-    // 兼容旧页面跳转参数。
-  }
-
-  return route.query.tags
-    ? String(route.query.tags).split(',').filter(Boolean).map((name) => ({ name }))
-    : []
-}
-
 async function handleSave() {
   if (!form.id) {
     ElMessage.warning('线索ID不能为空')
@@ -989,17 +1029,6 @@ async function handleSave() {
     })
     if (res.code === 200) {
       finishEdit()
-      await router.replace({
-        path: route.path,
-        query: {
-          ...route.query,
-          name: form.name,
-          wechat: form.weixin,
-          age: String(form.age),
-          gender: form.gender,
-          customerTags: JSON.stringify(form.tags)
-        }
-      })
       ElMessage.success('客户信息已保存')
     }
   } finally {
@@ -1017,14 +1046,14 @@ function handleBusinessAction(action) {
 }
 
 async function openContractDialog() {
-  if (!form.id || contractCheckLoading.value) {
-    if (!form.id) ElMessage.warning('当前客户线索ID不能为空')
+  if (!form.assignId || contractCheckLoading.value) {
+    if (!form.assignId) ElMessage.warning('当前客户分配记录ID不能为空')
     return
   }
 
   contractCheckLoading.value = true
   try {
-    await checkContractCreate(form.id)
+    await checkContractCreate(form.assignId)
     contractEditingId.value = null
 
     Object.assign(contractForm, {
@@ -1110,6 +1139,7 @@ async function handleCreateContract() {
       recoveryServiceFeeRate: contractForm.recoveryServiceFeeRate,
       entrustedPersonName: contractForm.entrustedPersonName,
       entrustedPersonPhone: contractForm.entrustedPersonPhone,
+      assignId: form.assignId,
       clueId: form.id
     }
     if (contractEditingId.value) {
@@ -1235,6 +1265,10 @@ async function handlePaymentSave() {
     ElMessage.warning('线索ID不能为空')
     return
   }
+  if (!form.assignId) {
+    ElMessage.warning('客户分配记录ID不能为空')
+    return
+  }
   if (form.deptStage === undefined || form.deptStage === null || Number.isNaN(form.deptStage)) {
     ElMessage.warning('线索阶段不能为空')
     return
@@ -1267,6 +1301,7 @@ async function handlePaymentSave() {
       contractNo: paymentForm.contract || null,
       paymentScreenshotUrl: paymentScreenshotUrl || null,
       paymentTime: paymentForm.paymentTime,
+      assignId: form.assignId,
       clueId: form.id,
       stage: form.deptStage
     })

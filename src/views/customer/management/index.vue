@@ -84,7 +84,7 @@
         </right-toolbar>
       </el-row>
 
-      <el-table v-loading="loading" :data="dataList" min-height="520" border highlight-current-row row-key="clueId">
+    <el-table v-loading="loading" :data="dataList" min-height="520" border highlight-current-row row-key="assignId">
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column
           v-for="column in visibleColumns"
@@ -410,25 +410,10 @@ function handleColumnDrop(targetProp) {
 }
 
 function handleEdit(row) {
-  const currentSubject = subjectList.value.find((subject) => subject.id === activeSubjectId.value)
   router.push({
     path: '/customer/management/edit',
     query: {
-      id: row.clueId,
-      subjectId: activeSubjectId.value,
-      subjectName: currentSubject?.subjectName || '',
-      subjectTabStatus: currentSubject?.tabStatus ?? 0,
-      name: row.name,
-      wechat: row.wechat || row.Wechat,
-      phone: row.telephone,
-      city: row.autoCityName,
-      province: row.autoProvinceName,
-      stage: row.effectiveStateNameStr,
-      deptStage: row.stage,
-      sourceTime: row.createTime || row.CreateTime,
-      gender: row.gender,
-      age: row.age,
-      customerTags: JSON.stringify(row.customerTags || [])
+      assignId: row.assignId
     }
   })
 }

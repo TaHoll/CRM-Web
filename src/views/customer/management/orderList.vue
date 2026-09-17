@@ -45,7 +45,7 @@
       <el-table-column prop="contractAmount" label="合同金额" width="130" align="right">
         <template #default="{ row }"><span class="amount-text">¥ {{ formatAmount(row.contractAmount) }}</span></template>
       </el-table-column>
-      <el-table-column prop="approvedPaymentAmount" label="已审核付款" width="130" align="right">
+      <el-table-column prop="approvedPaymentAmount" label="已收款" width="130" align="right">
         <template #default="{ row }"><span class="amount-text">¥ {{ formatAmount(row.approvedPaymentAmount) }}</span></template>
       </el-table-column>
       <el-table-column label="付款状态" width="110" align="center">

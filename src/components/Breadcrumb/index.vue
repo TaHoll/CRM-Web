@@ -32,9 +32,9 @@ function getBreadcrumb() {
   } else {
     matched = route.matched.filter((item) => item.meta && item.meta.title)
   }
-  // 判断是否为首页
+  // 判断是否为控制台
   if (!isDashboard(matched[0])) {
-    matched = [{ path: '/index', meta: { title: '首页' } }].concat(matched)
+    matched = [{ path: '/dashboard', meta: { title: '控制台' } }].concat(matched)
   }
   levelList.value = matched.filter((item) => item.meta && item.meta.title && item.meta.breadcrumb !== false)
 }
@@ -62,7 +62,7 @@ function isDashboard(route) {
   if (!name) {
     return false
   }
-  return name.trim() === 'Index'
+  return name.trim() === 'Dashboard'
 }
 function handleLink(item) {
   const { redirect, path } = item

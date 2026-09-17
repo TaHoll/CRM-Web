@@ -52,6 +52,13 @@ export function followLogList(clueId) {
   })
 }
 
+export function getCustomerDetail(assignId) {
+  return request({
+    url: `/crm/lead/customer/${assignId}`,
+    method: 'get'
+  })
+}
+
 export function operationLogList(clueId) {
   return request({
     url: '/crm/lead/operLogList',
@@ -71,6 +78,14 @@ export function addFollowLog(data) {
 export function userQuotaList(query) {
   return request({
     url: '/crm/lead/UserQuotaList',
+    method: 'get',
+    params: query
+  })
+}
+
+export function quotaDashboardList(query) {
+  return request({
+    url: '/crm/lead/QuotaDashboardList',
     method: 'get',
     params: query
   })

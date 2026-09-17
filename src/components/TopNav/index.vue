@@ -51,7 +51,7 @@ const visibleNumber = ref(5)
 // 当前激活菜单的 index
 const currentIndex = ref(undefined)
 // 隐藏侧边栏路由
-const hideList = ['/index', '/user/profile']
+const hideList = ['/dashboard', '/user/profile']
 
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
@@ -160,7 +160,7 @@ function handleSelect(key, keyPath) {
 function activeRoutes(key) {
   const children = childrenMenus.value || []
   const routes = children.filter(
-    (item) => key === item.parentPath || (item.parentPath === '/' && key === item.path) || (key === '/index' && item.path === '')
+    (item) => key === item.parentPath || (item.parentPath === '/' && key === item.path) || (key === '/dashboard' && item.path === '')
   )
   permissionStore.setSidebarRouters(routes)
   return routes
