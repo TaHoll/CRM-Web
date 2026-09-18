@@ -45,6 +45,14 @@ export function getContractAuditList(query) {
   })
 }
 
+// 根据合同ID获取文件下载链接
+export function getContractDownloadUrl(contractId) {
+  return request({
+    url: `/crm/contract/${contractId}/download-url`,
+    method: 'get'
+  })
+}
+
 // 分页查询客户合同订单列表
 export function getContractOrderList(query) {
   return request({

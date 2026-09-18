@@ -16,3 +16,12 @@ export function getContractSignUrl(contractId, linkType) {
     data: { contractId, linkType }
   })
 }
+
+// 获取企业经办人的批量盖章页面链接
+export function getBatchSignUrl(contractIds) {
+  return request({
+    url: '/openApi/ESign/batch-sign-url',
+    method: 'post',
+    data: { contractIds }
+  })
+}

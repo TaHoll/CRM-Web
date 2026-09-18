@@ -35,10 +35,17 @@
     </el-form>
 
     <el-row class="mb10">
+      <el-button
+        v-hasPermi="['crm:contract:audit']"
+        type="primary"
+        :disabled="selectedContracts.length === 0"
+        :loading="batchSignLoading"
+        @click="handleBatchSeal">批量盖章</el-button>
       <right-toolbar v-model:show-search="showSearch" @query-table="getList" />
     </el-row>
 
-    <el-table v-loading="loading" :data="contractList" border min-height="520">
+    <el-table ref="contractTableRef" v-loading="loading" :data="contractList" border min-height="520" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" :selectable="canBatchSeal" />
       <el-table-column type="index" label="序号" width="60" align="center" />
       <el-table-column prop="subjectName" label="所属主体" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">{{ row.subjectName || '-' }}</template>
@@ -76,7 +83,7 @@
       <el-table-column prop="createTime" label="创建时间" width="170" align="center">
         <template #default="{ row }">{{ parseTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="220" align="center" fixed="right">
+      <el-table-column label="操作" width="270" align="center" fixed="right">
         <template #default="{ row }">
           <template v-if="Number(row.contractStatus) === 0">
             <el-button
@@ -114,6 +121,12 @@
               :loading="revokeLoadingId === row.id"
               @click="handleRevoke(row)">撤销</el-button>
           </template>
+          <el-button
+            v-if="[1, 2].includes(Number(row.contractStatus))"
+            link
+            type="primary"
+            :loading="downloadLoadingId === row.id"
+            @click="handleDownload(row)">下载</el-button>
           <el-button link type="primary" @click="showDetail(row)">详情</el-button>
         </template>
       </el-table-column>
@@ -158,19 +171,23 @@
 </template>
 
 <script setup name="CustomerContractAudit">
-import { auditContract, completeContract, getContractAuditList, revokeContract } from '@/api/public/contract'
-import { getContractSignUrl } from '@/api/public/esign'
+import { auditContract, completeContract, getContractAuditList, getContractDownloadUrl, revokeContract } from '@/api/public/contract'
+import { getBatchSignUrl, getContractSignUrl } from '@/api/public/esign'
 
 const { proxy } = getCurrentInstance()
 const loading = ref(false)
 const showSearch = ref(true)
 const total = ref(0)
 const contractList = ref([])
+const contractTableRef = ref(null)
+const selectedContracts = ref([])
+const batchSignLoading = ref(false)
 const createTimeRange = ref([])
 const auditLoadingId = ref(null)
 const signUrlLoadingId = ref(null)
 const completeLoadingId = ref(null)
 const revokeLoadingId = ref(null)
+const downloadLoadingId = ref(null)
 const detailVisible = ref(false)
 const currentContract = ref({})
 
@@ -214,8 +231,19 @@ function formatRate(value) {
   return `${Number(value || 0).toFixed(2)}%`
 }
 
+function canBatchSeal(row) {
+  return Number(row.contractStatus) === 1
+    && Number(row.enterpriseSealStatus) !== 1
+    && Boolean(row.signFlowId)
+}
+
+function handleSelectionChange(rows) {
+  selectedContracts.value = rows
+}
+
 async function getList() {
   loading.value = true
+  contractTableRef.value?.clearSelection()
   ;[queryParams.beginCreateTime, queryParams.endCreateTime] = createTimeRange.value || []
   try {
     const response = await getContractAuditList(queryParams)
@@ -241,6 +269,76 @@ function resetQuery() {
 function showDetail(row) {
   currentContract.value = row
   detailVisible.value = true
+}
+
+async function handleBatchSeal() {
+  if (batchSignLoading.value || selectedContracts.value.length === 0) return
+
+  const contracts = selectedContracts.value
+  if (contracts.some(row => !canBatchSeal(row))) {
+    proxy.$modal.msgWarning('请选择签署中且未盖章的合同')
+    return
+  }
+
+  if (contracts.some(row => row.subjectId !== contracts[0].subjectId)) {
+    proxy.$modal.msgWarning('批量盖章的合同必须属于同一主体')
+    return
+  }
+
+  const signWindow = window.open('', '_blank')
+  if (signWindow) {
+    signWindow.document.title = '正在打开批量盖章页面'
+    signWindow.document.body.innerText = '正在获取批量盖章链接，请稍候...'
+  }
+
+  batchSignLoading.value = true
+  try {
+    const response = await getBatchSignUrl(contracts.map(row => row.id))
+    const signUrl = response.data
+    if (!signUrl) {
+      signWindow?.close()
+      proxy.$modal.msgWarning('未获取到批量盖章链接')
+      return
+    }
+
+    if (signWindow) {
+      signWindow.location.replace(signUrl)
+    } else {
+      window.location.assign(signUrl)
+    }
+  } catch (error) {
+    signWindow?.close()
+    throw error
+  } finally {
+    batchSignLoading.value = false
+  }
+}
+
+async function handleDownload(row) {
+  if (downloadLoadingId.value || ![1, 2].includes(Number(row.contractStatus))) return
+
+  const downloadWindow = window.open('', '_blank')
+  downloadLoadingId.value = row.id
+  try {
+    const response = await getContractDownloadUrl(row.id)
+    const downloadUrl = response.data
+    if (!downloadUrl) {
+      downloadWindow?.close()
+      proxy.$modal.msgWarning('未获取到合同下载链接')
+      return
+    }
+
+    if (downloadWindow) {
+      downloadWindow.location.replace(downloadUrl)
+    } else {
+      window.location.assign(downloadUrl)
+    }
+  } catch (error) {
+    downloadWindow?.close()
+    throw error
+  } finally {
+    downloadLoadingId.value = null
+  }
 }
 
 async function handleAudit(row, auditStatus) {

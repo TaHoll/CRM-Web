@@ -245,7 +245,7 @@
             <el-table-column label="创建时间" min-width="170">
               <template #default="{ row }">{{ formatFollowTime(row.createTime) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="150" fixed="right" align="center">
+            <el-table-column label="操作" width="210" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button v-if="Number(row.contractStatus) === 0" link type="primary" @click="openEditContractDialog(row)">
                   编辑
@@ -258,7 +258,15 @@
                   @click="handleCopyContractSignUrl(row)">
                   获取签署链接
                 </el-button>
-                <span v-else>-</span>
+                <el-button
+                  v-if="[1, 2].includes(Number(row.contractStatus))"
+                  link
+                  type="primary"
+                  :loading="contractDownloadLoadingId === row.id"
+                  @click="handleDownloadContract(row)">
+                  下载
+                </el-button>
+                <span v-if="![0, 1, 2].includes(Number(row.contractStatus))">-</span>
               </template>
             </el-table-column>
           </el-table>
@@ -548,7 +556,7 @@ import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
 import { addFollowLog, followLogList, getCustomerDetail, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
 import { addPaymentOrder, getPaymentOrderList } from '@/api/public/paymentOrder'
-import { addContract, checkContractCreate, getContractList, updateContract } from '@/api/public/contract'
+import { addContract, checkContractCreate, getContractDownloadUrl, getContractList, updateContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
 import { validIdCard, validMobile } from '@/utils/validate'
@@ -598,6 +606,7 @@ const contractCheckLoading = ref(false)
 const contractSubmitting = ref(false)
 const contractEditingId = ref(null)
 const contractSignLinkLoadingId = ref(null)
+const contractDownloadLoadingId = ref(null)
 const contractFormRef = ref()
 const paymentDialogVisible = ref(false)
 const paymentFormRef = ref()
@@ -1169,6 +1178,33 @@ async function openPaymentDialog() {
   paymentDialogVisible.value = true
 
   await getContractRecords()
+}
+
+async function handleDownloadContract(row) {
+  if (contractDownloadLoadingId.value || ![1, 2].includes(Number(row.contractStatus))) return
+
+  const downloadWindow = window.open('', '_blank')
+  contractDownloadLoadingId.value = row.id
+  try {
+    const response = await getContractDownloadUrl(row.id)
+    const downloadUrl = response.data
+    if (!downloadUrl) {
+      downloadWindow?.close()
+      ElMessage.warning('未获取到合同下载链接')
+      return
+    }
+
+    if (downloadWindow) {
+      downloadWindow.location.replace(downloadUrl)
+    } else {
+      window.location.assign(downloadUrl)
+    }
+  } catch (error) {
+    downloadWindow?.close()
+    throw error
+  } finally {
+    contractDownloadLoadingId.value = null
+  }
 }
 
 function formatPaymentContractOption(item) {
