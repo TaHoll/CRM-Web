@@ -37,6 +37,15 @@ export function updateUser(data) {
   })
 }
 
+// 查询用户变更部门时需要同步的客户分配记录数量
+export function getLeadAssignCount(userId, deptId) {
+  return request({
+    url: '/system/user/' + userId + '/lead-assign-count',
+    method: 'get',
+    params: { deptId }
+  })
+}
+
 // 删除用户
 export function delUser(userId) {
   return request({

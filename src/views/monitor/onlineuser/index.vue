@@ -20,7 +20,7 @@
           <span>{{ (queryParams.pageNum - 1) * queryParams.pageSize + scope.$index + 1 }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="用户名" align="center" />
+      <el-table-column prop="name" label="用户昵称" align="center" />
       <el-table-column label="登录地点" prop="location" align="center"> </el-table-column>
       <el-table-column label="登录IP" prop="userIP" align="center"></el-table-column>
       <el-table-column prop="browser" label="登录浏览器" width="210"></el-table-column>

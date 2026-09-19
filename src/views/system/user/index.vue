@@ -310,7 +310,7 @@
 <script setup name="user">
 import { getToken } from '@/utils/auth'
 import { treeselect } from '@/api/system/dept'
-import { changeUserStatus, listUser, resetUserPwd, delUser, getUser, updateUser, addUser, exportUser } from '@/api/system/user'
+import { changeUserStatus, listUser, resetUserPwd, delUser, getUser, updateUser, addUser, exportUser, getLeadAssignCount } from '@/api/system/user'
 import UserViewDrawer from './view.vue'
 const { proxy } = getCurrentInstance()
 
@@ -333,6 +333,7 @@ const total = ref(0)
 const title = ref('')
 const dateRange = ref([])
 const deptName = ref('')
+const originalDeptId = ref(undefined)
 const deptOptions = ref([])
 const initPassword = ref(undefined)
 const postOptions = ref([])
@@ -366,6 +367,17 @@ const columns = ref([
   { key: 9, label: `邮箱`, visible: false, prop: 'email' },
   { key: 10, label: `最后登录时间`, visible: false, prop: 'loginDate' }
 ])
+
+const phoneNumberPattern = /^1[3-9]\d{9}$/
+const maskedPhoneNumberPattern = /^1\d{2}\*{4}\d{4}$/
+function validatePhoneNumber(rule, value, callback) {
+  if (!value || phoneNumberPattern.test(value) || maskedPhoneNumberPattern.test(value)) {
+    callback()
+    return
+  }
+
+  callback(new Error('请输入正确的手机号码'))
+}
 
 const data = reactive({
   form: {},
@@ -407,8 +419,7 @@ const data = reactive({
     ],
     phonenumber: [
       {
-        pattern: /^1[3|4|5|6|7|8|9][0-9]\d{8}$/,
-        message: '请输入正确的手机号码',
+        validator: validatePhoneNumber,
         trigger: 'blur'
       }
     ]
@@ -573,6 +584,7 @@ function initTreeData() {
 }
 /** 重置操作表单 */
 function reset() {
+  originalDeptId.value = undefined
   form.value = {
     userId: undefined,
     deptId: undefined,
@@ -614,6 +626,7 @@ function handleUpdate(row) {
 
   getUser(userId).then((response) => {
     var data = response.data
+    originalDeptId.value = data.user.deptId
     form.value = {
       userId: data.user.userId,
       deptId: data.user.deptId,
@@ -637,9 +650,26 @@ function handleUpdate(row) {
 }
 /** 提交按钮 */
 function submitForm() {
-  proxy.$refs['userRef'].validate((valid) => {
+  proxy.$refs['userRef'].validate(async (valid) => {
     if (valid) {
       if (form.value.userId != undefined) {
+        const isDepartmentChanged = String(originalDeptId.value ?? '') !== String(form.value.deptId ?? '')
+        if (isDepartmentChanged) {
+          const response = await getLeadAssignCount(form.value.userId, form.value.deptId ?? 0)
+          const leadAssignCount = Number(response.data || 0)
+          if (leadAssignCount > 0) {
+            try {
+              await proxy.$modal.confirm(`该用户有 ${leadAssignCount} 条已分配客户，是否将用户客户一起转到变更部门？`, '变更部门确认', {
+                confirmButtonText: '是',
+                cancelButtonText: '否',
+                type: 'warning'
+              })
+            } catch {
+              return
+            }
+          }
+        }
+
         updateUser(form.value).then((response) => {
           proxy.$modal.msgSuccess('修改成功')
           open.value = false

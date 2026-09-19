@@ -194,9 +194,10 @@ const deptStageOptions = [
   { label: '售后', value: 300 }
 ]
 
-const FIXED_COLUMN_PROPS = ['name', 'telephone', 'weixin', 'createTimeDetail']
+const FIXED_COLUMN_PROPS = ['clueId', 'name', 'telephone', 'weixin', 'createTimeDetail']
 
 const defaultColumns = [ 
+  { prop: 'clueId', label: '线索ID', visible: true, minWidth: 180 },
   { prop: 'name', label: '姓名', visible: true, minWidth: 100 },
   { prop: 'telephone', label: '手机号', visible: true, minWidth: 130 },
   { prop: 'weixin', label: '微信', visible: true, minWidth: 130 },
