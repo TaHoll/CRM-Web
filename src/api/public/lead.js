@@ -52,6 +52,14 @@ export function followLogList(clueId) {
   })
 }
 
+export function publicPoolList(data) {
+  return request({
+    url: '/crm/lead/publicPoolList',
+    method: 'post',
+    data
+  })
+}
+
 export function getCustomerDetail(assignId) {
   return request({
     url: `/crm/lead/customer/${assignId}`,
