@@ -126,7 +126,12 @@
         :fixed="isFixedColumn(column.prop) ? 'left' : undefined"
         :show-overflow-tooltip="true">
         <template #default="{ row }">
-          <template v-if="column.prop === 'customerTags'">
+          <template v-if="column.prop === 'telephone'">
+            <el-tooltip :content="getTelephoneTip(row)" :disabled="!hasTelephoneTip(row)" placement="top">
+              <span :class="getTelephoneClass(row)">{{ formatValue(row.telephone) }}</span>
+            </el-tooltip>
+          </template>
+          <template v-else-if="column.prop === 'customerTags'">
             <div v-if="row.customerTags?.length" class="customer-tags-cell">
               <el-tag
                 v-for="tag in row.customerTags"
@@ -425,6 +430,30 @@ function formatValue(value, type) {
   return value
 }
 
+function getTelephoneClass(row) {
+  if (Number(row.isPrivacyNumber) !== 1 || !row.privacyNumberExpireTime) return ''
+  const expireTime = new Date(row.privacyNumberExpireTime).getTime()
+  if (Number.isNaN(expireTime)) return ''
+  return expireTime > Date.now() ? 'privacy-phone-active' : 'privacy-phone-expired'
+}
+
+function hasTelephoneTip(row) {
+  return Boolean(row.realTelephoneLastFour || row.realTelephoneLocation || row.privacyNumberExpireTime)
+}
+
+function getTelephoneTip(row) {
+  return `真实尾号：${row.realTelephoneLastFour || '-'}；归属地：${row.realTelephoneLocation || '-'}；有效期限：${formatPrivacyValidity(row.privacyNumberExpireTime)}`
+}
+
+function formatPrivacyValidity(expireTimeValue) {
+  if (!expireTimeValue) return '-'
+  const expireTime = new Date(expireTimeValue).getTime()
+  if (Number.isNaN(expireTime)) return '-'
+  const remainingMilliseconds = expireTime - Date.now()
+  const days = Math.ceil(Math.abs(remainingMilliseconds) / (24 * 60 * 60 * 1000))
+  return remainingMilliseconds > 0 ? `剩余 ${days} 天` : `已过期 ${days} 天`
+}
+
 function formatStageUser(row) {
   return row.stageUserId === null || row.stageUserId === undefined
     ? '未分配'
@@ -566,6 +595,16 @@ getList()
 .customer-tag-item {
   border-color: transparent;
   color: #fff;
+}
+
+.privacy-phone-active {
+  color: var(--el-color-success);
+  font-weight: 600;
+}
+
+.privacy-phone-expired {
+  color: var(--el-color-danger);
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {
