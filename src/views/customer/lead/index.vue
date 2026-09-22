@@ -61,6 +61,9 @@
             :value="user.userId" />
         </el-select>
       </el-form-item>
+      <el-form-item label="分配状态">
+        <el-checkbox v-model="searchForm.onlyUnassigned" @change="handleQuery">仅看未分配线索</el-checkbox>
+      </el-form-item>
       <el-form-item label="流量类型">
         <el-select v-model="searchForm.flowType" placeholder="请选择流量类型" clearable>
           <el-option v-for="item in flowTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
@@ -285,6 +288,7 @@ const searchForm = reactive({
   weixin: '',
   customerTagIds: [],
   assignedUserId: undefined,
+  onlyUnassigned: false,
   flowType: ''
 })
 
@@ -353,6 +357,7 @@ async function getList() {
       weixin: searchForm.weixin.trim(),
       customerTagIds: searchForm.customerTagIds,
       assignedUserId: searchForm.assignedUserId || undefined,
+      onlyUnassigned: searchForm.onlyUnassigned || undefined,
       flowType: searchForm.flowType || undefined
     })
     if (res.code === 200) {
@@ -375,6 +380,7 @@ function resetQuery() {
     searchForm[key] = ''
   })
   searchForm.customerTagIds = []
+  searchForm.onlyUnassigned = false
   queryParams.deptStage = undefined
   queryParams.beginTime = undefined
   queryParams.endTime = undefined

@@ -31,7 +31,15 @@
             <div class="profile-field">
               <span class="profile-label">手机号：</span>
               <span class="profile-value">{{ displayPhone }}</span>
-              <el-button link type="primary" :loading="phoneLoading" :disabled="phoneVisible" @click="getPhone">获取</el-button>
+              <el-button
+                v-if="fullPhone"
+                link
+                type="primary"
+                :loading="phoneLoading"
+                :disabled="phoneVisible"
+                @click="getPhone">
+                获取
+              </el-button>
             </div>
             <div class="profile-field">
               <span class="profile-label">年龄：</span>
@@ -66,8 +74,15 @@
               </div>
               <template v-else>
                 <span class="profile-value">{{ form.weixin || '-' }}</span>
-                <el-tooltip content="编辑微信" placement="top">
-                  <el-button link type="primary" :icon="Edit" @click="startEdit('weixin')" />
+                <el-tooltip :content="wechatVisible || !form.weixin ? '编辑微信' : '获取微信号'" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="wechatVisible || !form.weixin ? Edit : undefined"
+                    :loading="wechatLoading"
+                    @click="handleWechatAction">
+                    {{ wechatVisible || !form.weixin ? '' : '获取' }}
+                  </el-button>
                 </el-tooltip>
               </template>
             </div>
@@ -554,7 +569,7 @@ import { ElMessage } from 'element-plus'
 import { useRoute } from 'vue-router'
 import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
-import { addFollowLog, followLogList, getCustomerDetail, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
+import { addFollowLog, followLogList, getCustomerDetail, getCustomerWechat, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
 import { addPaymentOrder, getPaymentOrderList } from '@/api/public/paymentOrder'
 import { addContract, checkContractCreate, getContractDownloadUrl, getContractList, updateContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
@@ -591,6 +606,8 @@ let detailRequestId = 0
 const fullPhone = ref('')
 const phoneVisible = ref(false)
 const phoneLoading = ref(false)
+const wechatVisible = ref(false)
+const wechatLoading = ref(false)
 const saveLoading = ref(false)
 const editingField = ref('')
 const followLogLoading = ref(false)
@@ -847,6 +864,8 @@ async function loadCustomerDetail() {
   resetCustomerRelatedData()
   phoneVisible.value = false
   phoneLoading.value = false
+  wechatVisible.value = false
+  wechatLoading.value = false
   editingField.value = ''
   tagPickerVisible.value = false
   try {
@@ -962,13 +981,43 @@ async function getPhone() {
     const res = await getTelephone(form.id)
     if (res.code === 200) {
       fullPhone.value = res.data || ''
-      phoneVisible.value = true
-      ElMessage.success('已获取完整号码')
+      phoneVisible.value = Boolean(fullPhone.value)
+      ElMessage[phoneVisible.value ? 'success' : 'warning'](phoneVisible.value ? '已获取完整号码' : '暂未获取到手机号')
       await getOperationLogs()
     }
   } finally {
     phoneLoading.value = false
   }
+}
+
+async function getWechat() {
+  if (!form.assignId) {
+    ElMessage.warning('客户分配记录ID不能为空')
+    return
+  }
+
+  wechatLoading.value = true
+  try {
+    const res = await getCustomerWechat(form.assignId)
+    if (res.code === 200) {
+      form.weixin = res.data || ''
+      wechatVisible.value = true
+      ElMessage.success('已获取微信号')
+    }
+  } finally {
+    wechatLoading.value = false
+  }
+}
+
+function handleWechatAction() {
+  // 没有微信号时可直接录入；已有脱敏微信号时才请求真实值。
+  if (wechatVisible.value || !form.weixin) {
+    wechatVisible.value = true
+    startEdit('weixin')
+    return
+  }
+
+  void getWechat()
 }
 
 async function openTagPicker() {
@@ -1030,7 +1079,7 @@ async function handleSave() {
     const res = await updateCustomer({
       clueId: form.id,
       name: form.name,
-      weixin: form.weixin,
+      weixin: wechatVisible.value ? form.weixin : undefined,
       age: form.age,
       gender: form.gender,
       stage: form.deptStage,

@@ -67,6 +67,13 @@ export function getCustomerDetail(assignId) {
   })
 }
 
+export function getCustomerWechat(assignId) {
+  return request({
+    url: `/crm/lead/customer/${assignId}/wechat`,
+    method: 'get'
+  })
+}
+
 export function operationLogList(clueId) {
   return request({
     url: '/crm/lead/operLogList',

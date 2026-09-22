@@ -62,6 +62,23 @@ export function getContractOrderList(query) {
   })
 }
 
+// 分页查询可发起退款的合同
+export function getRefundContractList(query) {
+  return request({
+    url: '/crm/contract/refund/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 查询合同下审核通过的付款记录
+export function getRefundPaymentList(contractId) {
+  return request({
+    url: `/crm/contract/${contractId}/refund/payments`,
+    method: 'get'
+  })
+}
+
 // 审核客户合同
 export function auditContract(data) {
   return request({
