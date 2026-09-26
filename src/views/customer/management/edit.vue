@@ -29,7 +29,7 @@
 
           <div class="customer-profile-fields">
             <div class="profile-field">
-              <span class="profile-label">手机号：</span>
+              <span class="profile-label">手机号<span v-if="form.isPrivacyNumber" class="privacy-phone-emphasis">(隐私号)</span>：</span>
               <span class="profile-value">{{ displayPhone }}</span>
               <el-button
                 v-if="fullPhone"
@@ -40,6 +40,26 @@
                 @click="getPhone">
                 获取
               </el-button>
+            </div>
+            <div class="profile-field">
+              <span class="profile-label">真实号码：</span>
+              <div v-if="editingField === 'realTelephone'" class="profile-inline-editor">
+                <el-input v-model.trim="form.realTelephone" size="small" maxlength="20" placeholder="请输入真实号码" clearable />
+                <el-button link type="primary" @click="finishEdit">完成</el-button>
+              </div>
+              <template v-else>
+                <span class="profile-value">{{ displayRealPhone }}</span>
+                <el-tooltip :content="realPhoneVisible || !fullRealPhone ? '编辑真实号码' : '获取真实号码'" placement="top">
+                  <el-button
+                    link
+                    type="primary"
+                    :icon="realPhoneVisible || !fullRealPhone ? Edit : undefined"
+                    :loading="realPhoneLoading"
+                    @click="handleRealPhoneAction">
+                    {{ realPhoneVisible || !fullRealPhone ? '' : '获取' }}
+                  </el-button>
+                </el-tooltip>
+              </template>
             </div>
             <div class="profile-field">
               <span class="profile-label">年龄：</span>
@@ -586,6 +606,7 @@ const form = reactive({
   subjectTabStatus: 0,
   name: '',
   weixin: '',
+  realTelephone: '',
   province: '',
   city: '',
   stage: '',
@@ -598,6 +619,8 @@ const form = reactive({
   sourceTime: '',
   gender: 'MALE',
   age: 0,
+  isPrivacyNumber: false,
+  privacyNumberExpireTime: '',
   tags: []
 })
 
@@ -606,6 +629,9 @@ let detailRequestId = 0
 const fullPhone = ref('')
 const phoneVisible = ref(false)
 const phoneLoading = ref(false)
+const fullRealPhone = ref('')
+const realPhoneVisible = ref(false)
+const realPhoneLoading = ref(false)
 const wechatVisible = ref(false)
 const wechatLoading = ref(false)
 const saveLoading = ref(false)
@@ -749,6 +775,29 @@ const displayPhone = computed(() => {
   if (phoneVisible.value || fullPhone.value.length < 7) return fullPhone.value || '-'
   return `${fullPhone.value.slice(0, 3)}****${fullPhone.value.slice(-4)}`
 })
+const displayRealPhone = computed(() => {
+  if (realPhoneVisible.value || fullRealPhone.value.length < 7) return fullRealPhone.value || '-'
+  return `${fullRealPhone.value.slice(0, 3)}****${fullRealPhone.value.slice(-4)}`
+})
+const privacyPhoneExpired = computed(() => {
+  const expireTimeValue = form.privacyNumberExpireTime
+  if (!expireTimeValue) return false
+
+  const expireTime = new Date(expireTimeValue).getTime()
+  if (Number.isNaN(expireTime)) return false
+
+  return expireTime <= Date.now()
+})
+
+function formatPrivacyPhoneExpireTime() {
+  const expireTimeValue = form.privacyNumberExpireTime
+  if (!expireTimeValue) return '未知'
+
+  const expireTime = new Date(expireTimeValue)
+  if (Number.isNaN(expireTime.getTime())) return '未知'
+
+  return expireTime.toLocaleString('zh-CN', { hour12: false })
+}
 function startEdit(field) {
   editingField.value = field
 }
@@ -864,6 +913,8 @@ async function loadCustomerDetail() {
   resetCustomerRelatedData()
   phoneVisible.value = false
   phoneLoading.value = false
+  realPhoneVisible.value = false
+  realPhoneLoading.value = false
   wechatVisible.value = false
   wechatLoading.value = false
   editingField.value = ''
@@ -881,6 +932,7 @@ async function loadCustomerDetail() {
       subjectTabStatus: Number(customer.subjectTabStatus) || 0,
       name: customer.name || '',
       weixin: customer.wechat || '',
+      realTelephone: customer.realTelephone || '',
       province: customer.autoProvinceName || '',
       city: customer.autoCityName || '',
       stage: customer.effectiveStateNameStr || '',
@@ -893,9 +945,12 @@ async function loadCustomerDetail() {
       sourceTime: customer.createTime || '',
       gender: customer.gender || 'UNKNOWN',
       age: Number(customer.age) || 0,
+      isPrivacyNumber: Number(customer.isPrivacyNumber) === 1,
+      privacyNumberExpireTime: customer.privacyNumberExpireTime || '',
       tags: Array.isArray(customer.customerTags) ? customer.customerTags : []
     })
     fullPhone.value = customer.telephone || ''
+    fullRealPhone.value = customer.realTelephone || ''
     syncSelectedTags()
     void getFollowRecords()
     void getOperationLogs()
@@ -975,19 +1030,56 @@ async function getPhone() {
     ElMessage.warning('线索ID不能为空')
     return
   }
+  if (form.isPrivacyNumber && privacyPhoneExpired.value) {
+    ElMessage.warning('此隐私号已过期')
+    return
+  }
 
   phoneLoading.value = true
   try {
-    const res = await getTelephone(form.id)
+    const res = await getTelephone(form.id, 0)
     if (res.code === 200) {
       fullPhone.value = res.data || ''
       phoneVisible.value = Boolean(fullPhone.value)
-      ElMessage[phoneVisible.value ? 'success' : 'warning'](phoneVisible.value ? '已获取完整号码' : '暂未获取到手机号')
+      if (form.isPrivacyNumber) {
+        ElMessage.info(`此号码是隐私号，有效期为 ${formatPrivacyPhoneExpireTime()}`)
+      } else {
+        ElMessage[phoneVisible.value ? 'success' : 'warning'](phoneVisible.value ? '已获取完整号码' : '暂未获取到手机号')
+      }
       await getOperationLogs()
     }
   } finally {
     phoneLoading.value = false
   }
+}
+
+async function getRealPhone() {
+  if (!form.id) {
+    ElMessage.warning('线索ID不能为空')
+    return
+  }
+
+  realPhoneLoading.value = true
+  try {
+    const res = await getTelephone(form.id, 1)
+    if (res.code === 200) {
+      fullRealPhone.value = res.data || ''
+      form.realTelephone = fullRealPhone.value
+      realPhoneVisible.value = Boolean(fullRealPhone.value)
+      ElMessage[realPhoneVisible.value ? 'success' : 'warning'](realPhoneVisible.value ? '已获取真实号码' : '暂未获取到真实号码')
+    }
+  } finally {
+    realPhoneLoading.value = false
+  }
+}
+
+function handleRealPhoneAction() {
+  if (realPhoneVisible.value || !fullRealPhone.value) {
+    realPhoneVisible.value = true
+    startEdit('realTelephone')
+    return
+  }
+  void getRealPhone()
 }
 
 async function getWechat() {
@@ -1080,12 +1172,16 @@ async function handleSave() {
       clueId: form.id,
       name: form.name,
       weixin: wechatVisible.value ? form.weixin : undefined,
+      realTelephone: realPhoneVisible.value ? form.realTelephone : undefined,
       age: form.age,
       gender: form.gender,
       stage: form.deptStage,
       tagIds: selectedTags.value
     })
     if (res.code === 200) {
+      if (realPhoneVisible.value) {
+        fullRealPhone.value = form.realTelephone || ''
+      }
       finishEdit()
       ElMessage.success('客户信息已保存')
     }
@@ -1746,6 +1842,12 @@ function handleSupplementOrderSave() {
   min-height: 32px;
   gap: 8px;
   width: 100%;
+}
+
+.privacy-phone-emphasis {
+  margin-left: 2px;
+  color: var(--el-color-danger);
+  font-weight: 700;
 }
 
 .readonly-value {

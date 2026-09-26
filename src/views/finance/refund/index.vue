@@ -77,8 +77,8 @@
       <el-table-column label="操作" width="170" align="center" fixed="right">
         <template #default="{ row }">
           <template v-if="Number(row.refundStatus) === 0">
-            <el-button v-hasPermi="['crm:refund:audit']" link type="success" @click="handleAudit(row, 1)">审核通过</el-button>
-            <el-button v-hasPermi="['crm:refund:audit']" link type="danger" @click="handleAudit(row, 2)">不通过</el-button>
+            <el-button v-hasPermi="['crm:refund:audit']" link type="success" @click="openAuditDialog(row, 1)">审核通过</el-button>
+            <el-button v-hasPermi="['crm:refund:audit']" link type="danger" @click="openAuditDialog(row, 2)">驳回</el-button>
           </template>
           <el-button
             v-if="Number(row.refundStatus) === 2"
@@ -128,6 +128,20 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="auditVisible" :title="auditForm.auditStatus === 1 ? '审核通过退款申请' : '驳回退款申请'" width="500px" append-to-body @closed="resetAuditForm">
+      <el-form ref="auditRef" :model="auditForm" label-width="82px">
+        <el-form-item label="审核备注">
+          <el-input v-model.trim="auditForm.remark" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="备注选填" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="auditVisible = false">取消</el-button>
+        <el-button :type="auditForm.auditStatus === 1 ? 'success' : 'danger'" :loading="auditSubmitting" @click="submitAudit">
+          {{ auditForm.auditStatus === 1 ? '确认通过' : '确认驳回' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="screenshotPreviewVisible" title="转款截图" width="720px" append-to-body>
       <div class="screenshot-preview"><img :src="screenshotPreviewUrl" alt="转款截图" /></div>
     </el-dialog>
@@ -147,6 +161,9 @@ const applyTimeRange = ref([])
 const completeVisible = ref(false)
 const completeSubmitting = ref(false)
 const completeRef = ref()
+const auditVisible = ref(false)
+const auditSubmitting = ref(false)
+const auditRef = ref()
 const currentRefund = ref({})
 const screenshotFiles = ref([])
 const screenshotPreviewVisible = ref(false)
@@ -170,6 +187,7 @@ const queryParams = reactive({
   endApplyTime: undefined
 })
 const completeForm = reactive({ id: undefined, refundNo: '', screenshot: '' })
+const auditForm = reactive({ id: undefined, auditStatus: undefined, remark: '' })
 const completeRules = {
   refundNo: [{ required: true, message: '请输入退款单号', trigger: 'blur' }],
   screenshot: [{ validator: (_rule, _value, callback) => screenshotFiles.value.length ? callback() : callback(new Error('请上传转款截图')), trigger: 'change' }]
@@ -228,14 +246,30 @@ function resetQuery() {
   proxy.resetForm('queryRef')
   handleQuery()
 }
-async function handleAudit(row, auditStatus) {
-  const actionText = auditStatus === 1 ? '审核通过' : '审核不通过'
-  const confirmed = await proxy.$modal.confirm(`确认将该退款申请${actionText}吗？`).then(() => true).catch(() => false)
-  if (!confirmed) return
-  const response = await auditPaymentRefund({ id: row.id, auditStatus })
-  if (response.code === 200) {
-    proxy.$modal.msgSuccess(`${actionText}成功`)
-    await getList()
+function openAuditDialog(row, auditStatus) {
+  auditForm.id = row.id
+  auditForm.auditStatus = auditStatus
+  auditForm.remark = ''
+  auditVisible.value = true
+}
+function resetAuditForm() {
+  auditForm.id = undefined
+  auditForm.auditStatus = undefined
+  auditForm.remark = ''
+}
+async function submitAudit() {
+  if (!auditForm.id || auditSubmitting.value) return
+  const actionText = auditForm.auditStatus === 1 ? '审核通过' : '退款申请已驳回'
+  auditSubmitting.value = true
+  try {
+    const response = await auditPaymentRefund({ ...auditForm })
+    if (response.code === 200) {
+      proxy.$modal.msgSuccess(actionText)
+      auditVisible.value = false
+      await getList()
+    }
+  } finally {
+    auditSubmitting.value = false
   }
 }
 function openCompleteDialog(row) {

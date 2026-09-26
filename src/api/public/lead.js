@@ -28,11 +28,11 @@ export function customerList(data) {
   })
 }
 
-export function getTelephone(clueId) {
+export function getTelephone(clueId, type = 0) {
   return request({
     url: '/crm/lead/telephone',
     method: 'get',
-    params: { clueId }
+    params: { clueId, type }
   })
 }
 

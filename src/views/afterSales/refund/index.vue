@@ -1,9 +1,6 @@
 <template>
   <div class="app-container customer-refund-page">
     <el-form ref="queryRef" :model="queryParams" :inline="true" v-show="showSearch" label-width="76px">
-      <el-form-item label="退款单号" prop="refundNo">
-        <el-input v-model.trim="queryParams.refundNo" placeholder="请输入退款单号" clearable @keyup.enter="handleQuery" />
-      </el-form-item>
       <el-form-item label="客户姓名" prop="customerName">
         <el-input v-model.trim="queryParams.customerName" placeholder="请输入客户姓名" clearable @keyup.enter="handleQuery" />
       </el-form-item>
@@ -38,7 +35,6 @@
 
     <el-table v-loading="loading" :data="refundList" border min-height="520">
       <el-table-column type="index" label="序号" width="60" align="center" />
-      <el-table-column prop="refundNo" label="退款单号" min-width="180" show-overflow-tooltip />
       <el-table-column prop="customerName" label="客户姓名" width="110" show-overflow-tooltip>
         <template #default="{ row }">{{ row.customerName || '-' }}</template>
       </el-table-column>
@@ -62,14 +58,14 @@
       <el-table-column prop="applyTime" label="申请时间" width="170" align="center">
         <template #default="{ row }">{{ parseTime(row.applyTime) }}</template>
       </el-table-column>
-      <el-table-column prop="auditUserNickName" label="审核人" width="110" align="center">
-        <template #default="{ row }">{{ row.auditUserNickName || '-' }}</template>
-      </el-table-column>
-      <el-table-column prop="auditTime" label="审核时间" width="170" align="center">
-        <template #default="{ row }">{{ row.auditTime ? parseTime(row.auditTime) : '-' }}</template>
-      </el-table-column>
       <el-table-column prop="refundTime" label="退款时间" width="170" align="center">
         <template #default="{ row }">{{ row.refundTime ? parseTime(row.refundTime) : '-' }}</template>
+      </el-table-column>
+      <el-table-column label="详情" width="90" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button v-if="[1, 2, 3].includes(Number(row.refundStatus))" link type="primary" @click="openRefundDetail(row)">详情</el-button>
+          <span v-else>-</span>
+        </template>
       </el-table-column>
     </el-table>
 
@@ -196,6 +192,28 @@
         <el-button type="primary" :loading="refundSubmitting" @click="submitRefund">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="refundDetailVisible" title="退款详情" width="520px" append-to-body>
+      <el-descriptions :column="1" border>
+        <template v-if="[1, 2].includes(Number(currentRefund.refundStatus))">
+          <el-descriptions-item label="审核人">{{ currentRefund.auditUserNickName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="审核时间">{{ currentRefund.auditTime ? parseTime(currentRefund.auditTime) : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="审核备注">{{ currentRefund.remark || '-' }}</el-descriptions-item>
+        </template>
+        <template v-else-if="Number(currentRefund.refundStatus) === 3">
+          <el-descriptions-item label="退款单号">{{ currentRefund.refundNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="退款截图">
+            <el-link v-if="currentRefund.refundScreenshotUrl" type="primary" :underline="false" @click="previewRefundScreenshot(currentRefund.refundScreenshotUrl)">查看截图</el-link>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="退款时间">{{ currentRefund.refundTime ? parseTime(currentRefund.refundTime) : '-' }}</el-descriptions-item>
+        </template>
+      </el-descriptions>
+    </el-dialog>
+
+    <el-dialog v-model="screenshotPreviewVisible" title="退款截图" width="720px" append-to-body>
+      <div class="screenshot-preview"><img :src="screenshotPreviewUrl" alt="退款截图" /></div>
+    </el-dialog>
   </div>
 </template>
 
@@ -221,6 +239,10 @@ const selectedContract = ref(null)
 const selectedPayments = ref([])
 const refundForms = ref({})
 const refundSubmitting = ref(false)
+const refundDetailVisible = ref(false)
+const currentRefund = ref({})
+const screenshotPreviewVisible = ref(false)
+const screenshotPreviewUrl = ref('')
 
 const refundStatusOptions = [
   { label: '待审核', value: 0 },
@@ -233,7 +255,6 @@ const refundStatusOptions = [
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 10,
-  refundNo: undefined,
   customerName: undefined,
   salesNickName: undefined,
   refundStatus: undefined,
@@ -254,6 +275,20 @@ const selectedRefundTotal = computed(() => selectedPayments.value.reduce(
 
 function formatAmount(value) {
   return Number(value || 0).toFixed(2)
+}
+
+function openRefundDetail(row) {
+  currentRefund.value = row
+  refundDetailVisible.value = true
+}
+
+function previewRefundScreenshot(value) {
+  try {
+    screenshotPreviewUrl.value = new URL(value, window.location.origin).href
+  } catch {
+    screenshotPreviewUrl.value = value
+  }
+  screenshotPreviewVisible.value = true
 }
 
 function refundStatusText(value) {
@@ -463,5 +498,19 @@ getList()
 .pending-amount-text {
   color: var(--el-color-warning);
   font-weight: 600;
+}
+
+.screenshot-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.screenshot-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
 }
 </style>
