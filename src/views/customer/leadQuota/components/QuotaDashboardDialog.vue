@@ -17,7 +17,15 @@
     <div class="summary-bar">
       <div><span>主体总配额</span><strong>{{ subjectQuota }}</strong></div>
       <div><span>主体已分配</span><strong class="assigned">{{ subjectAssigned }}</strong></div>
-      <div><span>主体进度</span><strong>{{ rate(subjectAssigned, subjectQuota) }}%</strong></div>
+      <div class="summary-progress">
+        <div
+          class="progress-fill"
+          :style="{
+            width: progressWidth(rate(subjectAssigned, subjectQuota)),
+            background: progressBackground(rate(subjectAssigned, subjectQuota))
+          }"></div>
+        <span>主体进度</span><strong>{{ rate(subjectAssigned, subjectQuota) }}%</strong>
+      </div>
       <div><span>参与分配销售</span><strong>{{ subjectUserCount }}</strong></div>
     </div>
 
@@ -35,6 +43,12 @@
         <thead>
           <tr>
             <th v-for="department in departments" :key="department.id" colspan="5" class="department-head">
+              <div
+                class="progress-fill department-progress-fill"
+                :style="{
+                  width: progressWidth(rate(department.assigned, department.quota)),
+                  background: progressBackground(rate(department.assigned, department.quota))
+                }"></div>
               <div class="department-name">{{ department.name }}</div>
               <div class="department-summary">配额 {{ department.quota }} · 已分 {{ department.assigned }} · 差额 {{ department.quota - department.assigned }} · 进度 {{ rate(department.assigned, department.quota) }}%</div>
               <span class="resize-handle" title="拖动调整列宽" @mousedown="startResize($event, department.id)"></span>
@@ -60,8 +74,16 @@
                 <td :class="['difference-cell', { exceeded: department.users[rowIndex - 1].assigned > department.users[rowIndex - 1].quota }]">
                   {{ department.users[rowIndex - 1].quota - department.users[rowIndex - 1].assigned }}
                 </td>
-                <td :style="{ color: progressColor(rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota)) }">
-                  {{ rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota) }}%
+                <td class="progress-cell">
+                  <div
+                    class="progress-fill"
+                    :style="{
+                      width: progressWidth(rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota)),
+                      background: progressBackground(rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota))
+                    }"></div>
+                  <span :style="{ color: progressColor(rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota)) }">
+                    {{ rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota) }}%
+                  </span>
                 </td>
               </template>
               <template v-else>
@@ -180,10 +202,17 @@ function rate(assigned, quota) {
 }
 
 function progressColor(value) {
-  if (value >= 100) return '#18a058'
-  if (value >= 70) return '#409eff'
-  if (value >= 40) return '#e6a23c'
-  return '#f56c6c'
+  if (value > 100) return '#f56c6c'
+  return '#1677ff'
+}
+
+function progressBackground(value) {
+  if (value > 100) return 'linear-gradient(90deg, #f89898, #f56c6c)'
+  return 'linear-gradient(90deg, #79bbff, #1677ff)'
+}
+
+function progressWidth(value) {
+  return `${Math.min(Math.max(value, 0), 100)}%`
 }
 
 function salesWidth(departmentId) {
@@ -252,7 +281,9 @@ function startResize(event, departmentId) {
 }
 
 .summary-bar > div {
+  position: relative;
   padding: 8px 14px;
+  overflow: hidden;
   border-right: 1px solid #e3e8ef;
 }
 
@@ -260,6 +291,16 @@ function startResize(event, departmentId) {
 .summary-bar span { margin-right: 12px; color: #8792a3; font-size: 12px; }
 .summary-bar strong { color: #263449; font-size: 19px; }
 .summary-bar strong.assigned { color: #1677ff; }
+.summary-bar span,
+.summary-bar strong { position: relative; z-index: 1; }
+
+.progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  opacity: 1;
+  pointer-events: none;
+  transition: width 0.25s ease;
+}
 
 .matrix-wrap {
   position: relative;
@@ -307,8 +348,9 @@ function startResize(event, departmentId) {
   border-right: 2px solid #aacaf1 !important;
 }
 
-.department-name { color: #273449; font-size: 14px; font-weight: 700; }
-.department-summary { margin-top: 4px; color: #758297; font-size: 11px; font-weight: 400; }
+.department-progress-fill { z-index: 0; opacity: 1; }
+.department-name { position: relative; z-index: 1; color: #273449; font-size: 14px; font-weight: 700; }
+.department-summary { position: relative; z-index: 1; margin-top: 4px; color: #758297; font-size: 11px; font-weight: 400; }
 
 .resize-handle {
   position: absolute;
@@ -327,6 +369,8 @@ function startResize(event, departmentId) {
 .assigned-cell { color: #1677ff; font-weight: 700; }
 .difference-cell { color: #e6a23c; font-weight: 700; }
 .difference-cell.exceeded { color: #f56c6c; }
+.progress-cell { position: relative; overflow: hidden; font-weight: 700; }
+.progress-cell span { position: relative; z-index: 1; }
 .empty { color: #c5cbd4; background: #fbfcfd !important; }
 
 :deep(.el-dialog__body) {
