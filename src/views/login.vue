@@ -99,7 +99,7 @@ const loginRules = {
 const codeUrl = ref('')
 const loading = ref(false)
 // 验证码开关
-const captchaOnOff = ref('')
+const captchaOnOff = ref('off')
 // 注册开关
 const register = ref(false)
 // Get the visitor identifier when you need it.
@@ -137,7 +137,7 @@ function handleLogin() {
           proxy.$modal.msgError(error.msg)
           loading.value = false
           // 重新获取验证码
-          if (captchaOnOff.value) {
+          if (captchaOnOff.value !== 'off') {
             getCode()
           }
         })

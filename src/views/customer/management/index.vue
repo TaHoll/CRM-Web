@@ -11,7 +11,7 @@
           </button>
         </el-tooltip>
       </div>
-      <el-empty v-else :image-size="48" description="暂无可用主体" />
+      <div v-else-if="!subjectLoading" class="subject-empty-tip">暂无可用主体</div>
     </div>
 
     <template v-if="activeSubjectId">
@@ -469,6 +469,14 @@ initializePage()
   padding: 8px 12px 0;
   border-bottom: 1px solid #dcdfe6;
   background: #fff;
+}
+
+.subject-empty-tip {
+  height: 32px;
+  color: #909399;
+  font-size: 13px;
+  line-height: 32px;
+  text-align: center;
 }
 
 .subject-tabs {

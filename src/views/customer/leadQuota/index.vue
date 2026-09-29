@@ -19,7 +19,7 @@
           </button>
         </el-tooltip>
       </div>
-      <el-empty v-else :image-size="48" description="暂无可配置主体" />
+      <div v-else-if="!subjectLoading" class="subject-empty-tip">暂无可配置主体</div>
     </div>
 
     <el-splitter class="quota-workspace">
@@ -116,7 +116,17 @@
             </el-table-column>
             <el-table-column prop="assignCount" label="已分配量" align="center" width="110">
               <template #default="{ row }">
-                {{ row.assignCount ?? row.assignedCount ?? 0 }}
+                {{ getAssignCount(row) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="分配进度" align="center" width="150">
+              <template #default="{ row }">
+                <div class="quota-progress">
+                  <div
+                    :class="['quota-progress__bar', { 'is-exceeded': getProgressRate(row) > 100 }]"
+                    :style="{ width: `${Math.min(getProgressRate(row), 100)}%` }"></div>
+                  <span class="quota-progress__text">{{ getProgressRate(row) }}%</span>
+                </div>
               </template>
             </el-table-column>
             <el-table-column prop="quotaDate" label="配额日期" align="center" width="140" />
@@ -243,6 +253,18 @@ function isPastQuotaDate(quotaDate) {
     return false
   }
   return String(quotaDate).slice(0, 10) < today
+}
+
+function getAssignCount(row) {
+  return Number(row.assignCount ?? row.assignedCount ?? 0)
+}
+
+function getProgressRate(row) {
+  const quotaCount = Number(row.quotaCount || 0)
+  if (quotaCount <= 0) {
+    return 0
+  }
+  return Math.round((getAssignCount(row) / quotaCount) * 100)
 }
 
 function getDeptTree() {
@@ -498,6 +520,14 @@ initializePage()
   background: #fff;
 }
 
+.subject-empty-tip {
+  height: 32px;
+  color: #909399;
+  font-size: 13px;
+  line-height: 32px;
+  text-align: center;
+}
+
 .subject-tabs {
   display: flex;
   gap: 10px;
@@ -549,6 +579,34 @@ initializePage()
 
 .quota-workspace {
   background: #fff;
+}
+
+.quota-progress {
+  position: relative;
+  height: 24px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #ebeef5;
+}
+
+.quota-progress__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #79bbff, #409eff);
+  transition: width 0.25s ease;
+}
+
+.quota-progress__bar.is-exceeded {
+  background: linear-gradient(90deg, #f89898, #f56c6c);
+}
+
+.quota-progress__text {
+  position: relative;
+  z-index: 1;
+  color: #303133;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .dept-card {
