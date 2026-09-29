@@ -81,6 +81,9 @@
         <el-form-item label="客户姓名" prop="creditorName">
           <el-input v-model.trim="contractQueryParams.creditorName" placeholder="请输入客户姓名" clearable @keyup.enter="handleContractQuery" />
         </el-form-item>
+        <el-form-item label="手机号" prop="creditorMobile">
+          <el-input v-model.trim="contractQueryParams.creditorMobile" placeholder="请输入手机号" clearable @keyup.enter="handleContractQuery" />
+        </el-form-item>
         <el-form-item label="销售人员" prop="salesNickName">
           <el-input v-model.trim="contractQueryParams.salesNickName" placeholder="请输入销售昵称" clearable @keyup.enter="handleContractQuery" />
         </el-form-item>
@@ -92,7 +95,6 @@
 
       <el-table v-loading="contractLoading" :data="contractList" border min-height="420" max-height="500">
         <el-table-column type="index" label="序号" width="60" align="center" />
-        <el-table-column prop="clueId" label="线索ID" min-width="150" show-overflow-tooltip />
         <el-table-column prop="customerName" label="客户姓名" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.customerName || '-' }}</template>
         </el-table-column>
@@ -266,6 +268,7 @@ const contractQueryParams = reactive({
   pageNum: 1,
   pageSize: 10,
   creditorName: undefined,
+  creditorMobile: undefined,
   salesNickName: undefined
 })
 
