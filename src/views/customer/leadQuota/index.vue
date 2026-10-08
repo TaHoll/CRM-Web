@@ -94,6 +94,12 @@
             <el-col :span="1.5">
               <el-button v-hasPermi="['crm:quota:dashboard']" type="primary" plain icon="DataBoard" @click="quotaDashboardOpen = true">分量看板</el-button>
             </el-col>
+            <el-col :span="1.5">
+              <el-button v-hasPermi="['crm:quota:save']" type="success" plain icon="CircleCheck" :disabled="!quotaSaveable" @click="handleQuotaStatus(1)">全部开启</el-button>
+            </el-col>
+            <el-col :span="1.5">
+              <el-button v-hasPermi="['crm:quota:save']" type="danger" plain icon="CircleClose" :disabled="!quotaSaveable" @click="handleQuotaStatus(0)">全部关闭</el-button>
+            </el-col>
             <right-toolbar v-model:showSearch="showSearch" @queryTable="handleQuery"></right-toolbar>
           </el-row>
 
@@ -184,7 +190,7 @@
 
 <script setup name="LeadAssignQuota">
 import { treeselect } from '@/api/system/dept'
-import { userQuotaList, userQuotaSave } from '@/api/public/lead'
+import { userQuotaList, userQuotaSave, userQuotaStatus } from '@/api/public/lead'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
 import QuotaDashboardDialog from './components/QuotaDashboardDialog.vue'
 
@@ -493,6 +499,34 @@ async function handleSave() {
   if (res.code === 200) {
     proxy.$modal.msgSuccess('保存成功')
     handleQuery()
+  }
+}
+
+async function handleQuotaStatus(status) {
+  if (!quotaEditable.value) {
+    proxy.$modal.msgWarning('历史配额日期不允许编辑')
+    return
+  }
+
+  if (!subjectAvailable.value) {
+    proxy.$modal.msgWarning('当前主体状态异常，不能修改配置状态')
+    return
+  }
+
+  const actionText = status === 1 ? '开启' : '关闭'
+  try {
+    await proxy.$modal.confirm(`确认${actionText}当前主体 ${queryParams.quotaDate} 的全部配额配置吗？`)
+    const res = await userQuotaStatus({
+      subjectId: activeSubjectId.value,
+      quotaDate: queryParams.quotaDate,
+      status
+    })
+    if (res.code === 200) {
+      proxy.$modal.msgSuccess(res.data > 0 ? `${actionText}成功，共更新${res.data}条配置` : '当前日期暂无配额配置')
+      await handleQuery()
+    }
+  } catch (error) {
+    // 用户取消操作时无需提示。
   }
 }
 
