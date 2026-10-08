@@ -70,6 +70,9 @@
             <el-option v-for="user in filteredAssignUserOptions" :key="user.userId" :label="user.nickName || user.userName" :value="user.userId" />
           </el-select>
         </el-form-item>
+        <el-form-item v-hasPermi="['crm:lead:assign']" class="assign-action-item">
+          <el-button type="success" plain icon="User" @click="handleAssign">分配</el-button>
+        </el-form-item>
         <el-form-item class="search-action-item">
           <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
           <el-button icon="Refresh" @click="resetQuery">重置</el-button>
@@ -84,7 +87,16 @@
         </right-toolbar>
       </el-row>
 
-    <el-table v-loading="loading" :data="dataList" min-height="520" border highlight-current-row row-key="assignId">
+    <el-table
+      ref="customerTableRef"
+      v-loading="loading"
+      :data="dataList"
+      min-height="520"
+      border
+      highlight-current-row
+      row-key="assignId"
+      @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="52" align="center" />
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column
           v-for="column in visibleColumns"
@@ -163,16 +175,24 @@
           </div>
         </div>
       </el-dialog>
+
+      <UserSelectDialog
+        v-model="assignUserDialogOpen"
+        v-model:selected-ids="assignUserId"
+        :multiple="false"
+        @confirm="handleAssignUserConfirm" />
     </template>
   </div>
 </template>
 
 <script setup name="CustomerManagement">
 import { useRouter } from 'vue-router'
-import { customerList } from '@/api/public/lead'
+import { ElMessage } from 'element-plus'
+import { assignLead, customerList } from '@/api/public/lead'
 import { treeSelectWithUserList } from '@/api/system/dept'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
+import UserSelectDialog from '@/components/UserSelectDialog/index.vue'
 
 const router = useRouter()
 const COLUMN_STORAGE_KEY = 'customer-management-columns'
@@ -219,6 +239,10 @@ const subjectLoading = ref(false)
 const showSearch = ref(true)
 const total = ref(0)
 const dataList = ref([])
+const customerTableRef = ref()
+const selectedCustomers = ref([])
+const assignUserDialogOpen = ref(false)
+const assignUserId = ref(undefined)
 const subjectList = ref([])
 const activeSubjectId = ref()
 const assignUserOptions = ref([])
@@ -447,6 +471,67 @@ function handleEdit(row) {
   })
 }
 
+function handleSelectionChange(selection) {
+  selectedCustomers.value = selection
+}
+
+function handleAssign() {
+  if (selectedCustomers.value.length === 0) {
+    ElMessage.warning('请先勾选需要分配的客户')
+    return
+  }
+
+  assignUserDialogOpen.value = true
+}
+
+async function handleAssignUserConfirm(user) {
+  if (!user?.userId) {
+    ElMessage.warning('请选择分配用户')
+    return
+  }
+
+  const hasAssignedToSelectedUser = selectedCustomers.value.some((customer) =>
+    customer.assignedUserId !== null
+    && customer.assignedUserId !== undefined
+    && String(customer.assignedUserId) === String(user.userId)
+  )
+  if (hasAssignedToSelectedUser) {
+    ElMessage.warning('勾选客户存在此人已有线索')
+    return
+  }
+
+  const customersByStage = new Map()
+  selectedCustomers.value.forEach((customer) => {
+    const stage = Number(customer.stage)
+    if (!customersByStage.has(stage)) {
+      customersByStage.set(stage, [])
+    }
+    customersByStage.get(stage).push(customer)
+  })
+
+  const results = await Promise.all(
+    Array.from(customersByStage.entries()).map(([stage, customers]) =>
+      assignLead({
+        leadIds: customers.map((customer) => customer.clueId),
+        userId: user.userId,
+        userName: user.userName,
+        userNickName: user.nickName || user.nickname || user.userName,
+        deptId: user.deptId,
+        deptName: user.deptName,
+        stage
+      })
+    )
+  )
+
+  if (results.every((result) => result.code === 200)) {
+    ElMessage.success('分配成功')
+    assignUserId.value = undefined
+    selectedCustomers.value = []
+    customerTableRef.value?.clearSelection()
+    getList()
+  }
+}
+
 async function initializePage() {
   if (await getSubjectList()) {
     getList()
@@ -556,6 +641,11 @@ initializePage()
 }
 
 .customer-search-form .search-action-item {
+  grid-column: -2 / -1;
+  align-items: flex-end;
+}
+
+.customer-search-form .assign-action-item {
   align-items: flex-end;
 }
 

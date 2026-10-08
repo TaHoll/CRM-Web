@@ -246,6 +246,25 @@
             <el-table-column label="提交时间" min-width="170">
               <template #default="{ row }">{{ formatFollowTime(row.createTime) }}</template>
             </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right" align="center">
+              <template #default="{ row }">
+                <el-button
+                  v-if="Number(row.orderStatus) === 2"
+                  link
+                  type="danger"
+                  @click="handleViewPaymentRejectReason(row)">
+                  驳回原因
+                </el-button>
+                <el-button
+                  v-if="Number(row.orderStatus) === 2"
+                  link
+                  type="primary"
+                  @click="handlePaymentResubmit(row)">
+                  重提
+                </el-button>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
           </el-table>
         </el-tab-pane>
 
@@ -271,6 +290,13 @@
               <template #default="{ row }">
                 <el-tag :type="contractStatusTagType(row.contractStatus)">
                   {{ formatContractStatus(row.contractStatus) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="盖章状态" width="110" align="center">
+              <template #default="{ row }">
+                <el-tag :type="Number(row.enterpriseSealStatus) === 1 ? 'success' : 'warning'">
+                  {{ Number(row.enterpriseSealStatus) === 1 ? '已盖章' : '未盖章' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -365,7 +391,12 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="contractDialogVisible" :title="contractEditingId ? '编辑合同' : '创建合同'" width="680px" append-to-body>
+    <el-dialog
+      v-model="contractDialogVisible"
+      :title="contractEditingId ? '编辑合同' : '创建合同'"
+      width="680px"
+      append-to-body
+      :close-on-click-modal="false">
       <el-form ref="contractFormRef" :model="contractForm" :rules="contractRules" label-width="120px" class="contract-create-form">
         <section class="contract-form-section">
           <div class="contract-section-title">合同信息</div>
@@ -455,7 +486,12 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="paymentDialogVisible" title="收款" width="520px" append-to-body>
+    <el-dialog
+      v-model="paymentDialogVisible"
+      :title="paymentResubmitId ? '重提收款' : '收款'"
+      width="520px"
+      append-to-body
+      :close-on-click-modal="false">
       <el-form
         ref="paymentFormRef"
         :model="paymentForm"
@@ -516,25 +552,30 @@
           </el-select>
         </el-form-item>
         <el-form-item label="支付凭证">
-          <el-upload
-            v-model:file-list="paymentFiles"
-            :class="{ 'is-limit-reached': paymentFiles.length >= 1 }"
-            action="#"
-            :auto-upload="false"
-            :limit="1"
-            :on-change="handlePaymentFileChange"
-            accept="image/jpeg,image/png,image/webp"
-            list-type="picture-card">
-            <span class="upload-plus">+</span>
-            <template #tip>
-              <div class="upload-tip">支持 JPG、PNG、WebP 图片，大小不超过 2MB，最多上传 1 张。</div>
-            </template>
-          </el-upload>
+          <div class="payment-screenshot-upload-wrapper">
+            <div class="payment-upload-tip">仅支持 JPG、PNG、WebP，大小不超过 2MB，最多 1 张。</div>
+            <el-upload
+              v-model:file-list="paymentFiles"
+              :class="['payment-screenshot-upload', { 'is-limit-reached': paymentFiles.length >= 1 }]"
+              action="#"
+              :auto-upload="false"
+              :limit="1"
+              :on-change="handlePaymentFileChange"
+              :on-remove="handlePaymentFileRemove"
+              accept="image/jpeg,image/png,image/webp"
+              list-type="picture-card"
+              drag>
+              <el-icon class="upload-drag-icon"><UploadFilled /></el-icon>
+              <div class="upload-drag-text">拖拽图片到此处，或<em>点击上传</em></div>
+            </el-upload>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="paymentDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="paymentSubmitting" @click="handlePaymentSave">提交</el-button>
+        <el-button type="primary" :loading="paymentSubmitting" @click="handlePaymentSave">
+          {{ paymentResubmitId ? '重新提交' : '提交' }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -567,10 +608,12 @@
             :auto-upload="false"
             :limit="1"
             accept="image/jpeg,image/png,image/webp"
-            list-type="picture-card">
-            <span class="upload-plus">+</span>
+            list-type="picture-card"
+            drag>
+            <el-icon class="upload-drag-icon"><UploadFilled /></el-icon>
+            <div class="upload-drag-text">拖拽图片到此处，或<em>点击上传</em></div>
             <template #tip>
-              <div class="upload-tip">支持 JPG、PNG、WebP 图片，最多上传 1 张。</div>
+              <div class="upload-tip">支持拖拽或点击上传；仅支持 JPG、PNG、WebP，最多上传 1 张。</div>
             </template>
           </el-upload>
         </el-form-item>
@@ -584,13 +627,13 @@
 </template>
 
 <script setup name="CustomerManagementEdit">
-import { Edit, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Edit, Plus, UploadFilled } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
-import { addFollowLog, followLogList, getCustomerDetail, getCustomerWechat, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
-import { addPaymentOrder, getPaymentOrderList } from '@/api/public/paymentOrder'
+import { addFollowLog, followLogList, getCustomerDetail, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
+import { addPaymentOrder, getPaymentOrderList, resubmitPaymentOrder } from '@/api/public/paymentOrder'
 import { addContract, checkContractCreate, getContractDownloadUrl, getContractList, updateContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
@@ -655,6 +698,9 @@ const paymentDialogVisible = ref(false)
 const paymentFormRef = ref()
 const paymentFiles = ref([])
 const paymentSubmitting = ref(false)
+const paymentResubmitId = ref(null)
+const paymentResubmitStage = ref(undefined)
+const paymentExistingScreenshotUrl = ref('')
 const paymentRecordLoading = ref(false)
 const paymentRecords = ref([])
 const contractListLoading = ref(false)
@@ -823,7 +869,7 @@ function formatFollowStage(stage) {
 }
 
 function operationLogTypeName(type) {
-  return { 1: '分配客户', 2: '编辑客户', 3: '查看号码' }[type] || '客户操作'
+  return { 1: '分配客户', 2: '编辑客户', 3: '查看号码', 4: '查看微信号' }[type] || '客户操作'
 }
 
 function operationLogTagType(type) {
@@ -880,6 +926,15 @@ function normalizePaymentScreenshotStorageUrl(value) {
     return value
   }
   return value
+}
+
+function resolvePaymentScreenshotUrl(value) {
+  if (!value) return ''
+  try {
+    return new URL(value, window.location.origin).href
+  } catch {
+    return value
+  }
 }
 
 function resetCustomerRelatedData() {
@@ -1061,7 +1116,7 @@ async function getRealPhone() {
 
   realPhoneLoading.value = true
   try {
-    const res = await getTelephone(form.id, 1)
+    const res = await getTelephone(form.id, 2)
     if (res.code === 200) {
       fullRealPhone.value = res.data || ''
       form.realTelephone = fullRealPhone.value
@@ -1083,18 +1138,19 @@ function handleRealPhoneAction() {
 }
 
 async function getWechat() {
-  if (!form.assignId) {
-    ElMessage.warning('客户分配记录ID不能为空')
+  if (!form.id) {
+    ElMessage.warning('线索ID不能为空')
     return
   }
 
   wechatLoading.value = true
   try {
-    const res = await getCustomerWechat(form.assignId)
+    const res = await getTelephone(form.id, 1)
     if (res.code === 200) {
       form.weixin = res.data || ''
       wechatVisible.value = true
       ElMessage.success('已获取微信号')
+      await getOperationLogs()
     }
   } finally {
     wechatLoading.value = false
@@ -1311,6 +1367,9 @@ async function handleCreateContract() {
 }
 
 async function openPaymentDialog() {
+  paymentResubmitId.value = null
+  paymentResubmitStage.value = undefined
+  paymentExistingScreenshotUrl.value = ''
   paymentForm.paymentMethod = undefined
   paymentForm.feeType = undefined
   paymentForm.orderNo = ''
@@ -1437,6 +1496,51 @@ function handlePaymentFileChange(uploadFile) {
   }
 }
 
+function handlePaymentFileRemove(file) {
+  // 重提时移除的是历史截图，提交时不再保留该截图地址。
+  if (!file?.raw) {
+    paymentExistingScreenshotUrl.value = ''
+  }
+}
+
+async function handlePaymentResubmit(row) {
+  if (!row?.id || Number(row.orderStatus) !== 2) return
+  if (!form.assignId || !form.id) {
+    ElMessage.warning('客户分配记录或线索信息不存在')
+    return
+  }
+
+  paymentResubmitId.value = row.id
+  paymentResubmitStage.value = row.stage
+  paymentExistingScreenshotUrl.value = row.paymentScreenshotUrl || ''
+  paymentForm.paymentMethod = row.paymentMethod
+  paymentForm.feeType = row.feeType
+  paymentForm.orderNo = row.paymentOrderNo || ''
+  paymentForm.amount = Number(row.paymentAmount) || undefined
+  paymentForm.paymentTime = row.paymentTime || ''
+  paymentForm.contract = row.contractNo || ''
+  paymentFiles.value = paymentExistingScreenshotUrl.value
+    ? [{
+        name: '原支付凭证',
+        url: resolvePaymentScreenshotUrl(paymentExistingScreenshotUrl.value),
+        status: 'success',
+        uid: `payment-screenshot-${row.id}`
+      }]
+    : []
+  paymentFormRef.value?.clearValidate()
+  paymentDialogVisible.value = true
+
+  await getContractRecords()
+}
+
+function handleViewPaymentRejectReason(row) {
+  ElMessageBox.alert(
+    row?.auditRemark || '审核人员未填写驳回原因。',
+    '驳回原因',
+    { confirmButtonText: '知道了', dangerouslyUseHTMLString: false }
+  )
+}
+
 async function handlePaymentSave() {
   if (!paymentFormRef.value || paymentSubmitting.value) return
 
@@ -1450,7 +1554,9 @@ async function handlePaymentSave() {
     ElMessage.warning('客户分配记录ID不能为空')
     return
   }
-  if (form.deptStage === undefined || form.deptStage === null || Number.isNaN(form.deptStage)) {
+  const isResubmit = Boolean(paymentResubmitId.value)
+  const paymentStage = isResubmit ? paymentResubmitStage.value : form.deptStage
+  if (paymentStage === undefined || paymentStage === null || Number.isNaN(paymentStage)) {
     ElMessage.warning('线索阶段不能为空')
     return
   }
@@ -1474,21 +1580,24 @@ async function handlePaymentSave() {
       paymentScreenshotUrl = normalizePaymentScreenshotStorageUrl(uploadRes.data.url)
     }
 
-    const res = await addPaymentOrder({
+    const paymentData = {
       paymentMethod: paymentForm.paymentMethod,
       feeType: paymentForm.feeType,
       paymentAmount: paymentForm.amount,
       paymentOrderNo: paymentForm.orderNo,
       contractNo: paymentForm.contract || null,
-      paymentScreenshotUrl: paymentScreenshotUrl || null,
+      paymentScreenshotUrl: paymentScreenshotUrl || (isResubmit ? paymentExistingScreenshotUrl.value : '') || null,
       paymentTime: paymentForm.paymentTime,
       assignId: form.assignId,
       clueId: form.id,
-      stage: form.deptStage
-    })
+      stage: paymentStage
+    }
+    const res = isResubmit
+      ? await resubmitPaymentOrder({ id: paymentResubmitId.value, ...paymentData })
+      : await addPaymentOrder(paymentData)
     if (res.code === 200) {
       paymentDialogVisible.value = false
-      ElMessage.success('付款订单提交成功')
+      ElMessage.success(isResubmit ? '付款订单已重新提交审核' : '付款订单提交成功')
       await getPaymentRecords()
     }
   } finally {
@@ -2091,14 +2200,43 @@ function handleSupplementOrderSave() {
   line-height: 1;
 }
 
+.upload-drag-icon {
+  margin-top: 10px;
+  color: var(--el-color-primary);
+  font-size: 28px;
+}
+
+.upload-drag-text {
+  margin-top: 6px;
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.upload-drag-text em {
+  color: var(--el-color-primary);
+  font-style: normal;
+}
+
 .is-limit-reached :deep(.el-upload--picture-card) {
   display: none;
 }
 
-.upload-tip {
-  margin-top: 8px;
+.payment-screenshot-upload-wrapper {
+  display: flow-root;
+  width: 100%;
+}
+
+.payment-screenshot-upload {
+  float: left;
+}
+
+.payment-upload-tip {
+  display: block;
+  margin-bottom: 8px;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+  line-height: 18px;
 }
 
 .follow-user {

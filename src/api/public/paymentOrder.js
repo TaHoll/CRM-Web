@@ -23,6 +23,14 @@ export function addPaymentOrder(data) {
   })
 }
 
+export function resubmitPaymentOrder(data) {
+  return request({
+    url: '/crm/payment/resubmit',
+    method: 'put',
+    data
+  })
+}
+
 export function getFinancePaymentOrderList(query) {
   return request({
     url: '/crm/payment/finance/list',

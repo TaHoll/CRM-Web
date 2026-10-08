@@ -54,15 +54,13 @@
               @click.stop
               @keydown.stop />
           </template>
+          <el-option label="未分配" :value="UNASSIGNED_USER_VALUE" />
           <el-option
             v-for="user in filteredAssignUserOptions"
             :key="user.userId"
             :label="user.nickName || user.userName"
             :value="user.userId" />
         </el-select>
-      </el-form-item>
-      <el-form-item label="分配状态">
-        <el-checkbox v-model="searchForm.onlyUnassigned" @change="handleQuery">仅看未分配线索</el-checkbox>
       </el-form-item>
       <el-form-item label="流量类型">
         <el-select v-model="searchForm.flowType" placeholder="请选择流量类型" clearable>
@@ -97,9 +95,6 @@
     <el-row :gutter="15" class="mb10">
       <el-col :span="1.5">
         <el-button v-hasPermi="['crm:lead:assign']" type="success" plain icon="User" @click="handleAssign">分配</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button type="primary" plain icon="Refresh" @click="getList">刷新</el-button>
       </el-col>
       <right-toolbar v-model:show-search="showSearch" @query-table="getList">
         <el-tooltip content="列设置" placement="top">
@@ -281,6 +276,7 @@ const columns = ref(loadColumns())
 const columnSettingVisible = ref(false)
 const draggedColumnProp = ref('')
 const dateRange = ref([])
+const UNASSIGNED_USER_VALUE = '__unassigned__'
 const searchForm = reactive({
   clueId: '',
   name: '',
@@ -288,7 +284,6 @@ const searchForm = reactive({
   weixin: '',
   customerTagIds: [],
   assignedUserId: undefined,
-  onlyUnassigned: false,
   flowType: ''
 })
 
@@ -347,6 +342,7 @@ watch(
 
 async function getList() {
   ;[queryParams.beginTime, queryParams.endTime] = dateRange.value || []
+  const onlyUnassigned = searchForm.assignedUserId === UNASSIGNED_USER_VALUE
   loading.value = true
   try {
     const res = await listLead({
@@ -356,8 +352,8 @@ async function getList() {
       telephone: searchForm.telephone.trim(),
       weixin: searchForm.weixin.trim(),
       customerTagIds: searchForm.customerTagIds,
-      assignedUserId: searchForm.assignedUserId || undefined,
-      onlyUnassigned: searchForm.onlyUnassigned || undefined,
+      assignedUserId: onlyUnassigned ? undefined : searchForm.assignedUserId || undefined,
+      onlyUnassigned: onlyUnassigned || undefined,
       flowType: searchForm.flowType || undefined
     })
     if (res.code === 200) {
@@ -380,7 +376,6 @@ function resetQuery() {
     searchForm[key] = ''
   })
   searchForm.customerTagIds = []
-  searchForm.onlyUnassigned = false
   queryParams.deptStage = undefined
   queryParams.beginTime = undefined
   queryParams.endTime = undefined
