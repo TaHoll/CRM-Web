@@ -113,3 +113,11 @@ export function userQuotaSave(data) {
     data
   })
 }
+
+export function userQuotaStatus(data) {
+  return request({
+    url: '/crm/lead/UserQuotaStatus',
+    method: 'post',
+    data
+  })
+}
