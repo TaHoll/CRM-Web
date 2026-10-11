@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+export function addCustomer(data) {
+  return request({ url: '/crm/lead/customer', method: 'post', data })
+}
+
 /**
  * 查询线索池
  * @param {{ pager: { pageNum: number, pageSize: number } }} data

@@ -80,6 +80,9 @@
       </el-form>
 
       <el-row :gutter="15" class="mb10">
+        <el-col :span="1.5">
+          <el-button v-hasPermi="['crm:customer:add']" type="primary" plain icon="Plus" @click="openAddCustomer">新增客户</el-button>
+        </el-col>
         <right-toolbar v-model:show-search="showSearch" @query-table="getList">
           <el-tooltip content="列设置" placement="top">
             <el-button circle icon="Menu" @click="columnSettingVisible = true" />
@@ -176,6 +179,25 @@
         </div>
       </el-dialog>
 
+      <el-dialog v-model="addCustomerVisible" title="新增客户" width="min(720px, 94vw)" append-to-body :close-on-click-modal="false" :close-on-press-escape="false">
+        <el-form ref="addCustomerFormRef" class="add-customer-form" :model="addCustomerForm" :rules="addCustomerRules" label-position="top">
+          <el-form-item label="所属主体"><span class="add-customer-subject">{{ addCustomerSubjectName }}</span></el-form-item>
+          <el-form-item label="姓名"><el-input v-model="addCustomerForm.name" maxlength="20" /></el-form-item>
+          <el-form-item label="手机号" prop="telephone"><el-input v-model="addCustomerForm.telephone" maxlength="20" placeholder="手机号和微信号至少填写一项" /></el-form-item>
+          <el-form-item label="微信号" prop="weixin"><el-input v-model="addCustomerForm.weixin" maxlength="30" placeholder="手机号和微信号至少填写一项" /></el-form-item>
+          <el-form-item label="性别"><el-radio-group v-model="addCustomerForm.gender"><el-radio-button value="UNKNOWN">未知</el-radio-button><el-radio-button value="MALE">男</el-radio-button><el-radio-button value="FEMALE">女</el-radio-button></el-radio-group></el-form-item>
+          <el-form-item label="年龄"><el-input-number v-model="addCustomerForm.age" :min="0" :max="150" :precision="0" /></el-form-item>
+          <el-form-item label="省份"><el-input v-model="addCustomerForm.province" maxlength="20" /></el-form-item>
+          <el-form-item label="城市"><el-input v-model="addCustomerForm.city" maxlength="20" /></el-form-item>
+          <el-form-item class="add-customer-full-row" label="地址"><el-input v-model="addCustomerForm.address" maxlength="100" placeholder="请输入详细地址（选填）" /></el-form-item>
+          <el-form-item class="add-customer-full-row" label="备注"><el-input v-model="addCustomerForm.remark" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="请输入客户需求或补充说明（选填）" /></el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button :disabled="addCustomerSubmitting" @click="addCustomerVisible = false">取消</el-button>
+          <el-button type="primary" :loading="addCustomerSubmitting" @click="submitAddCustomer">保存</el-button>
+        </template>
+      </el-dialog>
+
       <UserSelectDialog
         v-model="assignUserDialogOpen"
         v-model:selected-ids="assignUserId"
@@ -188,13 +210,53 @@
 <script setup name="CustomerManagement">
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { assignLead, customerList } from '@/api/public/lead'
+import { addCustomer, assignLead, customerList } from '@/api/public/lead'
 import { treeSelectWithUserList } from '@/api/system/dept'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
 import UserSelectDialog from '@/components/UserSelectDialog/index.vue'
 
 const router = useRouter()
+const addCustomerVisible = ref(false)
+const addCustomerSubmitting = ref(false)
+const addCustomerFormRef = ref()
+const addCustomerSubjectName = ref('')
+const addCustomerForm = reactive({})
+const validateContact = (_rule, _value, callback) => {
+  callback(addCustomerForm.telephone?.trim() || addCustomerForm.weixin?.trim()
+    ? undefined : new Error('手机号和微信号至少填写一项'))
+}
+const addCustomerRules = {
+  telephone: [{ validator: validateContact, trigger: 'blur' }],
+  weixin: [{ validator: validateContact, trigger: 'blur' }]
+}
+
+function openAddCustomer() {
+  if (!activeSubjectId.value) return
+  Object.assign(addCustomerForm, {
+    subjectId: activeSubjectId.value, name: '', telephone: '', weixin: '', gender: 'UNKNOWN',
+    age: undefined, province: '', city: '', address: '', remark: ''
+  })
+  addCustomerSubjectName.value = subjectList.value.find(item => item.id === activeSubjectId.value)?.subjectName || ''
+  addCustomerVisible.value = true
+  nextTick(() => addCustomerFormRef.value?.clearValidate())
+}
+
+async function submitAddCustomer() {
+  if (addCustomerSubmitting.value) return
+  if (!await addCustomerFormRef.value.validate().catch(() => false)) return
+  addCustomerSubmitting.value = true
+  try {
+    const res = await addCustomer({ ...addCustomerForm })
+    if (res.code === 200) {
+      ElMessage.success('新增客户成功')
+      addCustomerVisible.value = false
+      handleQuery()
+    }
+  } finally {
+    addCustomerSubmitting.value = false
+  }
+}
 const COLUMN_STORAGE_KEY = 'customer-management-columns'
 
 const defaultColumns = [
@@ -542,6 +604,36 @@ initializePage()
 </script>
 
 <style scoped>
+.add-customer-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+  padding: 4px 8px 0;
+}
+
+.add-customer-full-row {
+  grid-column: 1 / -1;
+}
+
+.add-customer-form :deep(.el-input-number) {
+  width: 100%;
+}
+
+.add-customer-subject {
+  padding: 0 12px;
+  border-radius: 4px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 540px) {
+  .add-customer-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .customer-management-page {
   min-height: calc(100vh - 84px);
 }

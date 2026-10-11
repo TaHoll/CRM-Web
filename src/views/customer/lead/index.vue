@@ -289,7 +289,8 @@ const searchForm = reactive({
 
 const flowTypeOptions = [
   { label: '自然流量', value: 'NATURE' },
-  { label: '广告流量', value: 'AD' }
+  { label: '广告流量', value: 'AD' },
+  { label: '其它流量', value: 'OTHER' }
 ]
 const queryParams = reactive({
   deptStage: undefined,
