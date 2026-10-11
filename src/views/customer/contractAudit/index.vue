@@ -117,6 +117,12 @@
             <el-button
               v-hasPermi="['crm:contract:audit']"
               link
+              type="primary"
+              :loading="signUrlLoadingId === row.id"
+              @click="handleShareContract(row)">分享签署</el-button>
+            <el-button
+              v-hasPermi="['crm:contract:audit']"
+              link
               type="danger"
               :loading="revokeLoadingId === row.id"
               @click="handleRevoke(row)">撤销</el-button>
@@ -127,6 +133,11 @@
             type="primary"
             :loading="downloadLoadingId === row.id"
             @click="handleDownload(row)">下载</el-button>
+          <el-button
+            v-if="[3, 4].includes(Number(row.contractStatus)) && row.invalidReason"
+            link
+            type="danger"
+            @click="showContractReason(row)">查看原因</el-button>
           <el-button link type="primary" @click="showDetail(row)">详情</el-button>
         </template>
       </el-table-column>
@@ -165,16 +176,53 @@
         <el-descriptions-item label="线索ID" :span="2">{{ currentContract.clueId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审核人">{{ currentContract.auditUserNickName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审核时间">{{ currentContract.auditTime ? parseTime(currentContract.auditTime) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="审核/失效原因" :span="2">{{ currentContract.invalidReason || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
+
+    <div
+      v-if="contractShareDialogVisible"
+      class="contract-share-overlay"
+      @click.self="contractShareDialogVisible = false">
+      <div v-loading="contractShareImageLoading" class="contract-share-panel">
+        <el-image
+          v-if="contractShareImage"
+          class="contract-share-image"
+          :src="contractShareImage"
+          fit="contain" />
+        <el-empty v-else description="暂无分享图片" />
+        <div v-if="contractShareImage" class="contract-share-actions-trigger">
+          <div class="contract-share-actions">
+            <span
+              class="contract-share-action-item"
+              :class="{ 'is-disabled': !contractShareImage }"
+              @click="handleCopyShareImage">
+              复制图片
+            </span>
+            <span class="contract-share-action-divider">|</span>
+            <span
+              class="contract-share-action-item"
+              :class="{ 'is-disabled': !contractShareUrl }"
+              @click="handleCopyShareUrl">
+              复制链接
+            </span>
+          </div>
+        </div>
+        <button class="contract-share-close" type="button" @click="contractShareDialogVisible = false">×</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup name="CustomerContractAudit">
+import { ElMessageBox } from 'element-plus'
+import useClipboard from 'vue-clipboard3'
 import { auditContract, completeContract, getContractAuditList, getContractDownloadUrl, revokeContract } from '@/api/public/contract'
 import { getBatchSignUrl, getContractSignUrl } from '@/api/public/esign'
+import generateContractImage from '@/utils/contractCanvas'
 
 const { proxy } = getCurrentInstance()
+const { toClipboard } = useClipboard()
 const loading = ref(false)
 const showSearch = ref(true)
 const total = ref(0)
@@ -188,6 +236,10 @@ const signUrlLoadingId = ref(null)
 const completeLoadingId = ref(null)
 const revokeLoadingId = ref(null)
 const downloadLoadingId = ref(null)
+const contractShareDialogVisible = ref(false)
+const contractShareImageLoading = ref(false)
+const contractShareImage = ref('')
+const contractShareUrl = ref('')
 const detailVisible = ref(false)
 const currentContract = ref({})
 
@@ -229,6 +281,12 @@ function formatAmount(value) {
 
 function formatRate(value) {
   return `${Number(value || 0).toFixed(2)}%`
+}
+
+function formatShareDateTime() {
+  const value = new Date()
+  const pad = number => String(number).padStart(2, '0')
+  return `${value.getFullYear()}年${pad(value.getMonth() + 1)}月${pad(value.getDate())}日 ${pad(value.getHours())}:${pad(value.getMinutes())}`
 }
 
 function canBatchSeal(row) {
@@ -343,10 +401,20 @@ async function handleDownload(row) {
 
 async function handleAudit(row, auditStatus) {
   const actionText = auditStatus === 1 ? '通过' : '不通过'
-  await proxy.$modal.confirm(`确认${actionText}债权人“${row.creditorName}”的合同吗？`)
+  let auditRemark = ''
+  if (auditStatus === 2) {
+    const result = await ElMessageBox.prompt('请输入审核不通过的原因', '合同审核不通过', {
+      inputPlaceholder: '请输入驳回原因',
+      inputValidator: value => value?.trim() ? true : '驳回原因不能为空',
+      inputErrorMessage: '驳回原因不能为空'
+    })
+    auditRemark = result.value.trim()
+  } else {
+    await proxy.$modal.confirm(`确认通过债权人“${row.creditorName}”的合同吗？`)
+  }
   auditLoadingId.value = row.id
   try {
-    const response = await auditContract({ id: row.id, auditStatus })
+    const response = await auditContract({ id: row.id, auditStatus, auditRemark })
     if (response.code === 200) {
       proxy.$modal.msgSuccess(`合同审核${actionText}`)
       await getList()
@@ -354,6 +422,12 @@ async function handleAudit(row, auditStatus) {
   } finally {
     auditLoadingId.value = null
   }
+}
+
+function showContractReason(row) {
+  ElMessageBox.alert(row.invalidReason || '暂无原因', '审核/失效原因', {
+    confirmButtonText: '知道了'
+  })
 }
 
 async function handleContractSeal(row) {
@@ -385,6 +459,66 @@ async function handleContractSeal(row) {
     throw error
   } finally {
     signUrlLoadingId.value = null
+  }
+}
+
+async function handleShareContract(row) {
+  if (signUrlLoadingId.value || Number(row.contractStatus) !== 1) return
+
+  signUrlLoadingId.value = row.id
+  contractShareImageLoading.value = true
+  contractShareImage.value = ''
+  contractShareUrl.value = ''
+  try {
+    const response = await getContractSignUrl(row.id, 2)
+    const signUrl = response.data?.shortUrl || response.data?.url || response.data
+    if (!signUrl) {
+      proxy.$modal.msgWarning('未获取到签署链接')
+      return
+    }
+
+    const contractName = Number(row.stage) === 0
+      ? '调解法律服务委托合同'
+      : `${formatStage(row.stage)}法律服务委托合同`
+    contractShareUrl.value = signUrl
+    contractShareImage.value = await generateContractImage({
+      initiatorName: row.subjectName,
+      signerName: row.creditorName,
+      contractName,
+      initiatedAt: formatShareDateTime(),
+      signQrCode: signUrl
+    })
+    contractShareDialogVisible.value = true
+  } finally {
+    contractShareImageLoading.value = false
+    signUrlLoadingId.value = null
+  }
+}
+
+async function handleCopyShareImage() {
+  if (!contractShareImage.value) return
+  if (!navigator.clipboard?.write || !window.ClipboardItem) {
+    proxy.$modal.msgWarning('当前浏览器不支持复制图片，请右键保存后分享')
+    return
+  }
+
+  try {
+    const response = await fetch(contractShareImage.value)
+    const blob = await response.blob()
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    proxy.$modal.msgSuccess('已复制图片')
+  } catch {
+    proxy.$modal.msgError('图片复制失败，请检查浏览器剪贴板权限')
+  }
+}
+
+async function handleCopyShareUrl() {
+  if (!contractShareUrl.value) return
+  try {
+    await toClipboard(contractShareUrl.value)
+    proxy.$modal.msgSuccess('已复制链接')
+  } catch {
+    proxy.$modal.msgError('链接复制失败，请检查浏览器剪贴板权限')
   }
 }
 
@@ -433,5 +567,93 @@ getList()
 .amount-text {
   color: #e65d2f;
   font-weight: 600;
+}
+
+.reason-text {
+  color: var(--el-color-danger);
+}
+
+.contract-share-overlay {
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 56%);
+}
+
+.contract-share-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(90vw, 520px);
+  max-height: 94vh;
+}
+
+.contract-share-image {
+  display: block;
+  width: min(90vw, 520px);
+  max-height: 94vh;
+}
+
+.contract-share-actions-trigger {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 68px;
+  background: rgb(15 25 40 / 38%);
+  backdrop-filter: blur(5px);
+}
+
+.contract-share-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.contract-share-action-item {
+  color: rgb(255 255 255 / 92%);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 32px;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+}
+
+.contract-share-action-item:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.contract-share-action-divider {
+  color: rgb(255 255 255 / 55%);
+  font-size: 14px;
+  line-height: 32px;
+}
+
+.contract-share-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 58%);
+  color: #fff;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.contract-share-close:hover {
+  background: rgb(0 0 0 / 78%);
 }
 </style>

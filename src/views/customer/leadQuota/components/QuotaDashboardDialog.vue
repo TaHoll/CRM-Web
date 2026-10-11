@@ -76,7 +76,7 @@
                 </td>
                 <td class="progress-cell">
                   <div
-                    class="progress-fill"
+                    class="progress-fill sales-progress-fill"
                     :style="{
                       width: progressWidth(rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota)),
                       background: progressBackground(rate(department.users[rowIndex - 1].assigned, department.users[rowIndex - 1].quota))
@@ -100,6 +100,7 @@
 
 <script setup>
 import { quotaDashboardList } from '@/api/public/lead'
+import { treeselect } from '@/api/system/dept'
 
 const props = defineProps({
   modelValue: {
@@ -129,6 +130,7 @@ const quotaDate = ref(today())
 const activeSubjectId = ref()
 const loading = ref(false)
 const quotaRows = ref([])
+const departmentTree = ref([])
 const widths = reactive({})
 const subjects = computed(() => props.subjectList || [])
 const departments = computed(() => {
@@ -156,7 +158,13 @@ const departments = computed(() => {
       assigned
     })
   })
-  return Array.from(departmentMap.values())
+  const orderedDepartments = flattenDepartments(departmentTree.value)
+    .map(department => departmentMap.get(department.id))
+    .filter(Boolean)
+  const orderedIds = new Set(orderedDepartments.map(department => department.id))
+  return orderedDepartments.concat(
+    Array.from(departmentMap.values()).filter(department => !orderedIds.has(department.id))
+  )
 })
 const subjectQuota = computed(() => departments.value.reduce((total, item) => total + item.quota, 0))
 const subjectAssigned = computed(() => departments.value.reduce((total, item) => total + item.assigned, 0))
@@ -182,14 +190,52 @@ async function loadDashboard() {
   }
   loading.value = true
   try {
+    if (departmentTree.value.length === 0) {
+      const departmentResponse = await treeselect()
+      departmentTree.value = departmentResponse.data || []
+    }
     const response = await quotaDashboardList({
       subjectId: activeSubjectId.value,
       quotaDate: quotaDate.value
     })
-    quotaRows.value = response.data || []
+    quotaRows.value = normalizeRows(response.data || [])
   } finally {
     loading.value = false
   }
+}
+
+function flattenDepartments(nodes, parent = null, result = [], level = 1) {
+  ;(nodes || []).forEach(node => {
+    const children = Array.isArray(node.children) ? node.children : []
+    const department = {
+      id: String(node.id),
+      name: node.label || '未知部门',
+      parentId: parent ? String(parent.id) : null,
+      isLeaf: children.length === 0,
+      level
+    }
+    result.push(department)
+    flattenDepartments(children, department, result, level + 1)
+  })
+  return result
+}
+
+function normalizeRows(rows) {
+  const treeDepartments = flattenDepartments(departmentTree.value)
+  const departmentMap = new Map(treeDepartments.map(department => [department.id, department]))
+  const treeById = new Map(treeDepartments.map(department => [department.id, department]))
+  const maxLevel = Math.max(0, ...treeDepartments.map(department => department.level))
+
+  return rows.map(row => {
+    const department = departmentMap.get(String(row.deptId))
+    const targetDepartment = department?.level === maxLevel && department.parentId
+      ? treeById.get(department.parentId)
+      : department
+
+    return targetDepartment
+      ? { ...row, deptId: targetDepartment.id, deptName: targetDepartment.name }
+      : row
+  })
 }
 
 function today() {
@@ -241,58 +287,81 @@ function startResize(event, departmentId) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  min-height: 42px;
+  margin-bottom: 12px;
+  padding: 7px 10px 7px 12px;
+  background: linear-gradient(135deg, #f8fbff 0%, #f2f7ff 100%);
+  border: 1px solid #e1eaf6;
+  border-radius: 10px;
 }
 
 .subject-tabs {
   display: flex;
-  gap: 7px;
+  gap: 8px;
+  min-width: 0;
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .subject-tab {
   min-width: max-content;
-  padding: 7px 13px;
+  padding: 7px 15px;
   color: #606b7c;
-  background: #f5f7fa;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #dce5f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgb(31 56 88 / 4%);
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subject-tab:hover {
+  color: #1677ff;
+  border-color: #9fc5f5;
+  transform: translateY(-1px);
 }
 
 .subject-tab.active {
-  color: #1677ff;
-  background: #edf5ff;
-  border-color: #9bc7ff;
+  color: #fff;
+  background: linear-gradient(135deg, #287cf0, #155ed0);
+  border-color: #287cf0;
+  box-shadow: 0 4px 10px rgb(22 119 255 / 22%);
 }
 
 .subject-tab.abnormal:not(.active) {
   color: #9ca3af;
   background: #f3f4f6;
+  border-color: #e5e7eb;
 }
 
 .summary-bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
   overflow: hidden;
-  border: 1px solid #e3e8ef;
-  border-radius: 6px;
+  background: #f5f8fc;
+  border: 1px solid #e5ebf3;
+  border-radius: 10px;
 }
 
 .summary-bar > div {
   position: relative;
+  min-height: 46px;
   padding: 8px 14px;
   overflow: hidden;
-  border-right: 1px solid #e3e8ef;
+  background: #fff;
+  border: 1px solid #e9eef5;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(31 56 88 / 4%);
 }
 
-.summary-bar > div:last-child { border-right: 0; }
-.summary-bar span { margin-right: 12px; color: #8792a3; font-size: 12px; }
-.summary-bar strong { color: #263449; font-size: 19px; }
+.summary-bar span { position: relative; z-index: 1; display: block; margin-bottom: 2px; color: #8792a3; font-size: 12px; }
+.summary-bar strong { position: relative; z-index: 1; color: #263449; font-size: 20px; line-height: 1.2; }
 .summary-bar strong.assigned { color: #1677ff; }
-.summary-bar span,
-.summary-bar strong { position: relative; z-index: 1; }
+.summary-progress { display: flex; flex-direction: column; justify-content: center; }
+.summary-progress .progress-fill { opacity: 0.12; }
 
 .progress-fill {
   position: absolute;
@@ -306,7 +375,10 @@ function startResize(event, departmentId) {
   position: relative;
   height: 68vh;
   overflow: auto;
-  border: 1px solid #dfe5ed;
+  background: #f6f8fb;
+  border: 1px solid #dfe7f1;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 3px rgb(31 56 88 / 3%);
 }
 
 .matrix-wrap :deep(.el-empty) {
@@ -319,24 +391,25 @@ function startResize(event, departmentId) {
   border-spacing: 0;
   border-collapse: separate;
   table-layout: fixed;
-  color: #4d586b;
+  color: #4b5870;
   font-size: 12px;
 }
 
 .quota-matrix th,
 .quota-matrix td {
-  height: 43px;
-  padding: 6px;
+  height: 44px;
+  padding: 7px 8px;
   background: #fff;
-  border-right: 1px solid #e5e9ef;
-  border-bottom: 1px solid #e5e9ef;
+  border-right: 1px solid #edf1f6;
+  border-bottom: 1px solid #edf1f6;
   text-align: center;
   white-space: nowrap;
+  transition: background 0.15s ease;
 }
 
 .quota-matrix th:nth-child(5n),
 .quota-matrix td:nth-child(5n) {
-  border-right: 2px solid #c5d0de;
+  border-right: 2px solid #c8d7ea;
 }
 
 .department-head {
@@ -344,13 +417,14 @@ function startResize(event, departmentId) {
   top: 0;
   z-index: 3;
   height: 62px !important;
-  background: #edf5ff !important;
-  border-right: 2px solid #aacaf1 !important;
+  background: linear-gradient(135deg, #eaf3ff 0%, #f4f8ff 100%) !important;
+  border-right: 2px solid #b8d0ee !important;
+  box-shadow: inset 0 -1px 0 #d7e5f5;
 }
 
-.department-progress-fill { z-index: 0; opacity: 1; }
-.department-name { position: relative; z-index: 1; color: #273449; font-size: 14px; font-weight: 700; }
-.department-summary { position: relative; z-index: 1; margin-top: 4px; color: #758297; font-size: 11px; font-weight: 400; }
+.department-progress-fill { z-index: 0; opacity: 0.16; }
+.department-name { position: relative; z-index: 1; color: #1d3c68; font-size: 14px; font-weight: 700; }
+.department-summary { position: relative; z-index: 1; margin-top: 4px; color: #6d7f98; font-size: 11px; font-weight: 400; }
 
 .resize-handle {
   position: absolute;
@@ -363,13 +437,27 @@ function startResize(event, departmentId) {
 }
 
 .resize-handle:hover { background: rgb(22 119 255 / 22%); }
-.column-head th { position: sticky; top: 62px; z-index: 2; color: #687588; background: #f7f9fc; }
+.column-head th {
+  position: sticky;
+  top: 62px;
+  z-index: 2;
+  height: 34px;
+  padding: 4px 6px;
+  color: #63738b;
+  background: #f8fafc;
+  border-bottom-color: #dbe5f1;
+  font-size: 11px;
+  font-weight: 600;
+}
 .sales-column, .sales-cell { text-align: left !important; }
-.sales-cell { overflow: hidden; color: #303b4d; font-weight: 600; text-overflow: ellipsis; }
+.sales-cell { overflow: hidden; color: #293b55; font-weight: 600; text-overflow: ellipsis; }
 .assigned-cell { color: #1677ff; font-weight: 700; }
 .difference-cell { color: #e6a23c; font-weight: 700; }
 .difference-cell.exceeded { color: #f56c6c; }
+.quota-matrix tbody tr:nth-child(even) td { background: #fbfcfe; }
+.quota-matrix tbody tr:hover td { background: #eef6ff; }
 .progress-cell { position: relative; overflow: hidden; font-weight: 700; }
+.sales-progress-fill { z-index: 0; opacity: 0.14; }
 .progress-cell span { position: relative; z-index: 1; }
 .empty { color: #c5cbd4; background: #fbfcfd !important; }
 

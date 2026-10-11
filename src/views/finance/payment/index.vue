@@ -120,11 +120,13 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="paymentScreenshotPreviewVisible" title="支付截图" width="720px" append-to-body>
-      <div class="payment-screenshot-preview">
-        <img :src="paymentScreenshotPreviewUrl" alt="支付截图" />
-      </div>
-    </el-dialog>
+    <div
+      v-if="paymentScreenshotPreviewVisible"
+      class="payment-screenshot-overlay"
+      @click.self="paymentScreenshotPreviewVisible = false">
+      <img class="payment-screenshot-preview-image" :src="paymentScreenshotPreviewUrl" alt="支付截图" />
+      <button class="payment-screenshot-close" type="button" @click="paymentScreenshotPreviewVisible = false">×</button>
+    </div>
 
     <el-dialog v-model="detailVisible" title="审核详情" width="480px" append-to-body>
       <el-descriptions :column="1" border>
@@ -274,18 +276,42 @@ getList()
 <style scoped>
 .payment-finance-page :deep(.el-table .cell) { white-space: nowrap; }
 
-.payment-screenshot-preview {
+.payment-screenshot-overlay {
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 240px;
+  padding: 24px;
+  background: rgb(0 0 0 / 64%);
 }
 
-.payment-screenshot-preview img {
+.payment-screenshot-preview-image {
   display: block;
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
+}
+
+.payment-screenshot-close {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 58%);
+  color: #fff;
+  cursor: pointer;
+  font-size: 26px;
+  line-height: 34px;
+}
+
+.payment-screenshot-close:hover {
+  background: rgb(0 0 0 / 80%);
 }
 .amount-text { color: #e65d2f; font-weight: 600; }
 .voucher-image { width: 44px; height: 44px; border-radius: 4px; cursor: pointer; }

@@ -230,6 +230,18 @@
             <el-table-column label="支付金额" width="130" align="right">
               <template #default="{ row }">¥ {{ formatPaymentAmount(row.paymentAmount) }}</template>
             </el-table-column>
+            <el-table-column label="支付截图" width="110" align="center">
+              <template #default="{ row }">
+                <el-image
+                  v-if="row.paymentScreenshotUrl"
+                  class="payment-record-screenshot"
+                  :src="resolvePaymentScreenshotUrl(row.paymentScreenshotUrl)"
+                  fit="cover"
+                  :preview-src-list="[resolvePaymentScreenshotUrl(row.paymentScreenshotUrl)]"
+                  preview-teleported />
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
             <el-table-column label="合同编号" min-width="150" show-overflow-tooltip>
               <template #default="{ row }">{{ row.contractNo || '-' }}</template>
             </el-table-column>
@@ -316,8 +328,22 @@
                   link
                   type="primary"
                   :loading="contractSignLinkLoadingId === row.id"
-                  @click="handleCopyContractSignUrl(row)">
-                  获取签署链接
+                  @click="handleShareContract(row)">
+                  分享签署
+                </el-button>
+                <el-button
+                  v-else-if="[3, 4].includes(Number(row.contractStatus))"
+                  link
+                  type="warning"
+                  @click="openRecreateContractDialog(row)">
+                  重新提交
+                </el-button>
+                <el-button
+                  v-if="[3, 4].includes(Number(row.contractStatus)) && row.invalidReason"
+                  link
+                  type="danger"
+                  @click="showContractReason(row)">
+                  查看原因
                 </el-button>
                 <el-button
                   v-if="[1, 2].includes(Number(row.contractStatus))"
@@ -327,7 +353,7 @@
                   @click="handleDownloadContract(row)">
                   下载
                 </el-button>
-                <span v-if="![0, 1, 2].includes(Number(row.contractStatus))">-</span>
+                <span v-if="![0, 1, 2, 3, 4].includes(Number(row.contractStatus))">-</span>
               </template>
             </el-table-column>
           </el-table>
@@ -390,6 +416,38 @@
         <el-button type="primary" @click="confirmTags">确认添加</el-button>
       </template>
     </el-dialog>
+
+    <div
+      v-if="contractShareDialogVisible"
+      class="contract-share-overlay"
+      @click.self="contractShareDialogVisible = false">
+      <div v-loading="contractShareImageLoading" class="contract-share-panel">
+        <el-image
+          v-if="contractShareImage"
+          class="contract-share-image"
+          :src="contractShareImage"
+          fit="contain" />
+        <el-empty v-else description="暂无分享图片" />
+        <div v-if="contractShareImage" class="contract-share-actions-trigger">
+          <div class="contract-share-actions">
+            <span
+              class="contract-share-action-item"
+              :class="{ 'is-disabled': !contractShareImage }"
+              @click="handleCopyShareImage">
+              复制图片
+            </span>
+            <span class="contract-share-action-divider">|</span>
+            <span
+              class="contract-share-action-item"
+              :class="{ 'is-disabled': !contractShareUrl }"
+              @click="handleCopyShareUrl">
+              复制链接
+            </span>
+          </div>
+        </div>
+        <button class="contract-share-close" type="button" @click="contractShareDialogVisible = false">×</button>
+      </div>
+    </div>
 
     <el-dialog
       v-model="contractDialogVisible"
@@ -634,10 +692,11 @@ import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
 import { addFollowLog, followLogList, getCustomerDetail, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
 import { addPaymentOrder, getPaymentOrderList, resubmitPaymentOrder } from '@/api/public/paymentOrder'
-import { addContract, checkContractCreate, getContractDownloadUrl, getContractList, updateContract } from '@/api/public/contract'
+import { addContract, checkContractCreate, getContractDownloadUrl, getContractList, resubmitContract, updateContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
 import { validIdCard, validMobile } from '@/utils/validate'
+import generateContractImage from '@/utils/contractCanvas'
 
 const route = useRoute()
 const { toClipboard } = useClipboard()
@@ -691,8 +750,13 @@ const contractDialogVisible = ref(false)
 const contractCheckLoading = ref(false)
 const contractSubmitting = ref(false)
 const contractEditingId = ref(null)
+const contractResubmitId = ref(null)
 const contractSignLinkLoadingId = ref(null)
 const contractDownloadLoadingId = ref(null)
+const contractShareDialogVisible = ref(false)
+const contractShareImageLoading = ref(false)
+const contractShareImage = ref('')
+const contractShareUrl = ref('')
 const contractFormRef = ref()
 const paymentDialogVisible = ref(false)
 const paymentFormRef = ref()
@@ -1265,6 +1329,7 @@ async function openContractDialog() {
   try {
     await checkContractCreate(form.assignId)
     contractEditingId.value = null
+    contractResubmitId.value = null
 
     Object.assign(contractForm, {
       creditorName: '',
@@ -1292,6 +1357,7 @@ function openEditContractDialog(row) {
   }
 
   contractEditingId.value = row.id
+  contractResubmitId.value = null
   Object.assign(contractForm, {
     creditorName: row.creditorName || '',
     creditorPhone: row.creditorMobile || '',
@@ -1308,26 +1374,115 @@ function openEditContractDialog(row) {
   contractDialogVisible.value = true
 }
 
-async function handleCopyContractSignUrl(row) {
+function showContractReason(row) {
+  ElMessageBox.alert(row.invalidReason || '暂无原因', '审核/失效原因', {
+    confirmButtonText: '知道了'
+  })
+}
+
+async function openRecreateContractDialog(row) {
+  if (![3, 4].includes(Number(row.contractStatus)) || contractSubmitting.value) return
+
+  if (row.signFlowId) {
+    try {
+      await ElMessageBox.confirm(
+        '该合同已绑定付款记录，重新提交会清空这些付款记录的合同编号，是否继续？',
+        '确认重新提交',
+        {
+          confirmButtonText: '继续提交',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+    } catch {
+      return
+    }
+  }
+
+  contractEditingId.value = null
+  contractResubmitId.value = row.id
+  Object.assign(contractForm, {
+    creditorName: row.creditorName || '',
+    creditorPhone: row.creditorMobile || '',
+    creditorIdCard: row.creditorIdCardNo || '',
+    creditorAddress: row.creditorAddress || '',
+    debtorName: row.debtorName || '',
+    contractAmount: Number(row.contractAmount) || undefined,
+    entrustedPersonName: row.entrustedPersonName || '',
+    entrustedPersonPhone: row.entrustedPersonPhone || '',
+    recoveryServiceFeeRate: Number(row.recoveryServiceFeeRate),
+    disputeType: row.disputeType || ''
+  })
+  contractFormRef.value?.clearValidate()
+  contractDialogVisible.value = true
+}
+
+function formatShareDateTime(value = new Date()) {
+  const pad = (number) => String(number).padStart(2, '0')
+  return `${value.getFullYear()}年${pad(value.getMonth() + 1)}月${pad(value.getDate())}日 ${pad(value.getHours())}:${pad(value.getMinutes())}`
+}
+
+async function handleShareContract(row) {
   if (contractSignLinkLoadingId.value || Number(row.contractStatus) !== 1) return
 
   contractSignLinkLoadingId.value = row.id
+  contractShareImageLoading.value = true
+  contractShareImage.value = ''
+  contractShareUrl.value = ''
   try {
     const response = await getContractSignUrl(row.id, 2)
-    const signUrl = response.data?.shortUrl || response.data?.url
+    const signUrl = response.data?.shortUrl || response.data?.url || response.data
     if (!signUrl) {
       ElMessage.warning('未获取到签署链接')
       return
     }
 
-    try {
-      await toClipboard(signUrl)
-      ElMessage.success('已复制链接')
-    } catch {
-      ElMessage.error('链接复制失败，请检查浏览器剪贴板权限')
-    }
+    const stage = row.stage ?? form.deptStage
+    const contractName = Number(stage) === 0
+      ? '调解法律服务委托合同'
+      : (row.contractName || `${formatFollowStage(stage)}法律服务委托合同`)
+
+    contractShareUrl.value = signUrl
+    contractShareImage.value = await generateContractImage({
+      initiatorName: form.subjectName,
+      signerName: row.creditorName,
+      contractName,
+      initiatedAt: formatShareDateTime(),
+      signQrCode: signUrl
+    })
+    contractShareDialogVisible.value = true
   } finally {
+    contractShareImageLoading.value = false
     contractSignLinkLoadingId.value = null
+  }
+}
+
+async function handleCopyShareImage() {
+  if (!contractShareImage.value) return
+
+  if (!navigator.clipboard?.write || !window.ClipboardItem) {
+    ElMessage.warning('当前浏览器不支持复制图片，请右键保存后分享')
+    return
+  }
+
+  try {
+    const response = await fetch(contractShareImage.value)
+    const blob = await response.blob()
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    ElMessage.success('已复制图片')
+  } catch {
+    ElMessage.error('图片复制失败，请检查浏览器剪贴板权限')
+  }
+}
+
+async function handleCopyShareUrl() {
+  if (!contractShareUrl.value) return
+
+  try {
+    await toClipboard(contractShareUrl.value)
+    ElMessage.success('已复制链接')
+  } catch {
+    ElMessage.error('链接复制失败，请检查浏览器剪贴板权限')
   }
 }
 
@@ -1338,6 +1493,7 @@ async function handleCreateContract() {
 
   contractSubmitting.value = true
   try {
+    const isResubmit = Boolean(contractResubmitId.value)
     const contractData = {
       creditorName: contractForm.creditorName,
       creditorIdCardNo: contractForm.creditorIdCard,
@@ -1352,14 +1508,19 @@ async function handleCreateContract() {
       assignId: form.assignId,
       clueId: form.id
     }
-    if (contractEditingId.value) {
+    if (isResubmit) {
+      await resubmitContract({ id: contractResubmitId.value, ...contractData })
+    } else if (contractEditingId.value) {
       await updateContract({ id: contractEditingId.value, ...contractData })
     } else {
       await addContract(contractData)
     }
     contractDialogVisible.value = false
-    ElMessage.success(contractEditingId.value ? '合同编辑成功' : '合同创建成功')
+    ElMessage.success(isResubmit ? '合同重新提交成功' : (contractEditingId.value ? '合同编辑成功' : '合同创建成功'))
+    contractResubmitId.value = null
+    contractEditingId.value = null
     await getContractRecords()
+    if (isResubmit) await getPaymentRecords()
     pageTab.value = 'contracts'
   } finally {
     contractSubmitting.value = false
@@ -1511,7 +1672,6 @@ async function handlePaymentResubmit(row) {
   }
 
   paymentResubmitId.value = row.id
-  paymentResubmitStage.value = row.stage
   paymentExistingScreenshotUrl.value = row.paymentScreenshotUrl || ''
   paymentForm.paymentMethod = row.paymentMethod
   paymentForm.feeType = row.feeType
@@ -1555,8 +1715,7 @@ async function handlePaymentSave() {
     return
   }
   const isResubmit = Boolean(paymentResubmitId.value)
-  const paymentStage = isResubmit ? paymentResubmitStage.value : form.deptStage
-  if (paymentStage === undefined || paymentStage === null || Number.isNaN(paymentStage)) {
+  if (!isResubmit && (form.deptStage === undefined || form.deptStage === null || Number.isNaN(form.deptStage))) {
     ElMessage.warning('线索阶段不能为空')
     return
   }
@@ -1587,14 +1746,16 @@ async function handlePaymentSave() {
       paymentOrderNo: paymentForm.orderNo,
       contractNo: paymentForm.contract || null,
       paymentScreenshotUrl: paymentScreenshotUrl || (isResubmit ? paymentExistingScreenshotUrl.value : '') || null,
-      paymentTime: paymentForm.paymentTime,
-      assignId: form.assignId,
-      clueId: form.id,
-      stage: paymentStage
+      paymentTime: paymentForm.paymentTime
     }
     const res = isResubmit
       ? await resubmitPaymentOrder({ id: paymentResubmitId.value, ...paymentData })
-      : await addPaymentOrder(paymentData)
+      : await addPaymentOrder({
+          ...paymentData,
+          assignId: form.assignId,
+          clueId: form.id,
+          stage: form.deptStage
+        })
     if (res.code === 200) {
       paymentDialogVisible.value = false
       ElMessage.success(isResubmit ? '付款订单已重新提交审核' : '付款订单提交成功')
@@ -2237,6 +2398,108 @@ function handleSupplementOrderSave() {
   color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 18px;
+}
+
+.contract-share-overlay {
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 56%);
+}
+
+.contract-share-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(90vw, 520px);
+  max-height: 94vh;
+}
+
+.contract-share-image {
+  display: block;
+  width: min(90vw, 520px);
+  max-height: 94vh;
+}
+
+.contract-share-actions {
+  position: static;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.contract-share-actions-trigger {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 68px;
+  background: rgb(15 25 40 / 38%);
+  backdrop-filter: blur(5px);
+}
+
+.contract-share-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 58%);
+  color: #fff;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.contract-share-close:hover {
+  background: rgb(0 0 0 / 78%);
+}
+
+.payment-record-screenshot {
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.contract-share-action-item {
+  color: rgb(255 255 255 / 92%);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 32px;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+  transition: color 0.2s ease;
+}
+
+.contract-share-action-item:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.contract-share-action-item.is-disabled {
+  color: rgb(255 255 255 / 45%);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.contract-share-action-divider {
+  color: rgb(255 255 255 / 55%);
+  font-size: 14px;
+  line-height: 32px;
 }
 
 .follow-user {

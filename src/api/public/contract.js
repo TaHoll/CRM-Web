@@ -18,6 +18,15 @@ export function updateContract(data) {
   })
 }
 
+// 重新提交已驳回或已失效的客户合同
+export function resubmitContract(data) {
+  return request({
+    url: '/crm/contract/resubmit',
+    method: 'put',
+    data
+  })
+}
+
 // 创建合同前检查当前线索是否满足创建条件
 export function checkContractCreate(assignId) {
   return request({
