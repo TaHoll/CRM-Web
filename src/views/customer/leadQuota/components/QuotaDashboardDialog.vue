@@ -11,7 +11,12 @@
           {{ subject.subjectName || '待授权主体' }}
         </button>
       </div>
-      <el-date-picker v-model="quotaDate" type="date" value-format="YYYY-MM-DD" :clearable="false" style="width: 150px" />
+      <div class="dashboard-actions">
+        <el-date-picker v-model="quotaDate" type="date" value-format="YYYY-MM-DD" :clearable="false" style="width: 150px" />
+        <el-button type="success" plain icon="Download" :loading="exporting" :disabled="loading || !departments.length" @click="exportDashboard">
+          导出 Excel
+        </el-button>
+      </div>
     </div>
 
     <div class="summary-bar">
@@ -101,6 +106,8 @@
 <script setup>
 import { quotaDashboardList } from '@/api/public/lead'
 import { treeselect } from '@/api/system/dept'
+import { ElMessage } from 'element-plus'
+import { saveAs } from 'file-saver'
 
 const props = defineProps({
   modelValue: {
@@ -129,6 +136,8 @@ const visible = computed({
 const quotaDate = ref(today())
 const activeSubjectId = ref()
 const loading = ref(false)
+const exporting = ref(false)
+let dashboardRequestId = 0
 const quotaRows = ref([])
 const departmentTree = ref([])
 const widths = reactive({})
@@ -184,8 +193,10 @@ watch([activeSubjectId, quotaDate], () => {
 })
 
 async function loadDashboard() {
+  const requestId = ++dashboardRequestId
   if (!activeSubjectId.value || !quotaDate.value) {
     quotaRows.value = []
+    loading.value = false
     return
   }
   loading.value = true
@@ -198,9 +209,82 @@ async function loadDashboard() {
       subjectId: activeSubjectId.value,
       quotaDate: quotaDate.value
     })
-    quotaRows.value = normalizeRows(response.data || [])
+    if (requestId === dashboardRequestId) quotaRows.value = normalizeRows(response.data || [])
+  } catch {
+    if (requestId === dashboardRequestId) quotaRows.value = []
   } finally {
-    loading.value = false
+    if (requestId === dashboardRequestId) loading.value = false
+  }
+}
+
+async function exportDashboard() {
+  if (loading.value || exporting.value || !departments.value.length) return
+  const exportDepartments = departments.value.map(department => ({
+    ...department,
+    users: department.users.map(user => ({ ...user }))
+  }))
+  const subjectName = subjects.value.find(subject => String(subject.id) === String(activeSubjectId.value))?.subjectName || '待授权主体'
+  const date = quotaDate.value
+  const totalQuota = subjectQuota.value
+  const totalAssigned = subjectAssigned.value
+  const userCount = subjectUserCount.value
+  exporting.value = true
+  try {
+    const { default: ExcelJS } = await import('exceljs')
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('每日线索分量看板', { views: [{ state: 'frozen', ySplit: 6 }] })
+    const columnCount = exportDepartments.length * 5
+    const addMergedRow = text => {
+      const row = sheet.addRow([text])
+      sheet.mergeCells(row.number, 1, row.number, columnCount)
+      row.height = 28
+    }
+    addMergedRow('每日线索分量看板')
+    addMergedRow(`主体：${subjectName}    配额日期：${date}`)
+    addMergedRow(`主体总配额：${totalQuota}    已分配：${totalAssigned}    差额：${totalQuota - totalAssigned}    进度：${rate(totalAssigned, totalQuota)}%    参与分配销售：${userCount}`)
+    exportDepartments.forEach((department, index) => {
+      const startColumn = index * 5 + 1
+      sheet.mergeCells(4, startColumn, 4, startColumn + 4)
+      sheet.getCell(4, startColumn).value = department.name
+      sheet.mergeCells(5, startColumn, 5, startColumn + 4)
+      sheet.getCell(5, startColumn).value = `配额 ${department.quota} · 已分 ${department.assigned} · 差额 ${department.quota - department.assigned} · 进度 ${rate(department.assigned, department.quota)}%`
+      ;['销售', '配额', '已分', '差额', '进度'].forEach((title, offset) => {
+        sheet.getCell(6, startColumn + offset).value = title
+        sheet.getColumn(startColumn + offset).width = offset === 0 ? 20 : 12
+      })
+    })
+    const rowCount = Math.max(...exportDepartments.map(department => department.users.length))
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+      sheet.addRow(exportDepartments.flatMap(department => {
+        const user = department.users[rowIndex]
+        return user
+          ? [user.name, user.quota, user.assigned, user.quota - user.assigned, rate(user.assigned, user.quota) / 100]
+          : [null, null, null, null, null]
+      }))
+    }
+    sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      row.height = rowNumber === 3 ? 36 : 28
+      for (let column = 1; column <= columnCount; column++) {
+        const cell = row.getCell(column)
+        cell.font = { name: '微软雅黑', size: 11, bold: rowNumber <= 6, color: { argb: 'FF293B55' } }
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowNumber <= 6 ? 'FFEAF3FF' : rowNumber % 2 ? 'FFFFFFFF' : 'FFF8FAFC' } }
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'FFDCE5F0' } },
+          right: { style: 'thin', color: { argb: 'FFDCE5F0' } }
+        }
+        if (rowNumber > 6 && column % 5 === 0) cell.numFmt = '0%'
+      }
+    })
+    const buffer = await workbook.xlsx.writeBuffer()
+    const filename = `分量看板_${subjectName}_${date}.xlsx`.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+    saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    console.error('分量看板导出失败', error)
+    ElMessage.error('导出失败，请重试')
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -301,6 +385,13 @@ function startResize(event, departmentId) {
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: thin;
+}
+
+.dashboard-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .subject-tab {
