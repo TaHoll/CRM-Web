@@ -94,6 +94,7 @@
       ref="customerTableRef"
       v-loading="loading"
       :data="dataList"
+      :row-class-name="({ row }) => row.flowType === 'OTHER' ? 'other-source-row' : ''"
       min-height="520"
       border
       highlight-current-row
@@ -604,6 +605,20 @@ initializePage()
 </script>
 
 <style scoped>
+:deep(.el-table .other-source-row) {
+  --el-table-tr-bg-color: #eef6ff;
+}
+
+:deep(.el-table .other-source-row > .el-table__cell) {
+  background-color: #eef6ff;
+}
+
+:deep(.el-table .other-source-row:hover > .el-table__cell),
+:deep(.el-table .other-source-row.hover-row > .el-table__cell),
+:deep(.el-table .other-source-row.current-row > .el-table__cell) {
+  background-color: #deedff;
+}
+
 .add-customer-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

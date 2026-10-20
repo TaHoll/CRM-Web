@@ -38,7 +38,14 @@
       <el-table-column prop="subjectName" label="所属主体" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">{{ row.subjectName || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="creditorName" label="债权人" width="110" show-overflow-tooltip />
+      <el-table-column prop="creditorName" label="债权人" width="110" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-link v-if="row.assignId && canViewCustomer" type="primary" :underline="false" @click="viewCustomer(row)">
+            {{ row.creditorName || '查看客户' }}
+          </el-link>
+          <span v-else>{{ row.creditorName || '-' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="creditorMobile" label="债权人电话" width="135" align="center" />
       <el-table-column prop="debtorName" label="债务人" width="110" show-overflow-tooltip />
       <el-table-column prop="disputeType" label="纠纷类型" min-width="180" show-overflow-tooltip />
@@ -86,8 +93,16 @@
 
 <script setup name="CustomerOrderList">
 import { getContractOrderList } from '@/api/public/contract'
+import auth from '@/plugins/auth'
 
 const { proxy } = getCurrentInstance()
+const router = useRouter()
+const canViewCustomer = computed(() => auth.hasPermi('customer:management:edit'))
+
+function viewCustomer(row) {
+  if (!row.assignId || !canViewCustomer.value) return
+  router.push({ path: '/customer/management/edit', query: { assignId: row.assignId } })
+}
 const loading = ref(false)
 const showSearch = ref(true)
 const total = ref(0)
