@@ -274,6 +274,13 @@
                   @click="handlePaymentResubmit(row)">
                   重提
                 </el-button>
+                <el-button
+                  v-else-if="Number(row.orderStatus) === 1 && !row.contractNo?.trim()"
+                  link
+                  type="primary"
+                  @click="openBindContract(row)">
+                  绑定合同
+                </el-button>
                 <span v-else>-</span>
               </template>
             </el-table-column>
@@ -394,6 +401,17 @@
         </el-tab-pane>
       </el-tabs>
     </el-card>
+
+    <el-dialog v-model="bindContractVisible" title="绑定合同" width="520px" append-to-body :close-on-click-modal="false">
+      <el-select v-model="bindContractId" placeholder="请选择审核通过的合同" :loading="bindContractLoading" :disabled="bindContractSubmitting" style="width: 100%">
+        <el-option v-for="item in bindContractOptions" :key="item.id" :label="formatPaymentContractOption(item)" :value="item.id" />
+      </el-select>
+      <el-empty v-if="!bindContractLoading && !bindContractOptions.length" description="该阶段暂无可绑定的已审核合同" />
+      <template #footer>
+        <el-button :disabled="bindContractSubmitting" @click="bindContractVisible = false">取消</el-button>
+        <el-button type="primary" :loading="bindContractSubmitting" :disabled="bindContractLoading || !bindContractId" @click="submitBindContract">确定绑定</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="tagPickerVisible" title="选择客户标签" width="480px" append-to-body>
       <div class="tag-picker">
@@ -594,11 +612,11 @@
             placeholder="请选择支付时间"
             class="payment-time-picker" />
         </el-form-item>
-        <el-form-item label="合同">
+        <el-form-item label="合同" prop="contract">
           <el-select
             v-model="paymentForm.contract"
             :loading="contractListLoading"
-            placeholder="请选择当前阶段合同（选填）"
+            :placeholder="currentStageContractOptions.length ? '请选择当前阶段合同（选填）' : '当前阶段暂无合同（选填）'"
             clearable
             filterable
             style="width: 100%">
@@ -691,7 +709,7 @@ import { useRoute } from 'vue-router'
 import useClipboard from 'vue-clipboard3'
 import { upload } from '@/api/common'
 import { addFollowLog, followLogList, getCustomerDetail, getTelephone, operationLogList, updateCustomer } from '@/api/public/lead'
-import { addPaymentOrder, getPaymentOrderList, resubmitPaymentOrder } from '@/api/public/paymentOrder'
+import { addPaymentOrder, getPaymentOrderList, resubmitPaymentOrder, bindPaymentContract } from '@/api/public/paymentOrder'
 import { addContract, checkContractCreate, getContractDownloadUrl, getContractList, resubmitContract, updateContract } from '@/api/public/contract'
 import { getContractSignUrl } from '@/api/public/esign'
 import { listEnabledTagOptions } from '@/api/system/tagCategory'
@@ -767,6 +785,45 @@ const paymentResubmitStage = ref(undefined)
 const paymentExistingScreenshotUrl = ref('')
 const paymentRecordLoading = ref(false)
 const paymentRecords = ref([])
+const bindContractVisible = ref(false)
+const bindContractLoading = ref(false)
+const bindContractSubmitting = ref(false)
+const bindContractId = ref()
+const bindPaymentId = ref()
+const bindContractOptions = ref([])
+
+async function openBindContract(row) {
+  if (bindContractLoading.value || bindContractSubmitting.value) return
+  bindPaymentId.value = row.id
+  bindContractId.value = undefined
+  bindContractOptions.value = []
+  bindContractVisible.value = true
+  bindContractLoading.value = true
+  try {
+    const response = await getContractList(form.id)
+    bindContractOptions.value = (Array.isArray(response.data) ? response.data : []).filter(item =>
+      Number(item.stage) === Number(row.stage)
+      && [1, 2].includes(Number(item.contractStatus))
+      && item.signFlowId?.trim())
+  } finally {
+    bindContractLoading.value = false
+  }
+}
+
+async function submitBindContract() {
+  if (bindContractSubmitting.value || bindContractLoading.value || !bindContractId.value) return
+  bindContractSubmitting.value = true
+  try {
+    const response = await bindPaymentContract({ id: bindPaymentId.value, contractId: bindContractId.value })
+    if (response.code === 200) {
+      ElMessage.success('绑定合同成功')
+      bindContractVisible.value = false
+      await getPaymentRecords()
+    }
+  } finally {
+    bindContractSubmitting.value = false
+  }
+}
 const contractListLoading = ref(false)
 const contractRecords = ref([])
 const paymentForm = reactive({
@@ -795,31 +852,39 @@ const contractForm = reactive({
 const disputeTypeOptions = [
   {
     label: '经济类',
-    options: ['民间借贷纠纷', '借款本息偿还事宜纠纷', '货款支付结算事宜纠纷', '买卖合同货款纠纷']
+    options: ['民间借贷', '借款本息偿还事宜', '货款支付结算事宜', '买卖合同货款']
   },
   {
     label: '离婚类',
-    options: ['离婚纠纷']
+    options: ['离婚', '婚姻财产划分']
   },
   {
     label: '维权类',
     options: [
-      '买卖合同纠纷',
-      '欺诈纠纷',
-      '虚假宣传纠纷',
-      '食品(药品)安全问题纠纷',
-      '预付卡(会员)退费纠纷',
-      '服务合同纠纷',
-      '产品责任纠纷'
+      '买卖合同',
+      '欺诈',
+      '虚假宣传',
+      '食品(药品)安全问题',
+      '预付卡(会员)退费',
+      '服务合同',
+      '产品责任'
     ]
   },
   {
     label: '交通事故类',
-    options: ['机动车交通事故责任纠纷', '机动车交通事故人身损害赔偿纠纷', '机动车交通事故车辆损失赔偿纠纷']
+    options: ['机动车交通事故责任', '机动车交通事故人身损害赔偿', '机动车交通事故车辆损失赔偿', '事故责任赔偿争议']
   },
   {
     label: '劳动/劳务类',
-    options: ['劳动合同纠纷', '追索劳动报酬纠纷', '违法解除劳动合同纠纷']
+    options: ['劳动合同', '追索劳动报酬', '违法解除劳动合同']
+  },
+  {
+    label: '合同类',
+    options: ['劳动合同', '服务合同', '买卖合同', '租赁合同', '工程施工合同']
+  },
+  {
+    label: '其他类',
+    options: ['土地租赁赔偿事宜', '工伤赔偿事宜', '占地赔偿', '民事人身损害赔偿事宜', '赠养(抚养)经济争议', '委托办理各类事宜经济争议']
   }
 ]
 const validateMobileField = (_rule, value, callback) => {

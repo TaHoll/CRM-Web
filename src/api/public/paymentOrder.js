@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+export function bindPaymentContract(data) {
+  return request({ url: '/crm/payment/bindContract', method: 'put', data })
+}
+
 export function getDashboardPaymentStatistics() {
   return request({
     url: '/crm/payment/dashboard/statistics',
