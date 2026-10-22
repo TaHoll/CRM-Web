@@ -10,6 +10,21 @@ export default {
   SR: {},
   // 失败连接重试次数
   failNum: 4,
+  onlineMonitorActive: false,
+  onlineMonitorSync: Promise.resolve(),
+  setOnlineMonitorActive(active) {
+    this.onlineMonitorActive = active
+    return this.syncOnlineMonitor()
+  },
+  syncOnlineMonitor() {
+    // 串行同步，避免快速切换页面时订阅/取消订阅的顺序颠倒。
+    this.onlineMonitorSync = this.onlineMonitorSync.then(async () => {
+      if (this.SR.state === signalR.HubConnectionState.Connected) {
+        await this.SR.invoke('setOnlineMonitorSubscription', this.onlineMonitorActive)
+      }
+    }).catch(error => console.warn('在线列表订阅同步失败', error))
+    return this.onlineMonitorSync
+  },
   init(url) {
     var socketUrl = window.location.origin + url + '?clientId=' + cache.local.get('clientId')
     const connection = new signalR.HubConnectionBuilder()
@@ -27,6 +42,7 @@ export default {
     })
 
     connection.onreconnected((connectionId) => {
+      this.syncOnlineMonitor()
       ElMessage({
         message: '与服务器通讯已连接成功',
         type: 'success',
@@ -54,6 +70,7 @@ export default {
       //使用async和await 或 promise的then 和catch 处理来自服务端的异常
       if (this.SR.state === signalR.HubConnectionState.Disconnected) {
         await this.SR.start()
+        await this.syncOnlineMonitor()
         // 连接成功后重置失败重试次数
         this.failNum = 4
       }
