@@ -93,6 +93,7 @@
             <el-button v-hasPermi="['crm:payment:audit']" link type="danger" @click="openAudit(row, 2)">不通过</el-button>
           </template>
           <el-button v-else link type="primary" @click="showAuditDetail(row)">审核详情</el-button>
+          <el-button v-if="Number(row.orderStatus) === 1" v-hasPermi="['crm:payment:audit']" link type="danger" @click="openAudit(row, 2, true)">撤销</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -104,7 +105,8 @@
       :total="total"
       @pagination="getList" />
 
-    <el-dialog v-model="auditVisible" :title="auditForm.orderStatus === 1 ? '审核通过' : '审核不通过'" width="480px" append-to-body>
+    <el-dialog v-model="auditVisible" :title="revokeMode ? '撤销收款审核' : (auditForm.orderStatus === 1 ? '审核通过' : '审核不通过')" width="480px" append-to-body :close-on-click-modal="false">
+      <el-alert v-if="revokeMode" title="确认后付款记录将变为审核不通过，不修改合同状态；存在退款记录时无法撤销。" type="warning" :closable="false" class="mb10" />
       <el-descriptions :column="1" border class="mb15">
         <el-descriptions-item label="付款单号">{{ currentOrder.paymentOrderNo }}</el-descriptions-item>
         <el-descriptions-item label="支付金额">¥ {{ formatAmount(currentOrder.paymentAmount) }}</el-descriptions-item>
@@ -116,7 +118,7 @@
       </el-form>
       <template #footer>
         <el-button @click="auditVisible = false">取消</el-button>
-        <el-button :type="auditForm.orderStatus === 1 ? 'success' : 'danger'" :loading="auditSubmitting" @click="submitAudit">确认审核</el-button>
+        <el-button :type="auditForm.orderStatus === 1 ? 'success' : 'danger'" :loading="auditSubmitting" @click="submitAudit">{{ revokeMode ? '确认撤销' : '确认审核' }}</el-button>
       </template>
     </el-dialog>
 
@@ -140,7 +142,7 @@
 </template>
 
 <script setup name="FinancePayment">
-import { auditPaymentOrder, getFinancePaymentOrderList } from '@/api/public/paymentOrder'
+import { auditPaymentOrder, revokePaymentAudit, getFinancePaymentOrderList } from '@/api/public/paymentOrder'
 
 const { proxy } = getCurrentInstance()
 const loading = ref(false)
@@ -149,6 +151,7 @@ const total = ref(0)
 const paymentList = ref([])
 const paymentTimeRange = ref([])
 const auditVisible = ref(false)
+const revokeMode = ref(false)
 const detailVisible = ref(false)
 const paymentScreenshotPreviewVisible = ref(false)
 const paymentScreenshotPreviewUrl = ref('')
@@ -242,7 +245,8 @@ function resetQuery() {
   proxy.resetForm('queryRef')
   handleQuery()
 }
-function openAudit(row, status) {
+function openAudit(row, status, revoke = false) {
+  revokeMode.value = revoke
   currentOrder.value = row
   auditForm.id = row.id
   auditForm.orderStatus = status
@@ -259,9 +263,9 @@ async function submitAudit() {
   if (!valid || auditSubmitting.value) return
   auditSubmitting.value = true
   try {
-    const response = await auditPaymentOrder({ ...auditForm })
+    const response = await (revokeMode.value ? revokePaymentAudit : auditPaymentOrder)({ ...auditForm })
     if (response.code === 200) {
-      proxy.$modal.msgSuccess('审核成功')
+      proxy.$modal.msgSuccess(revokeMode.value ? '已撤销，付款记录已驳回' : '审核成功')
       auditVisible.value = false
       await getList()
     }

@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 
+export function revokePaymentAudit(data) {
+  return request({ url: '/crm/payment/revokeAudit', method: 'put', data })
+}
+
 export function bindPaymentContract(data) {
   return request({ url: '/crm/payment/bindContract', method: 'put', data })
 }
