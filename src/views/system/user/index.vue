@@ -264,7 +264,7 @@
       </el-form>
       <template #footer>
         <el-button text @click="cancel">{{ $t('btn.cancel') }}</el-button>
-        <el-button type="primary" @click="submitForm">{{ $t('btn.submit') }}</el-button>
+        <el-button type="primary" :loading="submitting" :disabled="submitting" @click="submitForm">{{ $t('btn.submit') }}</el-button>
       </template>
     </el-dialog>
 
@@ -325,6 +325,7 @@ proxy.getDicts('sys_user_sex').then((response) => {
 const userList = ref([])
 const open = ref(false)
 const loading = ref(true)
+const submitting = ref(false)
 const showSearch = ref(true)
 const ids = ref([])
 const single = ref(true)
@@ -649,8 +650,11 @@ function handleUpdate(row) {
   })
 }
 /** 提交按钮 */
-function submitForm() {
-  proxy.$refs['userRef'].validate(async (valid) => {
+async function submitForm() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    const valid = await proxy.$refs['userRef'].validate().catch(() => false)
     if (valid) {
       if (form.value.userId != undefined) {
         const isDepartmentChanged = String(originalDeptId.value ?? '') !== String(form.value.deptId ?? '')
@@ -670,20 +674,22 @@ function submitForm() {
           }
         }
 
-        updateUser(form.value).then((response) => {
+        await updateUser(form.value).then((response) => {
           proxy.$modal.msgSuccess('修改成功')
           open.value = false
           getList()
         })
       } else {
-        addUser(form.value).then((response) => {
+        await addUser(form.value).then((response) => {
           proxy.$modal.msgSuccess('新增成功')
           open.value = false
           getList()
         })
       }
     }
-  })
+  } finally {
+    submitting.value = false
+  }
 }
 function checkSelectable(row) {
   return row.userId != 1 ? true : false
