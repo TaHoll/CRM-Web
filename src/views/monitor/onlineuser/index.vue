@@ -66,7 +66,6 @@
 <script setup name="onlineuser">
 import { listOnline, forceLogout, forceLogoutAll } from '@/api/monitor/online'
 import dayjs from 'dayjs'
-import useSocketStore from '@/store/modules/socket'
 const { proxy } = getCurrentInstance()
 const queryRef = ref(null)
 const queryParams = reactive({
@@ -74,9 +73,35 @@ const queryParams = reactive({
   pageSize: 10
 })
 
-const onlineNum = computed(() => {
-  return useSocketStore().onlineNum
-})
+let pageActive = false
+let refreshTimer
+function scheduleRefresh() {
+  if (!pageActive || refreshTimer) return
+  refreshTimer = setTimeout(() => {
+    refreshTimer = undefined
+    if (pageActive) getList()
+  }, 1000)
+}
+function activateMonitor() {
+  if (pageActive) return
+  pageActive = true
+  proxy.signalr.SR.on('onlineUsersChanged', scheduleRefresh)
+  proxy.signalr.setOnlineMonitorActive(true)
+  getList()
+}
+function deactivateMonitor() {
+  if (!pageActive) return
+  pageActive = false
+  clearTimeout(refreshTimer)
+  refreshTimer = undefined
+  proxy.signalr.SR.off('onlineUsersChanged', scheduleRefresh)
+  proxy.signalr.setOnlineMonitorActive(false)
+}
+onMounted(activateMonitor)
+onActivated(activateMonitor)
+onDeactivated(deactivateMonitor)
+onBeforeUnmount(deactivateMonitor)
+onBeforeRouteLeave(deactivateMonitor)
 const viewSwitch = ref('1')
 const loading = ref(false)
 const onlineUsers = ref([])
@@ -85,19 +110,22 @@ function handleQuery() {
   queryParams.pageNum = 1
   getList()
 }
-function getList() {
+async function getList() {
+  if (loading.value) {
+    scheduleRefresh()
+    return
+  }
   loading.value = true
-  listOnline(queryParams).then((res) => {
+  try {
+    const res = await listOnline(queryParams)
     if (res.code == 200) {
       total.value = res.data.totalNum
       onlineUsers.value = res.data.result
-      setTimeout(() => {
-        loading.value = false
-      }, 200)
     }
-  })
+  } finally {
+    loading.value = false
+  }
 }
-getList()
 
 function onChat(item) {
   proxy
@@ -140,15 +168,6 @@ function onLockAll() {
       })
     })
 }
-watch(
-  onlineNum,
-  () => {
-    handleQuery()
-  },
-  {
-    immediate: true
-  }
-)
 </script>
 <style>
 .el-col {

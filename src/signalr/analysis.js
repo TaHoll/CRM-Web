@@ -5,7 +5,6 @@ import { webNotify } from '@/utils/index'
 import gongaoIcon from '@/assets/icons/svg/gonggao.svg'
 
 const MsgType = {
-  M001: 'onlineNum',
   M002: 'connId',
   LogOut: 'logOut'
 }
@@ -13,10 +12,6 @@ const MsgType = {
 export default {
   onMessage(connection) {
     const routerPrefix = import.meta.env.VITE_APP_ROUTER_PREFIX || ''
-
-    connection.on(MsgType.M001, (data) => {
-      useSocketStore().setOnlineUsers(data)
-    })
 
     // 接收后台手动推送消息
     connection.on('receiveNotice', (title, data) => {
