@@ -50,23 +50,29 @@
           :width="column.width"
           :min-width="column.minWidth || 120"
           :align="column.align || 'center'"
-          show-overflow-tooltip>
+          :show-overflow-tooltip="column.prop !== 'customerTags'">
           <template #default="{ row }">
-            <template v-if="column.prop === 'leadLocation'">
-              {{ formatLeadLocation(row) }}
+            <template v-if="column.prop === 'customerTags'">
+              <el-tag v-for="tag in row.customerTags || []" :key="tag.id" :color="tag.color || '#909399'" effect="dark" class="lead-tag" size="small">
+                {{ tag.name }}
+              </el-tag>
+              <span v-if="!row.customerTags?.length">-</span>
             </template>
-            <template v-else-if="column.prop === 'effectiveStateStr'">
-              <el-tag :type="stageType[row.effectiveStateStr] || 'info'">{{ formatValue(row.effectiveStateStr) }}</el-tag>
+            <template v-else-if="column.prop === 'latestFollowRemark'">
+              <el-link type="primary" :underline="false" class="follow-summary" @click="handleViewFollowRecords(row)">
+                {{ row.latestFollowRemark || '暂无跟进内容' }}
+              </el-link>
             </template>
             <template v-else>
               {{ formatValue(row[column.prop], column.type) }}
             </template>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="190" align="center" fixed="right">
+        <el-table-column label="操作" width="140" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" icon="UserFilled" @click="handleClaim(row)">领取</el-button>
-            <el-button link type="success" icon="Phone" @click="handleViewContact(row)">查看联系方式</el-button>
+            <span v-if="row.isViewedByOther">线索已被查看</span>
+            <el-button v-else-if="row.isContactRevealed" link type="success" icon="UserFilled" :loading="claimLoadingId === row.clueId" @click="handleClaim(row)">领取</el-button>
+            <el-button v-else link type="primary" :loading="contactLoadingId === row.clueId" @click="handleRevealContact(row)">获取联系方式</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -94,24 +100,40 @@
           </div>
         </div>
       </el-dialog>
+      <el-dialog v-model="followVisible" title="线索跟进记录" width="760px" append-to-body>
+        <div v-loading="followLoading" class="follow-record-scroll">
+          <el-timeline v-if="followRecords.length > 0">
+            <el-timeline-item v-for="item in followRecords" :key="item.id" :timestamp="formatFollowTime(item.createTime || item.CreateTime)" placement="top">
+              <div class="follow-record">
+                <div class="follow-record-header">
+                  <span class="follow-user">{{ item.followUserNickName || item.FollowUserNickName || '-' }}</span>
+                  <el-tag v-for="tag in item.customerTags || item.CustomerTags || []" :key="tag.id" :color="tag.color || '#909399'" class="follow-tag" effect="dark" size="small">{{ tag.name }}</el-tag>
+                </div>
+                <div class="follow-content">{{ item.remark || item.Remark || '-' }}</div>
+                <div class="follow-meta">跟进阶段：{{ formatFollowStage(item.stage ?? item.Stage) }}</div>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+          <el-empty v-else-if="!followLoading" description="暂无跟进记录" :image-size="70" />
+        </div>
+      </el-dialog>
     </template>
   </div>
 </template>
 
 <script setup name="PublicLeadPool">
-import { publicPoolList } from '@/api/public/lead'
+import { claimPublicLead, followLogList, publicPoolList, revealPublicLeadContact } from '@/api/public/lead'
 import { listOceanEngineSubjectTabs } from '@/api/system/oceanEngineSubject'
 
 const COLUMN_STORAGE_KEY = 'public-lead-pool-columns'
 const defaultColumns = [
-  { prop: 'createTimeDetail', label: '来源时间', visible: true, type: 'datetime', minWidth: 170 },
   { prop: 'name', label: '姓名', visible: true, minWidth: 100 },
   { prop: 'telephone', label: '手机号', visible: true, minWidth: 130 },
   { prop: 'weixin', label: '微信', visible: true, minWidth: 130 },
   { prop: 'genderStr', label: '性别', visible: true, width: 80 },
   { prop: 'age', label: '年龄', visible: true, width: 80 },
-  { prop: 'leadLocation', label: '线索归属地', visible: true, minWidth: 150 },
-  { prop: 'effectiveStateStr', label: '阶段', visible: true, minWidth: 110 }
+  { prop: 'customerTags', label: '标签', visible: true, minWidth: 180 },
+  { prop: 'latestFollowRemark', label: '跟进记录', visible: true, minWidth: 220, align: 'left' }
 ]
 
 function loadColumns() {
@@ -130,13 +152,13 @@ function loadColumns() {
   }
 }
 
-const stageType = {
-  新线索: 'primary',
-  有意向: 'warning',
-  已成交: 'success',
-  无效: 'info'
-}
 const loading = ref(false)
+const contactLoadingId = ref('')
+const claimLoadingId = ref('')
+const followVisible = ref(false)
+const followLoading = ref(false)
+const followRecords = ref([])
+let followRequestId = 0
 const subjectLoading = ref(false)
 const showSearch = ref(true)
 const total = ref(0)
@@ -236,8 +258,14 @@ function formatValue(value, type) {
   return value
 }
 
-function formatLeadLocation(row) {
-  return [row.autoProvinceName, row.autoCityName].filter(Boolean).join('') || '-'
+function formatFollowTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+function formatFollowStage(stage) {
+  return stage === null || stage === undefined ? '-' : ({ 0: '一销', 100: '二销', 200: '三销', 300: '售后' })[stage] || String(stage)
 }
 
 function handleColumnDragStart(prop) {
@@ -252,12 +280,48 @@ function handleColumnDrop(targetProp) {
   columns.value.splice(toIndex, 0, draggedColumn)
 }
 
-function handleClaim() {
-  ElMessage.info('领取功能暂未对接')
+async function handleClaim(row) {
+  if (claimLoadingId.value) return
+  claimLoadingId.value = row.clueId
+  try {
+    const response = await claimPublicLead(row.clueId)
+    if (response.code === 200) {
+      ElMessage.success('领取成功')
+      await getList()
+    }
+  } finally {
+    claimLoadingId.value = ''
+  }
 }
 
-function handleViewContact() {
-  ElMessage.info('查看联系方式功能暂未对接')
+async function handleRevealContact(row) {
+  if (contactLoadingId.value) return
+  contactLoadingId.value = row.clueId
+  try {
+    const response = await revealPublicLeadContact(row.clueId)
+    if (response.code === 200) {
+      row.telephone = response.data?.telephone || ''
+      row.weixin = response.data?.weixin || ''
+      row.isContactRevealed = true
+    }
+  } finally {
+    contactLoadingId.value = ''
+  }
+}
+
+async function handleViewFollowRecords(row) {
+  const requestId = ++followRequestId
+  followRecords.value = []
+  followVisible.value = true
+  followLoading.value = true
+  try {
+    const response = await followLogList(row.clueId)
+    if (requestId === followRequestId) {
+      followRecords.value = Array.isArray(response.data) ? response.data : response.data?.result || []
+    }
+  } finally {
+    if (requestId === followRequestId) followLoading.value = false
+  }
 }
 
 async function initializePage() {
@@ -270,6 +334,72 @@ initializePage()
 <style scoped>
 .public-pool-page {
   min-height: calc(100vh - 84px);
+}
+
+.lead-tag {
+  margin: 2px 4px;
+}
+
+.follow-summary {
+  max-width: 100%;
+}
+
+.follow-summary :deep(.el-link__inner) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lead-tag,
+.follow-tag {
+  border-color: transparent;
+  color: #fff;
+}
+
+.follow-record-scroll {
+  height: 360px;
+  padding: 8px 18px 0 0;
+  overflow-y: auto;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+}
+
+.follow-record-scroll :deep(.el-timeline) {
+  padding-left: 28px;
+}
+
+.follow-record {
+  padding: 14px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+}
+
+.follow-record-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.follow-user {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.follow-content {
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--el-text-color-regular);
+}
+
+.follow-meta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .subject-tabs-bar {

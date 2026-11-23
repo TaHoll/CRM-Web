@@ -64,6 +64,20 @@ export function publicPoolList(data) {
   })
 }
 
+export function revealPublicLeadContact(clueId) {
+  return request({
+    url: `/crm/lead/publicPool/${encodeURIComponent(clueId)}/contact`,
+    method: 'post'
+  })
+}
+
+export function claimPublicLead(clueId) {
+  return request({
+    url: `/crm/lead/publicPool/${encodeURIComponent(clueId)}/claim`,
+    method: 'post'
+  })
+}
+
 export function getCustomerDetail(assignId) {
   return request({
     url: `/crm/lead/customer/${assignId}`,
